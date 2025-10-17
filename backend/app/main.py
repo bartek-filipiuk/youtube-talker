@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.core.middleware import setup_middleware
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -17,6 +18,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Setup middleware (CORS, logging, exception handling)
+setup_middleware(app)
 
 
 @app.get("/", tags=["root"])
