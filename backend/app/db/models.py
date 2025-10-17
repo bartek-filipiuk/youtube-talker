@@ -10,7 +10,6 @@ from typing import List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     CheckConstraint,
     ForeignKey,
@@ -20,6 +19,7 @@ from sqlalchemy import (
     Text,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -165,7 +165,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(50), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     meta_data: Mapped[dict] = mapped_column(
-        "metadata", JSON, nullable=False, server_default=text("'{}'")
+        "metadata", JSONB, nullable=False, server_default=text("'{}'")
     )
     created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"), index=True)
 
@@ -210,7 +210,7 @@ class Transcript(Base):
     duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     transcript_text: Mapped[str] = mapped_column(Text, nullable=False)
     meta_data: Mapped[dict] = mapped_column(
-        "metadata", JSON, nullable=False, server_default=text("'{}'")
+        "metadata", JSONB, nullable=False, server_default=text("'{}'")
     )
     created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
 
@@ -255,7 +255,7 @@ class Chunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     token_count: Mapped[int] = mapped_column(Integer, nullable=False)
     meta_data: Mapped[dict] = mapped_column(
-        "metadata", JSON, nullable=False, server_default=text("'{}'")
+        "metadata", JSONB, nullable=False, server_default=text("'{}'")
     )
     created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
 
@@ -291,7 +291,7 @@ class Template(Base):
     template_type: Mapped[str] = mapped_column(String(50), nullable=False)
     template_name: Mapped[str] = mapped_column(String(255), nullable=False)
     template_content: Mapped[str] = mapped_column(Text, nullable=False)
-    variables: Mapped[list] = mapped_column(JSON, nullable=False, server_default=text("'[]'"))
+    variables: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'[]'"))
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("FALSE"))
     created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
@@ -326,7 +326,7 @@ class Config(Base):
     __tablename__ = "config"
 
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
-    value: Mapped[dict] = mapped_column(JSON, nullable=False)
+    value: Mapped[dict] = mapped_column(JSONB, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
 
