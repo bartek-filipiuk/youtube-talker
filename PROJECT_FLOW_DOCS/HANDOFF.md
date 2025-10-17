@@ -32,6 +32,8 @@ This is the **master development checklist** for backend implementation. Follow 
 
 **Goal:** Set up development environment, tools, and basic project structure
 
+**Testing Note:** Stages 1.1-1.2 are infrastructure setup (no automated tests needed). Stages 1.3-1.4 require unit tests for application code (endpoints, config, middleware). Follow TDD where practical - test only what's worth testing, but maintain >80% coverage.
+
 ### 1.1 Initialize Backend Project
 
 - [ ] Create `backend/` directory structure (see PROJECT_STRUCTURE.md)
@@ -81,14 +83,20 @@ This is the **master development checklist** for backend implementation. Follow 
 - [ ] Load configuration from `.env` file
 - [ ] Create `app/dependencies.py` for dependency injection setup
 - [ ] Add basic `/` root endpoint (returns `{"status": "ok"}`)
+- [ ] Add `/health` endpoint (returns environment info)
+- [ ] Write tests for endpoints (`tests/unit/test_main.py`)
+- [ ] Write tests for config loading (`tests/unit/test_config.py`)
 - [ ] Test: Run `uvicorn app.main:app --reload`
 - [ ] Test: Access `http://localhost:8000` and see response
 - [ ] Test: Access `http://localhost:8000/docs` for Swagger UI
+- [ ] Test: Run `pytest tests/` - all tests pass
 
 **Acceptance Criteria:**
 - FastAPI app starts without errors
 - Swagger documentation is accessible
 - Configuration loads from `.env` file
+- All unit tests pass
+- Test coverage > 80% for `app/main.py` and `app/config.py`
 
 ---
 
@@ -99,12 +107,16 @@ This is the **master development checklist** for backend implementation. Follow 
 - [ ] Add request logging middleware
 - [ ] Add exception handling middleware
 - [ ] Apply middleware in `main.py`
+- [ ] Write tests for middleware (`tests/unit/test_middleware.py`)
 - [ ] Test: Frontend origin (e.g., `http://localhost:4321`) is allowed
+- [ ] Test: Run `pytest tests/` - all tests pass
 
 **Acceptance Criteria:**
 - CORS headers present in responses
 - Requests are logged to console
 - Unhandled exceptions return proper JSON responses
+- All unit tests pass
+- Test coverage > 80% for `app/core/middleware.py`
 
 ---
 
