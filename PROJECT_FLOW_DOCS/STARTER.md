@@ -298,8 +298,24 @@ so caddy will not be in container i think. - WHat do yuo think, what will be a b
 
 
 ---
+1. session
 
 ok we can start developing, see @PROJECT_FLOW_DOCS/INIT_PROMPT.md  we
   will work on stage 1.1 - 1.4 in separated branch. Repo is added, main
   branch is main. After each stage we need a commit. verify all first,
   see on what we will be working, summary in short then wait for approval
+
+2. session
+
+ Phase [2]: Work on stages [2.1]-[2.6] from HANDOFF.md.
+  - New branch from main
+  - One checkbox at a time
+  - Follow all acceptance criteria and testing requirements
+  - Commit after each completed stage (so 6 commits initially)
+  - Update HANDOFF.md checkboxes
+  - Create PR when phase complete
+
+check @DEVELOPMENT_RULES.md 
+check @DATABASE_SCHEMA.md
+
+Summarize the work first, then wait for approval.

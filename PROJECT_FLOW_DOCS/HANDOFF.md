@@ -36,17 +36,17 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 1.1 Initialize Backend Project
 
-- [ ] Create `backend/` directory structure (see PROJECT_STRUCTURE.md)
-- [ ] Initialize Python project with `requirements.txt` or `pyproject.toml`
-- [ ] Set up virtual environment (`.venv`)
-- [ ] Install core dependencies:
+- [x] Create `backend/` directory structure (see PROJECT_STRUCTURE.md)
+- [x] Initialize Python project with `requirements.txt` or `pyproject.toml`
+- [x] Set up virtual environment (`.venv`)
+- [x] Install core dependencies:
   - FastAPI, uvicorn
   - SQLAlchemy, asyncpg, alembic
   - Pydantic, pydantic-settings
   - pytest, pytest-asyncio
-- [ ] Create `.env.example` file with all required variables
-- [ ] Create `.gitignore` (include `.env`, `__pycache__`, `.venv`, `.pytest_cache`)
-- [ ] Create `backend/README.md` with setup instructions
+- [x] Create `.env.example` file with all required variables
+- [x] Create `.gitignore` (include `.env`, `__pycache__`, `.venv`, `.pytest_cache`)
+- [x] Create `backend/README.md` with setup instructions
 
 **Acceptance Criteria:**
 - `pip install -r requirements.txt` works without errors
@@ -57,15 +57,15 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ---
 
-### 1.2 Docker Compose for Local Services 
+### 1.2 Docker Compose for Local Services
 
-- [ ] Create `docker-compose.yml` in project root
-- [ ] Add PostgreSQL service (port 5432)
-- [ ] Add Qdrant service (ports 6333, 6334)
-- [ ] Configure volumes for data persistence
-- [ ] Test: `docker compose up -d` starts both services
-- [ ] Test: Connect to PostgreSQL using `psql` or database client
-- [ ] Test: Access Qdrant dashboard at `http://localhost:6333/dashboard`
+- [x] Create `docker-compose.yml` in project root
+- [x] Add PostgreSQL service (port 5432)
+- [x] Add Qdrant service (ports 6333, 6334)
+- [x] Configure volumes for data persistence
+- [x] Test: `docker compose up -d` starts both services
+- [x] Test: Connect to PostgreSQL using `psql` or database client
+- [x] Test: Access Qdrant dashboard at `http://localhost:6333/dashboard`
 
 **Acceptance Criteria:**
 - Both services start without errors
@@ -78,18 +78,18 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 1.3 FastAPI Application Skeleton
 
-- [ ] Create `app/main.py` with basic FastAPI app
-- [ ] Create `app/config.py` with Pydantic Settings
-- [ ] Load configuration from `.env` file
-- [ ] Create `app/dependencies.py` for dependency injection setup
-- [ ] Add basic `/` root endpoint (returns `{"status": "ok"}`)
-- [ ] Add `/health` endpoint (returns environment info)
-- [ ] Write tests for endpoints (`tests/unit/test_main.py`)
-- [ ] Write tests for config loading (`tests/unit/test_config.py`)
-- [ ] Test: Run `uvicorn app.main:app --reload`
-- [ ] Test: Access `http://localhost:8000` and see response
-- [ ] Test: Access `http://localhost:8000/docs` for Swagger UI
-- [ ] Test: Run `pytest tests/` - all tests pass
+- [x] Create `app/main.py` with basic FastAPI app
+- [x] Create `app/config.py` with Pydantic Settings
+- [x] Load configuration from `.env` file
+- [x] Create `app/dependencies.py` for dependency injection setup
+- [x] Add basic `/` root endpoint (returns `{"status": "ok"}`)
+- [x] Add `/health` endpoint (returns environment info)
+- [x] Write tests for endpoints (`tests/unit/test_main.py`)
+- [x] Write tests for config loading (`tests/unit/test_config.py`)
+- [x] Test: Run `uvicorn app.main:app --reload`
+- [x] Test: Access `http://localhost:8000` and see response
+- [x] Test: Access `http://localhost:8000/docs` for Swagger UI
+- [x] Test: Run `pytest tests/` - all tests pass
 
 **Acceptance Criteria:**
 - FastAPI app starts without errors
@@ -102,14 +102,14 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 1.4 CORS and Middleware Setup
 
-- [ ] Add CORS middleware in `app/core/middleware.py`
-- [ ] Configure allowed origins from environment variable
-- [ ] Add request logging middleware
-- [ ] Add exception handling middleware
-- [ ] Apply middleware in `main.py`
-- [ ] Write tests for middleware (`tests/unit/test_middleware.py`)
-- [ ] Test: Frontend origin (e.g., `http://localhost:4321`) is allowed
-- [ ] Test: Run `pytest tests/` - all tests pass
+- [x] Add CORS middleware in `app/core/middleware.py`
+- [x] Configure allowed origins from env wironment variable
+- [x] Add request logging middleware
+- [x] Add exception handling middleware
+- [x] Apply middleware in `main.py`
+- [x] Write tests for middleware (`tests/unit/test_middleware.py`)
+- [x] Test: Frontend origin (e.g., `http://localhost:4321`) is allowed
+- [x] Test: Run `pytest tests/` - all tests pass
 
 **Acceptance Criteria:**
 - CORS headers present in responses
@@ -128,11 +128,11 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 2.1 SQLAlchemy Configuration
 
-- [ ] Create `app/db/session.py` with async engine
-- [ ] Configure connection pool (size=20, max_overflow=10)
-- [ ] Create `get_db()` dependency for session management
-- [ ] Create `app/db/models.py` with Base declarative class
-- [ ] Test database connection with a simple query
+- [x] Create `app/db/session.py` with async engine
+- [x] Configure connection pool (size=20, max_overflow=10)
+- [x] Create `get_db()` dependency for session management
+- [x] Create `app/db/models.py` with Base declarative class
+- [x] Test database connection with a simple query
 
 **Acceptance Criteria:**
 - Database connection succeeds
@@ -143,10 +143,10 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 2.2 Alembic Setup
 
-- [ ] Initialize Alembic: `alembic init alembic`
-- [ ] Configure `alembic/env.py` to use async engine
-- [ ] Configure `alembic.ini` with database URL from environment
-- [ ] Test: `alembic check` runs without errors
+- [x] Initialize Alembic: `alembic init alembic`
+- [x] Configure `alembic/env.py` to use async engine
+- [x] Configure `alembic.ini` with database URL from environment
+- [x] Test: `alembic check` runs without errors
 
 **Acceptance Criteria:**
 - Alembic is configured for async SQLAlchemy
@@ -156,21 +156,23 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 2.3 Define Database Models
 
-- [ ] Create `User` model in `app/db/models.py`
-- [ ] Create `Session` model
-- [ ] Create `Conversation` model
-- [ ] Create `Message` model
-- [ ] Create `Transcript` model
-- [ ] Create `Chunk` model
-- [ ] Create `Template` model
-- [ ] Create `Config` model
-- [ ] Add relationships between models (ForeignKey, relationships)
-- [ ] Add indexes (see DATABASE_SCHEMA.md)
+- [x] Create `User` model in `app/db/models.py`
+- [x] Create `Session` model
+- [x] Create `Conversation` model
+- [x] Create `Message` model
+- [x] Create `Transcript` model
+- [x] Create `Chunk` model
+- [x] Create `Template` model
+- [x] Create `Config` model
+- [x] Add relationships between models (ForeignKey, relationships)
+- [x] Add indexes (see DATABASE_SCHEMA.md)
 
 **Acceptance Criteria:**
 - All models match DATABASE_SCHEMA.md
 - Indexes are defined
 - Relationships are correctly configured
+
+**MVP Note:** Template model validation is handled in application layer (Pydantic) rather than database CHECK constraints. This allows flexible addition of new content types post-MVP (twitter, blog, email) without requiring database migrations. For MVP, only 'linkedin' template type is needed.
 
 **Reference:** See DATABASE_SCHEMA.md for complete schema
 
@@ -178,12 +180,12 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 2.4 Create Initial Migration
 
-- [ ] Generate migration: `alembic revision --autogenerate -m "Initial schema"`
-- [ ] Review generated migration file
-- [ ] Add any custom SQL (triggers, constraints) if needed
-- [ ] Apply migration: `alembic upgrade head`
-- [ ] Verify: Connect to database and check tables exist
-- [ ] Test: `alembic downgrade -1` and `alembic upgrade head` (reversibility)
+- [x] Generate migration: `alembic revision --autogenerate -m "Initial schema"`
+- [x] Review generated migration file
+- [x] Add any custom SQL (triggers, constraints) if needed
+- [x] Apply migration: `alembic upgrade head`
+- [x] Verify: Connect to database and check tables exist
+- [x] Test: `alembic downgrade -1` and `alembic upgrade head` (reversibility)
 
 **Acceptance Criteria:**
 - All 8 tables created successfully
@@ -194,22 +196,22 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 2.5 Create Repository Layer
 
-- [ ] Create `app/db/repositories/base.py` with BaseRepository class
-- [ ] Create `app/db/repositories/user_repo.py`
+- [x] Create `app/db/repositories/base.py` with BaseRepository class
+- [x] Create `app/db/repositories/user_repo.py`
   - `get_by_id(user_id)`
   - `get_by_email(email)`
   - `create(email, password_hash)`
-- [ ] Create `app/db/repositories/session_repo.py`
+- [x] Create `app/db/repositories/session_repo.py`
   - `create(user_id, token_hash, expires_at)`
   - `get_by_token(token_hash)`
   - `delete(session_id)`
   - `delete_expired()`
-- [ ] Create `app/db/repositories/conversation_repo.py`
-- [ ] Create `app/db/repositories/message_repo.py`
-- [ ] Create `app/db/repositories/transcript_repo.py`
-- [ ] Create `app/db/repositories/chunk_repo.py`
-- [ ] Create `app/db/repositories/template_repo.py`
-- [ ] Create `app/db/repositories/config_repo.py`
+- [x] Create `app/db/repositories/conversation_repo.py`
+- [x] Create `app/db/repositories/message_repo.py`
+- [x] Create `app/db/repositories/transcript_repo.py`
+- [x] Create `app/db/repositories/chunk_repo.py`
+- [x] Create `app/db/repositories/template_repo.py`
+- [x] Create `app/db/repositories/config_repo.py`
 
 **Acceptance Criteria:**
 - Each repository has async methods
@@ -220,13 +222,13 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 2.6 Unit Tests for Repositories
 
-- [ ] Create `tests/conftest.py` with database fixtures
-- [ ] Set up test database (separate from dev database)
-- [ ] Write tests for `UserRepository` (CRUD operations)
-- [ ] Write tests for `SessionRepository`
-- [ ] Write tests for at least 2 other repositories
-- [ ] Test: `pytest tests/unit/test_*_repo.py` passes
-- [ ] Verify: Test coverage > 80% for repositories
+- [x] Create `tests/conftest.py` with database fixtures
+- [x] Set up test database (separate from dev database)
+- [x] Write tests for `UserRepository` (CRUD operations)
+- [x] Write tests for `SessionRepository`
+- [x] Write tests for at least 2 other repositories
+- [x] Test: `pytest tests/unit/test_*_repo.py` passes
+- [x] Verify: Test coverage > 80% for repositories
 
 **Acceptance Criteria:**
 - All repository tests pass

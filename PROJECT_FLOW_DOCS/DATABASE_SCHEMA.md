@@ -364,6 +364,8 @@ WHERE id = ANY($1::uuid[]);
 
 **Purpose:** Store content generation templates (LinkedIn, Twitter, etc.)
 
+**MVP Note:** For MVP, only 'linkedin' template type is implemented. Template type validation is handled in the application layer (Pydantic schemas) rather than database constraints, allowing flexible addition of new content types post-MVP without requiring database migrations.
+
 ```sql
 CREATE TABLE templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -379,9 +381,9 @@ CREATE TABLE templates (
     CONSTRAINT fk_templates_user
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT unique_user_template
-        UNIQUE (user_id, template_type, template_name),
-    CONSTRAINT check_template_type
-        CHECK (template_type IN ('linkedin', 'twitter', 'blog', 'email'))
+        UNIQUE (user_id, template_type, template_name)
+    -- Note: No CHECK constraint on template_type for extensibility
+    -- Validation performed in application layer (Pydantic)
 );
 
 -- Indexes
@@ -392,7 +394,7 @@ CREATE INDEX idx_templates_type_default ON templates(template_type, is_default);
 **Columns:**
 - `id`: Template identifier
 - `user_id`: Template owner (NULL = system default template)
-- `template_type`: Type of content ('linkedin' | 'twitter' | 'blog' | 'email')
+- `template_type`: Type of content (MVP: 'linkedin', Post-MVP: 'twitter', 'blog', 'email', etc.)
 - `template_name`: Human-readable template name
 - `template_content`: Jinja2 template string
 - `variables`: JSONB array of variable names used in template
