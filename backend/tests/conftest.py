@@ -10,8 +10,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.db.models import Base, User, Conversation
+from app.db.models import Base, User, Conversation, Session
 from app.main import app
+from app.db.session import get_db
+from app.core.security import hash_password, generate_session_token, hash_token
+from datetime import datetime, timedelta
+from typing import AsyncGenerator
 
 # Test database URL (uses different database than dev)
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5435/youtube_talker_test"
@@ -25,15 +29,49 @@ test_engine = create_async_engine(
 TestSessionLocal = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest.fixture
+async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Override get_db dependency to use test database."""
+    async with TestSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def setup_test_db():
+    """
+    Setup and teardown test database for each test function.
+
+    This fixture runs automatically before each test to ensure clean database state.
+    """
+    # Create all tables
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield
+
+    # Drop all tables after test
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture(scope="function")
 def client() -> TestClient:
     """
-    Fixture for FastAPI TestClient.
+    Fixture for FastAPI TestClient with test database.
 
     Returns:
         TestClient: Test client for making requests to the API
     """
-    return TestClient(app)
+    app.dependency_overrides[get_db] = override_get_db
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -76,7 +114,9 @@ async def db_session() -> AsyncSession:
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession) -> User:
     """
-    Fixture to create a test user.
+    Fixture to create a test user with hashed password.
+
+    Password for this user is "testpassword".
 
     Args:
         db_session: Database session fixture
@@ -84,11 +124,60 @@ async def test_user(db_session: AsyncSession) -> User:
     Returns:
         User: Test user instance
     """
-    user = User(email="test@example.com", password_hash="hashed_password")
+    user = User(
+        email="test@example.com",
+        password_hash=hash_password("testpassword")
+    )
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
     return user
+
+
+@pytest_asyncio.fixture
+async def test_session(db_session: AsyncSession, test_user: User) -> dict:
+    """
+    Fixture to create a test session for the test user.
+
+    Returns:
+        dict: Dictionary with 'token' (raw token) and 'session' (Session object)
+    """
+    token = generate_session_token()
+    token_hash = hash_token(token)
+
+    session = Session(
+        user_id=test_user.id,
+        token_hash=token_hash,
+        expires_at=datetime.utcnow() + timedelta(days=7),
+    )
+    db_session.add(session)
+    await db_session.flush()
+    await db_session.refresh(session)
+
+    return {"token": token, "session": session}
+
+
+@pytest_asyncio.fixture
+async def test_expired_session(db_session: AsyncSession, test_user: User) -> dict:
+    """
+    Fixture to create an expired test session for the test user.
+
+    Returns:
+        dict: Dictionary with 'token' (raw token) and 'session' (Session object)
+    """
+    token = generate_session_token()
+    token_hash = hash_token(token)
+
+    session = Session(
+        user_id=test_user.id,
+        token_hash=token_hash,
+        expires_at=datetime.utcnow() - timedelta(hours=1),  # Expired 1 hour ago
+    )
+    db_session.add(session)
+    await db_session.flush()
+    await db_session.refresh(session)
+
+    return {"token": token, "session": session}
 
 
 @pytest_asyncio.fixture

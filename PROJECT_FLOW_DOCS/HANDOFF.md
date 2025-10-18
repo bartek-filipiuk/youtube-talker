@@ -305,28 +305,28 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 3.4 Auth API Endpoints
 
-- [ ] Create `app/api/routes/auth.py`
-- [ ] Implement `POST /api/auth/register`
+- [x] Create `app/api/routes/auth.py`
+- [x] Implement `POST /api/auth/register`
   - Accept RegisterRequest
   - Call auth_service.register_user()
   - Return 201 with user data
   - Handle duplicate email (409 Conflict)
   - **Add rate limiting: 5 attempts/minute** (SlowAPI)
-- [ ] Implement `POST /api/auth/login`
+- [x] Implement `POST /api/auth/login`
   - Accept LoginRequest
   - Call auth_service.login()
   - Return TokenResponse
   - Handle invalid credentials (401 Unauthorized)
   - **Add rate limiting: 5 attempts/minute** (SlowAPI)
-- [ ] Implement `POST /api/auth/logout`
+- [x] Implement `POST /api/auth/logout`
   - Accept token in header
   - Call auth_service.logout()
   - Return 204 No Content
-- [ ] Implement `GET /api/auth/me`
+- [x] Implement `GET /api/auth/me`
   - Require valid session token
   - Return current user info
-- [ ] Add router to `main.py`
-- [ ] Configure SlowAPI in `main.py` if not already present
+- [x] Add router to `main.py`
+- [x] Configure SlowAPI in `main.py` if not already present
 
 **Acceptance Criteria:**
 - All endpoints return correct status codes
@@ -338,11 +338,11 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 3.5 Authentication Dependency
 
-- [ ] Create `get_current_user()` dependency in `app/dependencies.py`
-- [ ] Extract token from `Authorization: Bearer <token>` header
-- [ ] Call `auth_service.validate_session(token)`
-- [ ] Return user or raise 401 exception
-- [ ] Test with a protected endpoint
+- [x] Create `get_current_user()` dependency in `app/dependencies.py`
+- [x] Extract token from `Authorization: Bearer <token>` header
+- [x] Call `auth_service.validate_session(token)`
+- [x] Return user or raise 401 exception
+- [x] Test with a protected endpoint
 
 **Acceptance Criteria:**
 - Dependency works with FastAPI `Depends()`
@@ -353,13 +353,13 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 3.6 Integration Tests for Auth
 
-- [ ] Create `tests/integration/test_auth_endpoints.py`
-- [ ] Test registration flow (success and duplicate email)
-- [ ] Test login flow (success and invalid credentials)
-- [ ] Test logout flow
-- [ ] Test protected endpoint with valid/invalid tokens
-- [ ] Test session expiry (mock time if needed)
-- [ ] Verify all tests pass
+- [x] Create `tests/integration/test_auth_endpoints.py`
+- [x] Test registration flow (success and duplicate email)
+- [x] Test login flow (success and invalid credentials)
+- [x] Test logout flow
+- [x] Test protected endpoint with valid/invalid tokens
+- [x] Test session expiry (mock time if needed)
+- [x] Verify all tests pass
 
 **Acceptance Criteria:**
 - Full auth flow tested end-to-end

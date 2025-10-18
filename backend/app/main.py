@@ -6,9 +6,13 @@ FastAPI application for AI-powered YouTube video Q&A and content generation.
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.core.middleware import setup_middleware
+from app.api.routes import auth
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -19,8 +23,16 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Configure rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Setup middleware (CORS, logging, exception handling)
 setup_middleware(app)
+
+# Include routers
+app.include_router(auth.router)
 
 
 @app.get("/", tags=["root"])
