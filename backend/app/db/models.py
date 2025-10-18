@@ -278,6 +278,9 @@ class Template(Base):
     Store content generation templates (LinkedIn, Twitter, etc.).
 
     Templates can be user-specific or system defaults (user_id=NULL).
+
+    MVP Note: template_type validation is handled in application layer (Pydantic).
+    This allows flexible addition of new content types post-MVP without database migrations.
     """
 
     __tablename__ = "templates"
@@ -302,10 +305,8 @@ class Template(Base):
     __table_args__ = (
         Index("unique_user_template", "user_id", "template_type", "template_name", unique=True),
         Index("idx_templates_type_default", "template_type", "is_default"),
-        CheckConstraint(
-            "template_type IN ('linkedin', 'twitter', 'blog', 'email')",
-            name="check_template_type",
-        ),
+        # Note: No CHECK constraint on template_type for MVP extensibility
+        # Validation is performed in Pydantic schemas
     )
 
     def __repr__(self) -> str:
