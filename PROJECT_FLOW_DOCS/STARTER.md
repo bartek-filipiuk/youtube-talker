@@ -319,3 +319,88 @@ check @DEVELOPMENT_RULES.md
 check @DATABASE_SCHEMA.md
 
 Summarize the work first, then wait for approval.
+
+Before stage 3 i put the prompt:
+
+ok we are ready to stage 3. its 3.1 to 3.6 i think we can split this 
+into smaller pull request to main, verify if each 3.1-3.6 should be a 
+separate pr or we can merge something into little bigger prs? Then you 
+cna plan the work with @PROJECT_FLOW_DOCS/INIT_PROMPT.md also if you 
+see in stage 3 something is too open or may lead to overcomplications, 
+ask me 5 short questions which will clarify what we need in stage 3.
+
+Analysis of Phase 3 Stages
+
+  Stage Dependencies:
+  - 3.1 Security Utilities → Foundation (no deps)
+  - 3.2 Auth Service → Depends on 3.1
+  - 3.3 Pydantic Schemas → Independent
+  - 3.4 API Endpoints → Depends on 3.2 + 3.3
+  - 3.5 Auth Dependency → Depends on 3.2
+  - 3.6 Integration Tests → Depends on all above
+
+  Logical PR Grouping Options:
+
+  Option A: 2 PRs (Recommended)
+  - PR #3: 3.1 + 3.2 + 3.3 (Core auth logic: security utils, service,
+  schemas with unit tests)
+  - PR #4: 3.4 + 3.5 + 3.6 (API layer: endpoints, dependency,
+  integration tests)
+
+  Option B: 3 PRs (More Granular)
+  - PR #3: 3.1 + 3.2 (Security utilities + Auth service with unit
+  tests)
+  - PR #4: 3.3 + 3.4 + 3.5 (Schemas + Endpoints + Dependency)
+  - PR #5: 3.6 (Integration tests)
+
+  Option C: 1 Large PR
+  - All of 3.1-3.6 together
+
+  Potential Over-Complications Found
+
+  Looking at the specs, I see a few areas that could lead to
+  over-engineering or missed requirements:
+
+  1. Session cleanup - No mention of deleting expired sessions
+  automatically
+  2. Password complexity - Only "min length 8" specified
+  3. Login security - No rate limiting mentioned (but WebSocket has it
+  in Phase 7)
+  4. Session expiry testing - "mock time if needed" could be complex
+  5. Error handling - Should failed login attempts be logged for
+  security?
+
+  5 Short Clarifying Questions
+
+  1. Expired session cleanup:
+  Manual deletion only, or add a background task/cron job to
+  auto-delete expired sessions for MVP?
+
+  2. Password validation:
+  Just minimum length 8, or add complexity requirements
+  (uppercase/numbers/special characters)?
+
+  3. Login rate limiting:
+  Should we add rate limiting to /api/auth/login to prevent brute force
+   attacks? (SlowAPI is already in stack)
+
+  4. Session expiry testing:
+  Test with actual time.sleep() delays, or just verify the expiry logic
+   without mocking time to keep tests fast?
+
+  5. PR grouping:
+  Preference: 2 PRs (logic layer + API layer) or 3 PRs (more granular
+  security→service→API)?
+
+  ---
+  My Recommendation: Option A (2 PRs) balances reviewability with
+  efficiency, and I'd suggest:
+  - Auto-cleanup: Manual only for MVP (add to Phase 9 if needed)
+  - Password: Min length 8 only (KISS for MVP)
+  - Rate limiting: Yes, add to login endpoint (5 attempts/min)
+  - Expiry testing: Logic only, no actual time delays
+  - PR count: 2 PRs
+
+  But I want your input before planning the work!
+
+(i will go with recommendations)

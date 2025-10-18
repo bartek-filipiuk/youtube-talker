@@ -7,7 +7,7 @@
 
 ## Project Context
 
-You're working on **YoutubeTalker**, an AI-powered chat application that enables users to query knowledge from YouTube video transcripts using RAG (Retrieval-Augmented Generation) and generate content like LinkedIn posts.
+You're working on **YoutubeTalk er**, an AI-powered chat application that enables users to query knowledge from YouTube video transcripts using RAG (Retrieval-Augmented Generation) and generate content like LinkedIn posts.
 
 **Core Concept:**
 1. User uploads YouTube URLs � transcripts are generated, chunked, and embedded
