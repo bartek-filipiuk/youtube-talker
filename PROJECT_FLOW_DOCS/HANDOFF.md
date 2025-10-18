@@ -311,11 +311,13 @@ This is the **master development checklist** for backend implementation. Follow 
   - Call auth_service.register_user()
   - Return 201 with user data
   - Handle duplicate email (409 Conflict)
+  - **Add rate limiting: 5 attempts/minute** (SlowAPI)
 - [ ] Implement `POST /api/auth/login`
   - Accept LoginRequest
   - Call auth_service.login()
   - Return TokenResponse
   - Handle invalid credentials (401 Unauthorized)
+  - **Add rate limiting: 5 attempts/minute** (SlowAPI)
 - [ ] Implement `POST /api/auth/logout`
   - Accept token in header
   - Call auth_service.logout()
@@ -324,9 +326,11 @@ This is the **master development checklist** for backend implementation. Follow 
   - Require valid session token
   - Return current user info
 - [ ] Add router to `main.py`
+- [ ] Configure SlowAPI in `main.py` if not already present
 
 **Acceptance Criteria:**
 - All endpoints return correct status codes
+- Rate limiting works (5/min on register and login)
 - Error responses include meaningful messages
 - Swagger docs are updated
 
