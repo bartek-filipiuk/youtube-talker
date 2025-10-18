@@ -245,12 +245,12 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 3.1 Security Utilities
 
-- [ ] Create `app/core/security.py`
-- [ ] Implement `hash_password(password: str) -> str` using bcrypt
-- [ ] Implement `verify_password(plain: str, hashed: str) -> bool`
-- [ ] Implement `generate_session_token() -> str` (random 32-byte hex)
-- [ ] Implement `hash_token(token: str) -> str` (SHA-256)
-- [ ] Unit test all security functions
+- [x] Create `app/core/security.py`
+- [x] Implement `hash_password(password: str) -> str` using bcrypt
+- [x] Implement `verify_password(plain: str, hashed: str) -> bool`
+- [x] Implement `generate_session_token() -> str` (random 32-byte hex)
+- [x] Implement `hash_token(token: str) -> str` (SHA-256)
+- [x] Unit test all security functions
 
 **Acceptance Criteria:**
 - Password hashing uses bcrypt with proper salt
@@ -261,23 +261,23 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 3.2 Authentication Service
 
-- [ ] Create `app/services/auth_service.py`
-- [ ] Implement `register_user(email, password) -> User`
+- [x] Create `app/services/auth_service.py`
+- [x] Implement `register_user(email, password) -> User`
   - Validate email format
   - Check if email already exists
   - Hash password
   - Create user via UserRepository
-- [ ] Implement `login(email, password) -> dict`
+- [x] Implement `login(email, password) -> dict`
   - Verify credentials
   - Create session (7-day expiry)
   - Return token and user info
-- [ ] Implement `logout(token) -> None`
+- [x] Implement `logout(token) -> None`
   - Delete session from database
-- [ ] Implement `validate_session(token) -> User`
+- [x] Implement `validate_session(token) -> User`
   - Check token hash in sessions table
   - Check expiry
   - Return user or raise exception
-- [ ] Unit test all service methods
+- [x] Unit test all service methods
 
 **Acceptance Criteria:**
 - Registration validates input and creates user
@@ -290,12 +290,12 @@ This is the **master development checklist** for backend implementation. Follow 
 
 ### 3.3 Pydantic Schemas for Auth
 
-- [ ] Create `app/schemas/auth.py`
-- [ ] Define `RegisterRequest(email, password)`
-- [ ] Define `LoginRequest(email, password)`
-- [ ] Define `TokenResponse(token, user_id, email)`
-- [ ] Define `UserResponse(id, email, created_at)`
-- [ ] Add validation (email format, password min length 8)
+- [x] Create `app/schemas/auth.py`
+- [x] Define `RegisterRequest(email, password)`
+- [x] Define `LoginRequest(email, password)`
+- [x] Define `TokenResponse(token, user_id, email)`
+- [x] Define `UserResponse(id, email, created_at)`
+- [x] Add validation (email format, password min length 8)
 
 **Acceptance Criteria:**
 - All schemas have proper validation
