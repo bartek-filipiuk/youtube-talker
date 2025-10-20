@@ -131,6 +131,7 @@ async def test_user(db_session: AsyncSession) -> User:
     db_session.add(user)
     await db_session.flush()
     await db_session.refresh(user)
+    await db_session.commit()
     return user
 
 
@@ -153,6 +154,7 @@ async def test_session(db_session: AsyncSession, test_user: User) -> dict:
     db_session.add(session)
     await db_session.flush()
     await db_session.refresh(session)
+    await db_session.commit()
 
     return {"token": token, "session": session}
 
@@ -176,6 +178,7 @@ async def test_expired_session(db_session: AsyncSession, test_user: User) -> dic
     db_session.add(session)
     await db_session.flush()
     await db_session.refresh(session)
+    await db_session.commit()
 
     return {"token": token, "session": session}
 
@@ -196,4 +199,5 @@ async def test_conversation(db_session: AsyncSession, test_user: User) -> Conver
     db_session.add(conversation)
     await db_session.flush()
     await db_session.refresh(conversation)
+    await db_session.commit()
     return conversation
