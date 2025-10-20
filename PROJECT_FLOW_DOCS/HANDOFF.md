@@ -374,6 +374,9 @@ This is the **master development checklist** for backend implementation. Follow 
 
 **Dependencies:** Phase 3 completed (auth working)
 
+**See:** `stages/STAGE_4_PLAN.md` for detailed implementation plan with PR strategy
+**See:** `LANGCHAIN_RETRY.md` for retry mechanism decisions (use tenacity for external APIs)
+
 ### 4.1 SUPADATA API Client
 
 - [ ] Create `app/services/transcript_service.py`
@@ -514,6 +517,8 @@ This is the **master development checklist** for backend implementation. Follow 
 **Goal:** Build core RAG components (retrieval, grading, LLM client)
 
 **Dependencies:** Phase 4 completed (data in Qdrant)
+
+**See:** `LANGCHAIN_RETRY.md` for retry strategy (use LangGraph RetryPolicy for nodes in Phase 6)
 
 ### 5.1 OpenRouter LLM Client
 

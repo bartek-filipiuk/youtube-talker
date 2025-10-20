@@ -320,6 +320,8 @@ check @DATABASE_SCHEMA.md
 
 Summarize the work first, then wait for approval.
 
+STAGE 3.
+
 Before stage 3 i put the prompt:
 
 ok we are ready to stage 3. its 3.1 to 3.6 i think we can split this 
@@ -404,3 +406,108 @@ Analysis of Phase 3 Stages
   But I want your input before planning the work!
 
 (i will go with recommendations)
+
+STAGE 4
+
+ok now we need to starte with stage 4 (4.1 - 4.7), check it in
+  @PROJECT_FLOW_DOCS/HANDOFF.md  - first check what we built, see
+  @PROJECT_FLOW_DOCS/INIT_PROMPT.md. Then we need split 4.1-4.7 to some
+  logicall pull request so we do not send all code in one pull request.
+  Suggest  something first. Then plan the work, if you see something too
+  open, not clear or something which can lead to overcomplication od the
+  system - ask me 6 short but stron questions so yuo weill have clarity
+  what we need in stage 4 which is consistent with other elemements in
+  system. After that we need a clear plan.
+
+I propose 3 PRs to keep reviews manageable:
+
+  PR #5: Foundational Services (4.1 + 4.2)
+
+  - SUPADATA client + Chunking service
+  - Why together: Both are independent utilities, can be mocked/tested
+  in isolation
+  - Complexity: Medium
+  - Tests: Unit tests with mocked API responses
+
+  PR #6: Vector Infrastructure (4.3 + 4.4)
+
+  - Embedding service + Qdrant service
+  - Why together: Tightly coupled (embeddings feed into Qdrant)
+  - Complexity: Medium-High (requires Qdrant running)
+  - Tests: Unit tests + basic integration tests
+
+  PR #7: Pipeline Integration (4.5 + 4.6 + 4.7)
+
+  - Full orchestration + API endpoint + seed script
+  - Why together: Tests the complete flow end-to-end
+  - Complexity: High (integration of all services)
+  - Tests: Integration tests + end-to-end flow
+
+Before planning, I need clarity on these points to avoid
+  overcomplication:
+
+  1. SUPADATA API Access
+
+  Do you have an actual SUPADATA API key, or should I mock the entire
+  SUPADATA client for MVP? (If mocked, I'll return hardcoded sample
+  transcripts)
+
+  2. YouTube URL Parsing
+
+  Should I handle both URL formats (youtube.com/watch?v=VIDEO_ID and
+  youtu.be/VIDEO_ID), or require users to provide clean video IDs only?
+
+  3. Duplicate Transcript Handling
+
+  When user tries to ingest the same video twice (same youtube_video_id
+   + user_id):
+  - (a) Reject with 409 error "Already ingested"
+  - (b) Update/re-ingest (delete old, ingest new)
+  - (c) Return existing transcript metadata (idempotent)
+
+  4. Very Short Transcripts
+
+  If a transcript is < 150 tokens total (below minimum chunk size):
+  - (a) Keep as single chunk (ignore minimum rule)
+  - (b) Reject as "too short to process"
+
+  5. Pipeline Failure Rollback
+
+  If pipeline fails midway (e.g., Qdrant upload fails but Postgres
+  succeeded):
+  - (a) Keep partial data (transcript + chunks in Postgres, orphaned)
+  - (b) Full rollback (delete transcript + chunks, like transaction)
+  - (c) Mark transcript as "failed" status (add status field?)
+
+  6. Qdrant Collection Setup
+
+  For the youtube_chunks collection:
+  - (a) Auto-create on first ingest if missing (smart)
+  - (b) Create via migration/setup script (controlled)
+  - (c) Manual setup only (documented in README)
+
+Answers and some questions.
+
+1. i have a supadata api key, so we need use it and put in .env. SO if we 
+will test the system we will use real data from real movies. For tests (unit, integra etc) we can just mock it
+and do not use real api keys to collect data
+2. both formats are correct
+3. a) already ingested
+4. a) keep a single
+5. i think we need discuss this subject. For this i think we need keep partial.
+6. b) i think it will be good when we go production - or not?
+
+Also we need talk about 5 and situations wneh some element of graph failed, api not responding etc.
+Is langchain/langgraph have any mechanism for retries? check the web search if needed.
+This will be in stare 5 but we need be sure which way to go.
+
+Answer first then we can continue planning.
+
+(there is answer from ai)
+
+ok we need write (LANGCHAIN_RETRY.md inside @PROJECT_FLOW_DOCS/ ) our
+  findings about retry and put in some file so we can back to it in next
+  stage and also we need write a stage 4 plan in STAGE_4_PLAN.md inside
+  @PROJECT_FLOW_DOCS/stages/ - this retry document need to be attached
+  (mentioned) in @PROJECT_FLOW_DOCS/HANDOFF.md so you will know when to
+  use it.
