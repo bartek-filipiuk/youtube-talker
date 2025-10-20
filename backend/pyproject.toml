@@ -17,6 +17,7 @@ dependencies = [
     # Pydantic
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
+    "email-validator>=2.0.0",
 
     # LangChain & LangGraph
     "langchain>=0.1.0",
