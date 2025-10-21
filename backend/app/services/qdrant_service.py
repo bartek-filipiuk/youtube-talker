@@ -76,6 +76,7 @@ class QdrantService:
         user_id: str,
         youtube_video_id: str,
         chunk_indices: List[int],
+        chunk_texts: List[str],
     ) -> None:
         """
         Batch upsert chunks to Qdrant with retry logic.
@@ -86,13 +87,15 @@ class QdrantService:
             user_id: User UUID (for filtering)
             youtube_video_id: YouTube video ID (for filtering)
             chunk_indices: Chunk sequence numbers (0, 1, 2, ...)
+            chunk_texts: List of chunk text content (for RAG retrieval)
 
         Creates points with payload:
             {
                 "chunk_id": str,
                 "user_id": str,
                 "youtube_video_id": str,
-                "chunk_index": int
+                "chunk_index": int,
+                "chunk_text": str
             }
 
         Note: chunk_id is used as both point ID and in payload
@@ -109,9 +112,12 @@ class QdrantService:
                     "user_id": user_id,
                     "youtube_video_id": youtube_video_id,
                     "chunk_index": chunk_index,
+                    "chunk_text": chunk_text,
                 },
             )
-            for chunk_id, vector, chunk_index in zip(chunk_ids, vectors, chunk_indices)
+            for chunk_id, vector, chunk_index, chunk_text in zip(
+                chunk_ids, vectors, chunk_indices, chunk_texts
+            )
         ]
 
         await self.client.upsert(collection_name=self.COLLECTION_NAME, points=points)
