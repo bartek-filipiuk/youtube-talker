@@ -88,11 +88,14 @@ def test_session_expires_days_default() -> None:
 
 
 def test_openrouter_model_defaults() -> None:
-    """Test OpenRouter model configuration defaults."""
+    """Test OpenRouter and OpenAI model configuration defaults."""
     settings = Settings()
 
+    # OpenRouter for LLM completions
     assert settings.OPENROUTER_LLM_MODEL == "anthropic/claude-haiku-4.5"
-    assert settings.OPENROUTER_EMBEDDING_MODEL == "openai/text-embedding-3-small"
+
+    # OpenAI for embeddings
+    assert settings.OPENAI_EMBEDDING_MODEL == "text-embedding-3-small"
 
 
 def test_database_url_format() -> None:
