@@ -511,3 +511,7 @@ ok we need write (LANGCHAIN_RETRY.md inside @PROJECT_FLOW_DOCS/ ) our
   @PROJECT_FLOW_DOCS/stages/ - this retry document need to be attached
   (mentioned) in @PROJECT_FLOW_DOCS/HANDOFF.md so you will know when to
   use it.
+
+Q1. option A - simple
+Q2. option A - check existing
+Q3. option A

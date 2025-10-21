@@ -28,9 +28,9 @@ class TestEmbeddingService:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "data": [
-                {"embedding": [0.1] * 1024, "index": 0},
-                {"embedding": [0.2] * 1024, "index": 1},
-                {"embedding": [0.3] * 1024, "index": 2},
+                {"embedding": [0.1] * 1536, "index": 0},
+                {"embedding": [0.2] * 1536, "index": 1},
+                {"embedding": [0.3] * 1536, "index": 2},
             ]
         }
         mock_response.raise_for_status = MagicMock()
@@ -45,7 +45,7 @@ class TestEmbeddingService:
             embeddings = await service.generate_embeddings(texts)
 
         assert len(embeddings) == 3
-        assert len(embeddings[0]) == 1024
+        assert len(embeddings[0]) == 1536
         assert embeddings[0][0] == 0.1
         assert embeddings[1][0] == 0.2
         assert embeddings[2][0] == 0.3
@@ -67,7 +67,7 @@ class TestEmbeddingService:
             mock_response = MagicMock()
             mock_response.json.return_value = {
                 "data": [
-                    {"embedding": [0.1] * 1024, "index": i} for i in range(batch_size)
+                    {"embedding": [0.1] * 1536, "index": i} for i in range(batch_size)
                 ]
             }
             mock_response.raise_for_status = MagicMock()
@@ -103,7 +103,7 @@ class TestEmbeddingService:
         # Create successful response
         mock_response_success = MagicMock()
         mock_response_success.json.return_value = {
-            "data": [{"embedding": [0.5] * 1024, "index": 0}]
+            "data": [{"embedding": [0.5] * 1536, "index": 0}]
         }
         mock_response_success.raise_for_status = MagicMock()
 
@@ -121,7 +121,7 @@ class TestEmbeddingService:
             embeddings = await service.generate_embeddings(texts)
 
         assert len(embeddings) == 1
-        assert len(embeddings[0]) == 1024
+        assert len(embeddings[0]) == 1536
         assert embeddings[0][0] == 0.5
         # Verify retry happened (2 calls)
         assert mock_client.post.call_count == 2
@@ -135,7 +135,7 @@ class TestEmbeddingService:
         # Create successful response
         mock_response_success = MagicMock()
         mock_response_success.json.return_value = {
-            "data": [{"embedding": [0.7] * 1024, "index": 0}]
+            "data": [{"embedding": [0.7] * 1536, "index": 0}]
         }
         mock_response_success.raise_for_status = MagicMock()
 
@@ -208,7 +208,7 @@ class TestEmbeddingService:
         # Create mock response
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "data": [{"embedding": [0.1] * 1024, "index": 0}]
+            "data": [{"embedding": [0.1] * 1536, "index": 0}]
         }
         mock_response.raise_for_status = MagicMock()
 

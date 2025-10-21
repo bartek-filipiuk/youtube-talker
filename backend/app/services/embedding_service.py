@@ -31,7 +31,7 @@ class EmbeddingService:
             texts: List of text strings to embed (can be any length)
 
         Returns:
-            List of 1024-dimensional vectors (one per input text)
+            List of 1536-dimensional vectors (one per input text)
             Example: [[0.1, 0.2, ..., 0.5], [0.3, 0.1, ..., 0.8]]
 
         Raises:
@@ -74,7 +74,7 @@ class EmbeddingService:
             texts: List of text strings (max 100)
 
         Returns:
-            List of 1024-dimensional embedding vectors
+            List of 1536-dimensional embedding vectors
 
         Raises:
             httpx.HTTPError: If API request fails after retries

@@ -54,7 +54,7 @@ class TestQdrantService:
         chunk_id = str(uuid.uuid4())
         user_id = str(uuid.uuid4())
         video_id = "TEST_VIDEO_001"
-        vector = [0.1] * 1024
+        vector = [0.1] * 1536
 
         cleanup_test_data.append(chunk_id)
 
@@ -95,7 +95,7 @@ class TestQdrantService:
         chunk_ids = [str(uuid.uuid4()) for _ in range(num_chunks)]
         # Create varied vectors (not constant vectors)
         vectors = [
-            [0.1 if j % (i + 1) == 0 else 0.5 for j in range(1024)]
+            [0.1 if j % (i + 1) == 0 else 0.5 for j in range(1536)]
             for i in range(num_chunks)
         ]
         chunk_indices = list(range(num_chunks))
@@ -133,7 +133,7 @@ class TestQdrantService:
         user_1_id = str(uuid.uuid4())
         user_2_id = str(uuid.uuid4())
         video_id = "TEST_VIDEO_003"
-        vector = [0.5] * 1024
+        vector = [0.5] * 1536
 
         chunk_1_id = str(uuid.uuid4())
         chunk_2_id = str(uuid.uuid4())
@@ -189,7 +189,7 @@ class TestQdrantService:
         user_id = str(uuid.uuid4())
         video_1_id = "TEST_VIDEO_004"
         video_2_id = "TEST_VIDEO_005"
-        vector = [0.7] * 1024
+        vector = [0.7] * 1536
 
         chunk_1_id = str(uuid.uuid4())
         chunk_2_id = str(uuid.uuid4())
@@ -254,7 +254,7 @@ class TestQdrantService:
         # Prepare test data
         user_id = str(uuid.uuid4())
         video_id = "TEST_VIDEO_006"
-        vector = [0.9] * 1024
+        vector = [0.9] * 1536
 
         chunk_1_id = str(uuid.uuid4())
         chunk_2_id = str(uuid.uuid4())
@@ -300,8 +300,8 @@ class TestQdrantService:
         video_id = "TEST_VIDEO_007"
 
         # Create vectors with different directions (not just different magnitudes)
-        vector_v1 = [1.0 if i % 2 == 0 else 0.0 for i in range(1024)]
-        vector_v2 = [1.0 if i % 2 == 1 else 0.0 for i in range(1024)]
+        vector_v1 = [1.0 if i % 2 == 0 else 0.0 for i in range(1536)]
+        vector_v2 = [1.0 if i % 2 == 1 else 0.0 for i in range(1536)]
 
         cleanup_test_data.append(chunk_id)
 
@@ -365,7 +365,7 @@ class TestQdrantService:
         user_1_id = str(uuid.uuid4())
         user_2_id = str(uuid.uuid4())
         video_id = "TEST_VIDEO_008"
-        vector = [0.3] * 1024
+        vector = [0.3] * 1536
 
         chunk_id = str(uuid.uuid4())
         cleanup_test_data.append(chunk_id)

@@ -28,8 +28,8 @@ MOCK_TRANSCRIPT_DATA = {
     },
 }
 
-# Mock embedding (1024-dim vector)
-MOCK_EMBEDDING = [0.1] * 1024
+# Mock embedding (1536-dim vector - text-embedding-3-small standard)
+MOCK_EMBEDDING = [0.1] * 1536
 
 
 @pytest_asyncio.fixture
