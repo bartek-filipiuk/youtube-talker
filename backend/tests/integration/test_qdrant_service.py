@@ -59,12 +59,14 @@ class TestQdrantService:
         cleanup_test_data.append(chunk_id)
 
         # Upsert chunk
+        chunk_text = "This is test chunk text for video TEST_VIDEO_001."
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_id],
             vectors=[vector],
             user_id=user_id,
             youtube_video_id=video_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text],
         )
 
         # Search for chunk
@@ -80,6 +82,7 @@ class TestQdrantService:
         assert results[0]["payload"]["user_id"] == user_id
         assert results[0]["payload"]["youtube_video_id"] == video_id
         assert results[0]["payload"]["chunk_index"] == 0
+        assert results[0]["payload"]["chunk_text"] == chunk_text
         assert results[0]["score"] > 0.99  # Exact match should score ~1.0
 
     @pytest.mark.asyncio
@@ -103,12 +106,14 @@ class TestQdrantService:
         cleanup_test_data.extend(chunk_ids)
 
         # Upsert chunks
+        chunk_texts = [f"Chunk {i} text for video TEST_VIDEO_002" for i in range(num_chunks)]
         await qdrant_service.upsert_chunks(
             chunk_ids=chunk_ids,
             vectors=vectors,
             user_id=user_id,
             youtube_video_id=video_id,
             chunk_indices=chunk_indices,
+            chunk_texts=chunk_texts,
         )
 
         # Search for chunks (query = first chunk vector)
@@ -141,21 +146,25 @@ class TestQdrantService:
         cleanup_test_data.extend([chunk_1_id, chunk_2_id])
 
         # Upsert chunk for user 1
+        chunk_text_1 = "User 1 chunk text for video TEST_VIDEO_003"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_1_id],
             vectors=[vector],
             user_id=user_1_id,
             youtube_video_id=video_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text_1],
         )
 
         # Upsert chunk for user 2
+        chunk_text_2 = "User 2 chunk text for video TEST_VIDEO_003"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_2_id],
             vectors=[vector],
             user_id=user_2_id,
             youtube_video_id=video_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text_2],
         )
 
         # Search as user 1
@@ -169,6 +178,7 @@ class TestQdrantService:
         assert len(results_user_1) == 1
         assert results_user_1[0]["chunk_id"] == chunk_1_id
         assert results_user_1[0]["payload"]["user_id"] == user_1_id
+        assert results_user_1[0]["payload"]["chunk_text"] == chunk_text_1
 
         # Search as user 2
         results_user_2 = await qdrant_service.search(
@@ -181,6 +191,7 @@ class TestQdrantService:
         assert len(results_user_2) == 1
         assert results_user_2[0]["chunk_id"] == chunk_2_id
         assert results_user_2[0]["payload"]["user_id"] == user_2_id
+        assert results_user_2[0]["payload"]["chunk_text"] == chunk_text_2
 
     @pytest.mark.asyncio
     async def test_search_video_id_filtering(self, qdrant_service, cleanup_test_data):
@@ -197,21 +208,25 @@ class TestQdrantService:
         cleanup_test_data.extend([chunk_1_id, chunk_2_id])
 
         # Upsert chunk for video 1
+        chunk_text_1 = "Chunk text for video TEST_VIDEO_004"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_1_id],
             vectors=[vector],
             user_id=user_id,
             youtube_video_id=video_1_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text_1],
         )
 
         # Upsert chunk for video 2
+        chunk_text_2 = "Chunk text for video TEST_VIDEO_005"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_2_id],
             vectors=[vector],
             user_id=user_id,
             youtube_video_id=video_2_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text_2],
         )
 
         # Search without video filter (should return both)
@@ -234,6 +249,7 @@ class TestQdrantService:
         assert len(results_video_1) == 1
         assert results_video_1[0]["chunk_id"] == chunk_1_id
         assert results_video_1[0]["payload"]["youtube_video_id"] == video_1_id
+        assert results_video_1[0]["payload"]["chunk_text"] == chunk_text_1
 
         # Search with video_2 filter
         results_video_2 = await qdrant_service.search(
@@ -247,6 +263,7 @@ class TestQdrantService:
         assert len(results_video_2) == 1
         assert results_video_2[0]["chunk_id"] == chunk_2_id
         assert results_video_2[0]["payload"]["youtube_video_id"] == video_2_id
+        assert results_video_2[0]["payload"]["chunk_text"] == chunk_text_2
 
     @pytest.mark.asyncio
     async def test_delete_chunks(self, qdrant_service, cleanup_test_data):
@@ -260,12 +277,14 @@ class TestQdrantService:
         chunk_2_id = str(uuid.uuid4())
 
         # Upsert two chunks
+        chunk_texts = ["Chunk 0 text for TEST_VIDEO_006", "Chunk 1 text for TEST_VIDEO_006"]
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_1_id, chunk_2_id],
             vectors=[vector, vector],
             user_id=user_id,
             youtube_video_id=video_id,
             chunk_indices=[0, 1],
+            chunk_texts=chunk_texts,
         )
 
         # Verify both chunks exist
@@ -306,12 +325,14 @@ class TestQdrantService:
         cleanup_test_data.append(chunk_id)
 
         # First upsert
+        chunk_text = "Test chunk for idempotency test VIDEO_007"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_id],
             vectors=[vector_v1],
             user_id=user_id,
             youtube_video_id=video_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text],
         )
 
         # Search with v1 vector (should match perfectly)
@@ -324,12 +345,14 @@ class TestQdrantService:
         assert results_v1[0]["score"] > 0.99
 
         # Update same chunk_id with v2 vector (orthogonal to v1)
+        updated_chunk_text = "Updated chunk text for idempotency test VIDEO_007"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_id],
             vectors=[vector_v2],
             user_id=user_id,
             youtube_video_id=video_id,
             chunk_indices=[0],
+            chunk_texts=[updated_chunk_text],
         )
 
         # Search with v2 vector (should match perfectly now)
@@ -370,12 +393,14 @@ class TestQdrantService:
         chunk_id = str(uuid.uuid4())
         cleanup_test_data.append(chunk_id)
 
+        chunk_text = "Chunk text for nonexistent user test VIDEO_008"
         await qdrant_service.upsert_chunks(
             chunk_ids=[chunk_id],
             vectors=[vector],
             user_id=user_1_id,
             youtube_video_id=video_id,
             chunk_indices=[0],
+            chunk_texts=[chunk_text],
         )
 
         # Search as different user (should return empty)
@@ -386,3 +411,87 @@ class TestQdrantService:
         )
 
         assert results == []
+
+    @pytest.mark.asyncio
+    async def test_chunk_text_storage_and_retrieval(
+        self, qdrant_service, cleanup_test_data
+    ):
+        """Verify chunk_text is stored in payload and retrieved correctly."""
+        # Prepare test data with realistic chunk text
+        user_id = str(uuid.uuid4())
+        video_id = "TEST_VIDEO_CHUNK_TEXT"
+        chunk_id = str(uuid.uuid4())
+        vector = [0.5] * 1536
+        chunk_text = (
+            "This is a realistic test chunk with specific content to verify storage. "
+            "The chunk should be stored in Qdrant payload and retrieved during search. "
+            "This enables RAG retrieval without needing to fetch from PostgreSQL."
+        )
+
+        cleanup_test_data.append(chunk_id)
+
+        # Upsert chunk with text
+        await qdrant_service.upsert_chunks(
+            chunk_ids=[chunk_id],
+            vectors=[vector],
+            user_id=user_id,
+            youtube_video_id=video_id,
+            chunk_indices=[0],
+            chunk_texts=[chunk_text],
+        )
+
+        # Search and verify chunk_text in payload
+        results = await qdrant_service.search(
+            query_vector=vector,
+            user_id=user_id,
+            top_k=5,
+        )
+
+        # Verify chunk_text was stored and retrieved
+        assert len(results) == 1
+        assert "chunk_text" in results[0]["payload"]
+        assert results[0]["payload"]["chunk_text"] == chunk_text
+        assert len(results[0]["payload"]["chunk_text"]) > 100  # Verify not truncated
+        assert "specific content" in results[0]["payload"]["chunk_text"]  # Verify content
+
+    @pytest.mark.asyncio
+    async def test_chunk_text_with_special_characters(
+        self, qdrant_service, cleanup_test_data
+    ):
+        """Verify chunk_text with special characters and encoding is stored correctly."""
+        user_id = str(uuid.uuid4())
+        video_id = "TEST_VIDEO_SPECIAL_CHARS"
+        chunk_id = str(uuid.uuid4())
+        vector = [0.7] * 1536
+
+        # Test with various special characters
+        chunk_text = (
+            "Testing special chars: <html>, \"quotes\", 'apostrophes', "
+            "newlines\n\ttabs, emojis 🚀🔥, unicode: café, résumé, "
+            "symbols: @#$%^&*(), code: if x == 10: return True"
+        )
+
+        cleanup_test_data.append(chunk_id)
+
+        await qdrant_service.upsert_chunks(
+            chunk_ids=[chunk_id],
+            vectors=[vector],
+            user_id=user_id,
+            youtube_video_id=video_id,
+            chunk_indices=[0],
+            chunk_texts=[chunk_text],
+        )
+
+        # Search and verify special characters preserved
+        results = await qdrant_service.search(
+            query_vector=vector,
+            user_id=user_id,
+            top_k=5,
+        )
+
+        assert len(results) == 1
+        retrieved_text = results[0]["payload"]["chunk_text"]
+        assert retrieved_text == chunk_text
+        assert "🚀🔥" in retrieved_text
+        assert "café" in retrieved_text
+        assert '"quotes"' in retrieved_text

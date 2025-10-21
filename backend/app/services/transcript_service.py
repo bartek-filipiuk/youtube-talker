@@ -212,6 +212,7 @@ class TranscriptService:
                     user_id=user_id,
                     youtube_video_id=youtube_video_id,
                     chunk_indices=chunk_indices,
+                    chunk_texts=chunk_texts,
                 )
                 logger.info(f"✓ Upserted {len(chunk_ids)} vectors to Qdrant")
             except Exception as e:
