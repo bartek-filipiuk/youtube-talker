@@ -72,6 +72,9 @@ where = ["."]
 include = ["app*"]
 exclude = ["tests*", "alembic*", "templates*", "scripts*"]
 
+[tool.setuptools.package-data]
+app = ["rag/prompts/*.jinja2"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

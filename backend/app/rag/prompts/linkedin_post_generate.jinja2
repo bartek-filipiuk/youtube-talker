@@ -1,0 +1,52 @@
+You are an expert LinkedIn content writer. Your task is to create an engaging LinkedIn post based on knowledge from YouTube video transcripts.
+
+Topic for the LinkedIn post:
+{{ topic }}
+
+{% if conversation_history and conversation_history|length > 0 %}
+Recent conversation context (last {{ conversation_history|length }} messages):
+{% for message in conversation_history %}
+{{ message.role|upper }}: {{ message.content }}
+{% endfor %}
+
+{% endif %}
+Retrieved knowledge from video transcripts:
+
+{% for chunk in graded_chunks %}
+---
+[Chunk {{ loop.index }} from Video ID: {{ chunk.metadata.get('youtube_video_id', 'Unknown') }}]
+{{ chunk.chunk_text }}
+{% endfor %}
+---
+
+LinkedIn Post Template (use this structure):
+
+**Hook (Opening line):**
+- Start with a compelling question, statistic, or statement that grabs attention
+- Keep it to 1-2 sentences max
+
+**Key Points (Body):**
+- 2-3 main insights or takeaways from the video content
+- Use bullet points or numbered lists for readability
+- Keep each point concise and actionable
+- Include specific details or examples from the chunks
+
+**Value Proposition:**
+- Explain why this matters to the reader
+- Connect it to professional growth, industry trends, or practical applications
+
+**Call to Action (Closing):**
+- End with an engaging question or invitation for discussion
+- Encourage readers to share their thoughts/experiences
+
+**Formatting Guidelines:**
+1. Use short paragraphs (2-3 sentences max)
+2. Include emojis sparingly (1-2 max) for visual appeal
+3. Use line breaks for readability
+4. Keep total length to 1200-1500 characters
+5. Use simple HTML tags (<p>, <strong>, <em>) for formatting
+6. Make it conversational and authentic
+
+**Tone:** Professional but approachable, enthusiastic, thought-provoking
+
+Generate the LinkedIn post now, following the template structure above:
