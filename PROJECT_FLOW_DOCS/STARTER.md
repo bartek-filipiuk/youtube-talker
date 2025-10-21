@@ -515,3 +515,171 @@ ok we need write (LANGCHAIN_RETRY.md inside @PROJECT_FLOW_DOCS/ ) our
 Q1. option A - simple
 Q2. option A - check existing
 Q3. option A
+
+
+before stage 5
+
+ok merged, we can go to next stage 5 - rag. Same as previous, see what
+  need to be done here, check if we can split stage 5 into smaller pull
+  requests. Review what need to be done here, see all needed
+  documentations, tech etc. Then ask me 5 solid short questions if
+  something is unclear or can lead to code overcomplicattions or could be
+  a problem in  the future if we need some extensions
+
+ 5 Critical Questions (ANSWER BEFORE CODING)                       │ │
+│ │                                                                     │ │
+│ │ Q1: OpenRouter API vs OpenAI API for LLM?                           │ │
+│ │                                                                     │ │
+│ │ Context: We use OpenAI API directly for embeddings (PR #6). Docs    │ │
+│ │ mention OpenRouter for LLM completions                              │ │
+│ │ (anthropic/claude-haiku-4.5).                                       │ │
+│ │                                                                     │ │
+│ │ Options:                                                            │ │
+│ │ - A) Use OpenRouter API for LLM (as docs specify)                   │ │
+│ │ - B) Use OpenAI API directly (consistent with embeddings)           │ │
+│ │ - C) Use langchain-openai package instead of raw HTTP               │ │
+│ │                                                                     │ │
+│ │ Trade-offs:                                                         │ │
+│ │ - OpenRouter: Access to Claude models + multiple providers          │ │
+│ │ - OpenAI direct: Simpler, fewer dependencies, but locks us to       │ │
+│ │ OpenAI                                                              │ │
+│ │ - LangChain package: Best practices, but adds abstraction           │ │
+│ │                                                                     │ │
+│ │ Recommendation if unclear: Option A (OpenRouter) - follows docs,    │ │
+│ │ future flexibility                                                  │ │
+│ │                                                                     │ │
+│ │ ---                                                                 │ │
+│ │ Q2: Chunk Grading Strategy - Individual vs Batch?                   │ │
+│ │                                                                     │ │
+│ │ Context: Retriever returns 12 chunks. Grader must classify each as  │ │
+│ │ relevant/not_relevant.                                              │ │
+│ │                                                                     │ │
+│ │ Options:                                                            │ │
+│ │ - A) Individual grading: 12 separate LLM calls (one per chunk)      │ │
+│ │ - B) Batch grading: 1 LLM call with all 12 chunks, JSON output      │ │
+│ │ array                                                               │ │
+│ │ - C) Hybrid: Grade in batches of 4 chunks (3 LLM calls)             │ │
+│ │                                                                     │ │
+│ │ Trade-offs:                                                         │ │
+│ │ - Individual: Simple, clear prompts, expensive (12x API calls)      │ │
+│ │ - Batch: Cost-efficient, but complex prompt + JSON parsing risks    │ │
+│ │ - Hybrid: Balanced, but adds complexity                             │ │
+│ │                                                                     │ │
+│ │ Implications for scaling: If we expand to 50 chunks later,          │ │
+│ │ individual = 50 LLM calls per query!                                │ │
+│ │                                                                     │ │
+│ │ Recommendation if unclear: Option A for MVP (simpler), plan batch   │ │
+│ │ grading for post-MVP                                                │ │
+│ │                                                                     │ │
+│ │ ---                                                                 │ │
+│ │ Q3: Conversation History in State - Fetch Where?                    │ │
+│ │                                                                     │ │
+│ │ Context: GraphState includes conversation_history: List[dict] (last │ │
+│ │  10 messages).                                                      │ │
+│ │                                                                     │ │
+│ │ Options:                                                            │ │
+│ │ - A) Fetch from DB before running LangGraph, pass into initial      │ │
+│ │ state                                                               │ │
+│ │ - B) Fetch inside retriever node when needed                        │ │
+│ │ - C) Fetch in separate node at graph start                          │ │
+│ │                                                                     │ │
+│ │ Trade-offs:                                                         │ │
+│ │ - Before graph (A): Clean separation, graph is pure logic           │ │
+│ │ - Inside node (B): Node becomes DB-aware, harder to test            │ │
+│ │ - Separate node (C): Extra node complexity, more flexible           │ │
+│ │                                                                     │ │
+│ │ Implications: If we add caching later, where does it go?            │ │
+│ │                                                                     │ │
+│ │ Recommendation if unclear: Option A (fetch before graph) - cleaner  │ │
+│ │ architecture                                                        │ │
+│ │                                                                     │ │
+│ │ ---                                                                 │ │
+│ │ Q4: Prompt Template Output Format - Structured JSON?                │ │
+│ │                                                                     │ │
+│ │ Context: Templates like query_router.jinja2 need to return intent   │ │
+│ │ ("chitchat" | "qa" | "linkedin_post").                              │ │
+│ │                                                                     │ │
+│ │ Options:                                                            │ │
+│ │ - A) Free-form text output, parse with regex/keywords               │ │
+│ │ - B) Instruct LLM to return JSON: {"intent": "qa"}                  │ │
+│ │ - C) Use LangChain OutputParser with Pydantic models                │ │
+│ │                                                                     │ │
+│ │ Trade-offs:                                                         │ │
+│ │ - Free-form (A): Fragile parsing, error-prone                       │ │
+│ │ - JSON (B): More reliable, but LLM might fail JSON syntax           │ │
+│ │ - OutputParser (C): Best practices, adds retry logic, more complex  │ │
+│ │                                                                     │ │
+│ │ Implications: Do we want strict type safety or simple string        │ │
+│ │ matching?                                                           │ │
+│ │                                                                     │ │
+│ │ Recommendation if unclear: Option B (JSON) with fallback parsing -  │ │
+│ │ good balance                                                        │ │
+│ │                                                                     │ │
+│ │ ---                                                                 │ │
+│ │ Q5: Retriever Node - Fetch Full Chunks from Postgres?               │ │
+│ │                                                                     │ │
+│ │ Context: Qdrant search returns chunk_id + score. Full chunk_text is │ │
+│ │  in PostgreSQL.                                                     │ │
+│ │                                                                     │ │
+│ │ Options:                                                            │ │
+│ │ - A) Qdrant search → fetch chunk_text from Postgres via             │ │
+│ │ ChunkRepository                                                     │ │
+│ │ - B) Store full chunk_text in Qdrant payload (redundant storage)    │ │
+│ │ - C) Return chunk_ids only, fetch text in generator node            │ │
+│ │                                                                     │ │
+│ │ Trade-offs:                                                         │ │
+│ │ - Fetch from Postgres (A): Single source of truth, extra DB query   │ │
+│ │ - Store in Qdrant (B): Faster retrieval, data duplication (storage  │ │
+│ │ cost)                                                               │ │
+│ │ - Fetch later (C): Deferred loading, but complicates grader         │ │
+│ │                                                                     │ │
+│ │ Implications: If chunks are large (700 tokens), Qdrant payload size │ │
+│ │  grows significantly.                                               │ │
+│ │                                                                     │ │
+│ │ Current implementation: We already denormalize user_id in chunks    │ │
+│ │ for speed.                                                          │ │
+│ │                                                                     │ │
+│ │ Recommendation if unclear: Option A (fetch from Postgres) - follows │ │
+│ │  current pattern, no duplication   
+
+Answers
+
+Q1. we need use openrouter for llm calls (haiku 4.5 model). for integration 
+we can use openai sdk, which we probably use already then:
+
+from openai import OpenAI
+client = OpenAI(
+  base_url="https://openrouter.ai/api/v1",
+  api_key="<OPENROUTER_API_KEY>",
+)
+completion = client.chat.completions.create(
+  extra_headers={
+    "HTTP-Referer": "<YOUR_SITE_URL>", # Optional. Site URL for rankings on openrouter.ai.
+    "X-Title": "<YOUR_SITE_NAME>", # Optional. Site title for rankings on openrouter.ai.
+  },
+  model="provider/model",
+  messages=[
+    {
+      "role": "user",
+      "content": "What is the meaning of life?"
+    }
+  ]
+)
+print(completion.choices[0].message.content)
+
+Q2. A - individual, we can use google/gemini-2.5-flash (openrouter)
+Q3. A.
+Q4. we can use model structured output if provided, this prompt will be 
+passed where? as a grader or later? then we need research if we can use 
+structired output for this. As i see anthropic models hve not structured output 
+when called from openrouter - research this first. 
+
+Q5. maybe B if this is faster?
+
+Technical Decisions answers:
+
+1. on all whetre its needed  - some simple implementation
+2. use config.py
+3. not sure
+4. mock (what is easier)
+5. yes
