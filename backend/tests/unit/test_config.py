@@ -91,8 +91,9 @@ def test_openrouter_model_defaults() -> None:
     """Test OpenRouter and OpenAI model configuration defaults."""
     settings = Settings()
 
-    # OpenRouter for LLM completions
-    assert settings.OPENROUTER_LLM_MODEL == "anthropic/claude-haiku-4.5"
+    # OpenRouter models (dual LLM strategy)
+    assert settings.OPENROUTER_CLAUDE_MODEL == "anthropic/claude-haiku-4.5"
+    assert settings.OPENROUTER_GEMINI_MODEL == "google/gemini-2.5-flash"
 
     # OpenAI for embeddings
     assert settings.OPENAI_EMBEDDING_MODEL == "text-embedding-3-small"

@@ -37,7 +37,10 @@ class Settings(BaseSettings):
 
     # OpenRouter API Configuration (LLM completions)
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_LLM_MODEL: str = "anthropic/claude-haiku-4.5"
+    OPENROUTER_CLAUDE_MODEL: str = "anthropic/claude-haiku-4.5"
+    OPENROUTER_GEMINI_MODEL: str = "google/gemini-2.5-flash"
+    OPENROUTER_SITE_URL: str = "http://localhost:8000"
+    OPENROUTER_SITE_NAME: str = "YoutubeTalker"
 
     # OpenAI API Configuration (Embeddings)
     OPENAI_API_KEY: str = ""
