@@ -12,7 +12,7 @@ from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.core.middleware import setup_middleware
-from app.api.routes import auth
+from app.api.routes import auth, transcripts
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -33,6 +33,7 @@ setup_middleware(app)
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(transcripts.router)
 
 
 @app.get("/", tags=["root"])

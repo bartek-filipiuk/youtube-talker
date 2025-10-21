@@ -20,7 +20,7 @@ async def main():
         await service.create_collection()
 
         print("✓ Qdrant collection 'youtube_chunks' created successfully")
-        print("  - Vector size: 1024")
+        print("  - Vector size: 1536")
         print("  - Distance: Cosine")
         print("  - Indexes: user_id, youtube_video_id")
 

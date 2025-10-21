@@ -17,7 +17,7 @@ class QdrantService:
     """Qdrant vector database client for chunk storage and search."""
 
     COLLECTION_NAME = "youtube_chunks"
-    VECTOR_SIZE = 1024
+    VECTOR_SIZE = 1536  # OpenAI text-embedding-3-small dimension
 
     def __init__(self):
         """Initialize async Qdrant client."""
@@ -33,7 +33,7 @@ class QdrantService:
         Idempotent: No-op if collection already exists.
 
         Collection Config:
-            - Vectors: 1024-dim, cosine distance
+            - Vectors: 1536-dim, cosine distance
             - Payload indexes: user_id (keyword), youtube_video_id (keyword)
         """
         # Check if collection exists
@@ -82,7 +82,7 @@ class QdrantService:
 
         Args:
             chunk_ids: List of chunk UUIDs (from PostgreSQL)
-            vectors: List of 1024-dim embeddings
+            vectors: List of 1536-dim embeddings
             user_id: User UUID (for filtering)
             youtube_video_id: YouTube video ID (for filtering)
             chunk_indices: Chunk sequence numbers (0, 1, 2, ...)
@@ -127,7 +127,7 @@ class QdrantService:
         Semantic search with user ID filtering.
 
         Args:
-            query_vector: 1024-dim query embedding
+            query_vector: 1536-dim query embedding
             user_id: Filter by user (REQUIRED for data isolation)
             top_k: Number of results (default: 12 from config)
             youtube_video_id: Optional filter by specific video

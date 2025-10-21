@@ -47,7 +47,7 @@ async def test_qdrant_only():
     chunk_ids = [str(uuid.uuid4()) for _ in range(3)]
     # Create varied vectors
     vectors = [
-        [0.1 if j % (i + 1) == 0 else 0.5 for j in range(1024)]
+        [0.1 if j % (i + 1) == 0 else 0.5 for j in range(1536)]
         for i in range(3)
     ]
     chunk_indices = [0, 1, 2]

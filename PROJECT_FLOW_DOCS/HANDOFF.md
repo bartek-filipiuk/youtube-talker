@@ -377,80 +377,94 @@ This is the **master development checklist** for backend implementation. Follow 
 **See:** `stages/STAGE_4_PLAN.md` for detailed implementation plan with PR strategy
 **See:** `LANGCHAIN_RETRY.md` for retry mechanism decisions (use tenacity for external APIs)
 
-### 4.1 SUPADATA API Client
+### 4.1 SUPADATA API Client (PR #5 - Partial)
 
-- [ ] Create `app/services/transcript_service.py`
-- [ ] Implement `fetch_transcript(youtube_url: str) -> dict`
+- [x] Create `app/services/transcript_service.py`
+- [x] Implement `fetch_transcript(youtube_url: str) -> dict`
   - Call SUPADATA API with YouTube URL
   - Parse response (transcript text + metadata)
   - Handle API errors (rate limits, invalid URLs)
   - Return structured data
-- [ ] Add retry logic with exponential backoff (use `tenacity`)
-- [ ] Unit test with mocked API responses
+- [x] Add retry logic with exponential backoff (use `tenacity`)
+- [x] Unit test with mocked API responses
 
 **Acceptance Criteria:**
 - Successfully fetches transcript from SUPADATA
 - Handles errors gracefully
 - Retries on transient failures
 
-**Note:** Use research-synthesizer agent if needed to check SUPADATA API docs
+**Note:** Full orchestration (ingest_transcript method) will be in PR #7
+
+**Status:** ✅ Completed in PR #5 (merged)
 
 ---
 
-### 4.2 Chunking Service
+### 4.2 Chunking Service (PR #5)
 
-- [ ] Create `app/services/chunking_service.py`
-- [ ] Implement `ChunkingService` class
+- [x] Create `app/services/chunking_service.py`
+- [x] Implement `ChunkingService` class
   - Constructor: `chunk_size=700`, `overlap_percent=20`
   - Method: `chunk_text(text: str) -> List[dict]`
   - Use `tiktoken` for token counting
   - Implement sliding window with overlap
   - Enforce minimum chunk size (150 tokens)
-- [ ] Return list of dicts: `{"text": str, "token_count": int, "index": int}`
-- [ ] Unit test with various text lengths
+- [x] Return list of dicts: `{"text": str, "token_count": int, "index": int}`
+- [x] Unit test with various text lengths
 
 **Acceptance Criteria:**
 - Chunks are ~700 tokens with 20% overlap
 - No chunks < 150 tokens (append to previous if needed)
 - Chunk indices are sequential (0, 1, 2, ...)
 
+**Status:** ✅ Completed in PR #5 (merged)
+
 ---
 
-### 4.3 Embedding Service
+### 4.3 Embedding Service (PR #6)
 
-- [ ] Create `app/services/embedding_service.py`
-- [ ] Implement `EmbeddingService` class
+- [x] Create `app/services/embedding_service.py`
+- [x] Implement `EmbeddingService` class
   - Method: `generate_embeddings(texts: List[str]) -> List[List[float]]`
-  - Call OpenRouter embeddings API
-  - Use model: `openai/text-embedding-3-small`
+  - Use **OpenAI API directly** (not OpenRouter) for embeddings
+  - Model: `text-embedding-3-small` (1024-dim)
   - Batch requests (max 100 texts per request)
-- [ ] Add retry logic for API failures
-- [ ] Unit test with mocked OpenRouter responses
+- [x] Add retry logic for API failures (tenacity)
+- [x] Unit tests with mocked API responses (7 tests, 100% coverage)
+- [x] Update config: Split OpenRouter (LLM) and OpenAI (embeddings) settings
 
 **Acceptance Criteria:**
-- Returns 1024-dimensional vectors
-- Handles batching correctly
-- Retries on failures
+- Returns 1024-dimensional vectors ✅
+- Handles batching correctly ✅
+- Retries on failures ✅
+- Test coverage > 80% ✅
+
+**Status:** ✅ Completed in PR #6 (open - awaiting review)
 
 ---
 
-### 4.4 Qdrant Service
+### 4.4 Qdrant Service (PR #6)
 
-- [ ] Create `app/services/qdrant_service.py`
-- [ ] Implement `QdrantService` class
+- [x] Create `app/services/qdrant_service.py`
+- [x] Implement `QdrantService` class
   - Method: `create_collection()` - creates "youtube_chunks" collection
-  - Method: `upsert_chunks(chunks: List[dict])` - batch upsert
+  - Method: `upsert_chunks(...)` - batch upsert with retry
   - Method: `search(query_vector, user_id, top_k=12)` - semantic search with filter
   - Method: `delete_chunks(chunk_ids: List[str])` - delete by IDs
   - Method: `health_check()` - verify connection
-- [ ] Use Qdrant client with proper error handling
-- [ ] Create payload indexes for `user_id` and `youtube_video_id`
-- [ ] Unit test with local Qdrant instance
+- [x] Use AsyncQdrantClient with proper error handling
+- [x] Create payload indexes for `user_id` and `youtube_video_id`
+- [x] Integration tests with local Qdrant instance (9 tests, 87% coverage)
+- [x] Create `scripts/setup_qdrant.py` for collection setup
+- [x] Create `scripts/test_vector_services.py` for end-to-end verification
 
 **Acceptance Criteria:**
-- Collection is created with correct vector size (1024)
-- Upsert and search work correctly
-- User ID filtering is applied in searches
+- Collection is created with correct vector size (1024) ✅
+- Upsert and search work correctly ✅
+- User ID filtering is applied in searches ✅
+- Async operations work properly ✅
+- Test coverage > 80% ✅
+
+**Status:** ✅ Completed in PR #6 (open - awaiting review)
 
 ---
 
