@@ -83,8 +83,10 @@ class ChunkingService:
             if end == total_tokens and len(chunk_tokens) < self.min_chunk_size and chunks:
                 # Merge with previous chunk by re-decoding the combined tokens
                 # This ensures accurate token count after merging
-                prev_end = start  # Previous chunk ended where this one starts
-                merged_tokens = tokens[start - self.chunk_size:end]
+                # Previous chunk started at: start - slide_distance
+                slide_distance = self.chunk_size - self.overlap_tokens
+                prev_chunk_start = start - slide_distance
+                merged_tokens = tokens[prev_chunk_start:end]
                 merged_text = self.encoding.decode(merged_tokens)
                 chunks[-1]["text"] = merged_text
                 chunks[-1]["token_count"] = len(merged_tokens)
