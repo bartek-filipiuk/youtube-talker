@@ -203,7 +203,7 @@ class Transcript(Base):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     youtube_video_id: Mapped[str] = mapped_column(
-        String(50), unique=True, nullable=False, index=True
+        String(50), nullable=False, index=True
     )
     title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     channel_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -220,13 +220,14 @@ class Transcript(Base):
         "Chunk", back_populates="transcript", cascade="all, delete-orphan"
     )
 
+    __table_args__ = (
+        Index("unique_user_video", "user_id", "youtube_video_id", unique=True),
+        Index("idx_transcripts_user_id", "user_id"),
+        Index("idx_transcripts_metadata", "metadata", postgresql_using="gin"),
+    )
+
     def __repr__(self) -> str:
         return f"<Transcript(id={self.id}, youtube_video_id={self.youtube_video_id}, title={self.title})>"
-
-
-# Add indexes on transcripts
-Index("idx_transcripts_user_id", Transcript.user_id)
-Index("idx_transcripts_metadata", Transcript.meta_data, postgresql_using="gin")
 
 
 class Chunk(Base):
