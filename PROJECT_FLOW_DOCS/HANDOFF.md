@@ -534,60 +534,103 @@ This is the **master development checklist** for backend implementation. Follow 
 
 **See:** `LANGCHAIN_RETRY.md` for retry strategy (use LangGraph RetryPolicy for nodes in Phase 6)
 
-### 5.1 OpenRouter LLM Client
+**PR Strategy:**
+- PR #8: LLM Client + State + Schemas (MERGED ✅)
+- PR #9: Jinja2 Prompt Templates (OPEN - ready for review)
+- PR #10: RAG Nodes (Retriever + Grader) (NEXT)
 
-- [ ] Create `app/rag/utils/llm_client.py`
-- [ ] Implement `LLMClient` class
-  - Method: `ainvoke(prompt: str) -> str` (async LLM call)
-  - Use OpenRouter API with `anthropic/claude-haiku-4.5`
-  - Add retry logic
+### 5.1 OpenRouter LLM Client (PR #8)
+
+- [x] Create `app/rag/utils/llm_client.py`
+- [x] Create `app/schemas/llm_responses.py` for structured output schemas
+- [x] Implement `LLMClient` class with **dual model strategy**:
+  - Method: `ainvoke_claude(prompt, system_prompt, max_tokens, temperature) -> str`
+    - Use OpenRouter API with `anthropic/claude-haiku-4.5`
+    - For text generation (Q&A, LinkedIn posts, chitchat)
+  - Method: `ainvoke_gemini_structured(prompt, schema, temperature) -> T`
+    - Use OpenRouter API with `google/gemini-2.5-flash`
+    - For structured JSON output (intent classification, chunk grading)
+    - Uses `response_format={"type": "json_object"}` + Pydantic validation
   - Add timeout (30 seconds)
-- [ ] Unit test with mocked API responses
+  - Integration with OpenAI SDK (base_url override for OpenRouter)
+- [x] Create Pydantic schemas for structured outputs:
+  - `IntentClassification` (intent, confidence, reasoning)
+  - `RelevanceGrade` (is_relevant, reasoning)
+- [x] Unit tests with mocked API responses (10 tests, 93% coverage)
 
 **Acceptance Criteria:**
-- LLM calls work asynchronously
-- Retries on transient failures
-- Returns text response
+- LLM calls work asynchronously ✅
+- Dual model strategy (Claude for text, Gemini for JSON) ✅
+- Structured outputs validated with Pydantic ✅
+- Test coverage > 80% ✅
+
+**Status:** ✅ Completed in PR #8 (merged)
+
+**Technical Decision:** Chose dual LLM strategy after research showed Gemini 2.5 Flash has superior structured output support (93% success vs. Claude Haiku's 14-20% failure rate for JSON mode). Claude Haiku used for natural text generation where flexibility is beneficial.
 
 ---
 
-### 5.2 Jinja2 Prompt Templates
+### 5.2 Jinja2 Prompt Templates (PR #9)
 
-- [ ] Create `app/rag/prompts/` directory
-- [ ] Create `query_router.jinja2` (intent classification)
-  - Template variables: `user_query`, `context` (last 10 messages)
-  - Output: "chitchat" | "qa" | "linkedin_post"
-- [ ] Create `rag_qa.jinja2` (Q&A generation)
-  - Variables: `user_query`, `context`, `chunks`
-- [ ] Create `chunk_grader.jinja2` (relevance grading)
-  - Variables: `user_query`, `chunk_text`
-  - Output: "relevant" | "not_relevant"
-- [ ] Create `linkedin_post_generate.jinja2`
-  - Variables: `topic`, `chunks`, `template_content`
-- [ ] Create `chitchat_flow.jinja2` (simple responses)
+- [x] Create `app/rag/prompts/` directory
+- [x] Create `app/rag/utils/prompt_loader.py` (PromptLoader utility)
+  - Centralized Jinja2 environment with FileSystemLoader
+  - Singleton `render_prompt()` convenience function
+  - Autoescape disabled (generating prompts, not HTML)
+- [x] Create `query_router.jinja2` (intent classification)
+  - Template variables: `user_query`, `conversation_history` (last 10 messages)
+  - Output: JSON matching IntentClassification schema
+  - Returns: "chitchat" | "qa" | "linkedin"
+- [x] Create `rag_qa.jinja2` (Q&A generation)
+  - Variables: `user_query`, `conversation_history`, `graded_chunks`
+  - Includes chunk citations and HTML formatting instructions
+- [x] Create `chunk_grader.jinja2` (relevance grading)
+  - Variables: `user_query`, `chunk_text`, `chunk_metadata`
+  - Output: JSON matching RelevanceGrade schema (is_relevant, reasoning)
+- [x] Create `linkedin_post_generate.jinja2`
+  - Variables: `topic`, `graded_chunks`, `conversation_history`
+  - Structured template (Hook, Key Points, Value Prop, CTA)
+  - Professional tone with formatting guidelines
+- [x] Create `chitchat_flow.jinja2` (simple responses)
+  - Variables: `user_query`, `conversation_history`
+  - Brief, friendly conversation (2-3 sentences)
+- [x] Add package data configuration in pyproject.toml
+  - Ensures .jinja2 files included in wheel distribution
+- [x] Unit tests for all templates (17 tests, 100% coverage for PromptLoader)
 
 **Acceptance Criteria:**
-- All templates render correctly with Jinja2
-- Templates produce valid prompts
+- All templates render correctly with Jinja2 ✅
+- Templates produce valid prompts ✅
+- PromptLoader provides centralized access ✅
+- Templates included in package distribution ✅
+
+**Status:** ✅ Completed in PR #9 (open - awaiting review)
+
+**Codex Feedback Addressed:** Added `[tool.setuptools.package-data]` to ensure templates are included when installed from wheel (production deployment).
 
 ---
 
-### 5.3 LangGraph State Definition
+### 5.3 LangGraph State Definition (PR #8)
 
-- [ ] Create `app/rag/utils/state.py`
-- [ ] Define `GraphState` TypedDict with fields:
+- [x] Create `app/rag/utils/state.py`
+- [x] Define `GraphState` TypedDict with fields:
   - `user_query: str`
-  - `conversation_history: List[dict]`
-  - `intent: str`
-  - `retrieved_chunks: List[dict]`
-  - `graded_chunks: List[dict]`
-  - `response: str`
-  - `metadata: dict`
-- [ ] Add type hints and docstrings
+  - `user_id: str` (for data isolation)
+  - `conversation_history: List[Dict[str, str]]`
+  - `intent: Optional[str]`
+  - `retrieved_chunks: Optional[List[Dict]]`
+  - `graded_chunks: Optional[List[Dict]]`
+  - `response: Optional[str]`
+  - `metadata: Optional[Dict]`
+- [x] Add type hints and docstrings
+- [x] Use `total=False` for partial state updates
 
 **Acceptance Criteria:**
-- State schema is well-defined
-- All fields have correct types
+- State schema is well-defined ✅
+- All fields have correct types ✅
+- Supports partial updates ✅
+
+**Status:** ✅ Completed in PR #8 (merged)
 
 ---
 
