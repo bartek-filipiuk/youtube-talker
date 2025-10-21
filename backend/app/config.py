@@ -35,10 +35,13 @@ class Settings(BaseSettings):
     QDRANT_URL: str = "http://localhost:6335"
     QDRANT_API_KEY: str = ""
 
-    # OpenRouter API Configuration
+    # OpenRouter API Configuration (LLM completions)
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_LLM_MODEL: str = "anthropic/claude-haiku-4.5"
-    OPENROUTER_EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
+
+    # OpenAI API Configuration (Embeddings)
+    OPENAI_API_KEY: str = ""
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # SUPADATA API Configuration
     SUPADATA_API_KEY: str = ""
