@@ -683,3 +683,104 @@ Technical Decisions answers:
 3. not sure
 4. mock (what is easier)
 5. yes
+
+Stage 7
+
+good, im reviewing but you can start on plan for stage 7 from
+  @PROJECT_FLOW_DOCS/HANDOFF.md aalso you can remember what we build
+  @PROJECT_FLOW_DOCS/PRD.md and other. So before you prepare a stage 7
+  plan, based on current assumption, ask me 3 questions so stage 7 will
+  not beovercomplicated, will be compatible with other stages and all
+  will be properly coded i good structure.
+
+🎯 3 Questions for Stage 7 Planning
+
+  Question 1: WebSocket Message Format & Streaming
+
+  The HANDOFF.md mentions streaming with {"type": "chunk", "content": 
+  "..."} and {"type": "done", "metadata": {...}}.
+
+  Options:
+  - A) Simple streaming: Stream LLM response as it comes (requires
+  OpenRouter streaming support)
+  - B) Chunked simulation: Send response in fixed-size chunks (200-300
+  chars) every ~100ms
+  - C) Full response: Wait for complete response, then send in one
+  message (simplest, but no "typing" effect)
+
+  Your preference? For MVP, which gives best UX without
+  overcomplicating? I'm leaning toward B (chunked simulation) since
+  it's simpler than true streaming but still feels real-time.
+
+  ---
+  Question 2: Authentication & Conversation Lifecycle
+
+  Sub-questions:
+  1. Token passing: Should session token be in:
+    - Query param:
+  ws://localhost:8000/ws/chat/{conversation_id}?token=xxx (easier to
+  test)
+    - Initial message: Client sends {"type": "auth", "token": "xxx"}
+  first (more flexible)
+    - Which is cleaner for MVP?
+  2. Conversation creation: If conversation_id doesn't exist:
+    - Auto-create it for the user (convenient, but hides errors)
+    - Return error and require explicit creation via REST API first
+  (clearer separation)
+    - Which approach?
+  3. Conversation ownership: Should we:
+    - Verify user owns conversation on every message (safer but more DB
+   queries)
+    - Verify once on connection and trust it afterward (faster,
+  acceptable for MVP?)
+
+  ---
+  Question 3: Error Handling & State Consistency
+
+  Scenario: User sends message → Retriever succeeds → Grader succeeds →
+   Generator fails (LLM API error)
+
+  Options:
+  1. Save both messages anyway (user message + error message as
+  assistant) - maintains history, user sees what happened
+  2. Save only user message - cleaner, but conversation might look
+  incomplete
+  3. Save nothing - rollback transaction, but user message is lost
+  4. Retry automatically (RetryPolicy handles it) - but what if it
+  fails after max retries?
+
+  Also:
+  - Should we update conversation.updated_at on every message or only
+  on successful assistant responses?
+  - Should we include error messages in the conversation history, or
+  just log them?
+
+  Your preference for error handling strategy?
+
+  ---
+  Summary
+
+  These 3 questions will help me create a Stage 7 plan that's:
+  - ✅ Simple: No over-engineering (e.g., full LLM streaming might be
+  complex)
+  - ✅ Compatible: Works seamlessly with Stage 6's run_graph()
+  - ✅ Well-structured: Clear error handling and state management
+
+  Once you answer, I'll create a detailed Stage 7 plan (probably 2-3
+  PRs like Stage 6) with file structure, test strategy, and acceptance
+  criteria! 🚀
+  
+
+Answers
+
+1. for websockets - we need show some usefull infos real time) to user, we do not need stream all, just general infos
+like searching, generating message etc - but in nice form, we do not need messages overload.
+Not sure what you mean writing STREAMING but we do not need stream messages/responses, we just show it when ready, so tah we need websocket short messages tp
+show for user that something is working :)
+2. hm this is user token? like auth token, best idea is to have token connected to logged in user but not sure if for mvp it is needed - what is the best aproach for this?
+auto create conversation id
+somehow connected with logged in user
+we need some simple but safe solution for mvp - what is your proposition
+3. save nothing, just error messge that api fails
+update date on success 
+error - just log them
