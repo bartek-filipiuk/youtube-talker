@@ -13,6 +13,7 @@ from slowapi.util import get_remote_address
 from app.config import settings
 from app.core.middleware import setup_middleware
 from app.api.routes import auth, transcripts
+from app.api.websocket.chat_handler import websocket_endpoint
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -34,6 +35,9 @@ setup_middleware(app)
 # Include routers
 app.include_router(auth.router)
 app.include_router(transcripts.router)
+
+# WebSocket endpoint
+app.websocket("/ws/chat")(websocket_endpoint)
 
 
 @app.get("/", tags=["root"])
