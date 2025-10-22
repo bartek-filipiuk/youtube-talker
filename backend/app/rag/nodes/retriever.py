@@ -80,16 +80,30 @@ async def retrieve_chunks(state: GraphState) -> GraphState:
     logger.info(f"Qdrant returned {len(qdrant_results)} chunks")
 
     # Step 3: Format results (chunk_text already in Qdrant payload - no PostgreSQL fetch!)
-    retrieved_chunks = [
-        {
-            "chunk_id": result["chunk_id"],
-            "chunk_text": result["payload"]["chunk_text"],  # Read from Qdrant payload
-            "chunk_index": result["payload"]["chunk_index"],
-            "youtube_video_id": result["payload"]["youtube_video_id"],
-            "score": result["score"],
-        }
-        for result in qdrant_results
-    ]
+    # Defensive: Skip chunks with missing required payload fields (handles legacy data)
+    retrieved_chunks = []
+    for result in qdrant_results:
+        payload = result.get("payload", {})
+
+        # Check for required fields
+        if not all(
+            key in payload
+            for key in ["chunk_text", "chunk_index", "youtube_video_id"]
+        ):
+            logger.warning(
+                f"Skipping chunk {result.get('chunk_id', 'unknown')} - missing required payload fields"
+            )
+            continue
+
+        retrieved_chunks.append(
+            {
+                "chunk_id": result["chunk_id"],
+                "chunk_text": payload["chunk_text"],
+                "chunk_index": payload["chunk_index"],
+                "youtube_video_id": payload["youtube_video_id"],
+                "score": result["score"],
+            }
+        )
 
     # Step 4: Update state
     state["retrieved_chunks"] = retrieved_chunks

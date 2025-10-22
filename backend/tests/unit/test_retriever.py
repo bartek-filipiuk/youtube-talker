@@ -282,3 +282,66 @@ class TestRetrieverNode:
 
         # Verify chunk_text read from Qdrant payload
         assert result_state["retrieved_chunks"][0]["chunk_text"] == expected_chunk_text
+
+    @pytest.mark.asyncio
+    async def test_retrieve_chunks_skips_malformed_payload(self):
+        """Retriever gracefully skips chunks with missing required payload fields."""
+        state: GraphState = {
+            "user_query": "Test query",
+            "user_id": str(uuid4()),
+            "conversation_history": [],
+        }
+
+        mock_embeddings = [[0.1] * 1536]
+        mock_embedding_service = AsyncMock()
+        mock_embedding_service.generate_embeddings = AsyncMock(return_value=mock_embeddings)
+
+        # Mock Qdrant results: one valid, two malformed (missing fields)
+        mock_qdrant_results = [
+            {
+                "chunk_id": "good_chunk",
+                "score": 0.95,
+                "payload": {
+                    "chunk_text": "Valid chunk with all fields",
+                    "chunk_index": 0,
+                    "youtube_video_id": "video123",
+                },
+            },
+            {
+                "chunk_id": "missing_chunk_text",
+                "score": 0.90,
+                "payload": {
+                    "chunk_index": 1,
+                    "youtube_video_id": "video123",
+                    # Missing chunk_text
+                },
+            },
+            {
+                "chunk_id": "missing_payload",
+                "score": 0.85,
+                # Missing payload entirely
+            },
+            {
+                "chunk_id": "another_good_chunk",
+                "score": 0.80,
+                "payload": {
+                    "chunk_text": "Another valid chunk",
+                    "chunk_index": 2,
+                    "youtube_video_id": "video123",
+                },
+            },
+        ]
+
+        mock_qdrant_service = MagicMock()
+        mock_qdrant_service.search = AsyncMock(return_value=mock_qdrant_results)
+
+        with patch(
+            "app.rag.nodes.retriever.EmbeddingService", return_value=mock_embedding_service
+        ), patch("app.rag.nodes.retriever.QdrantService", return_value=mock_qdrant_service):
+            result_state = await retrieve_chunks(state)
+
+        # Verify only valid chunks kept (2 out of 4)
+        assert len(result_state["retrieved_chunks"]) == 2
+        assert result_state["retrieved_chunks"][0]["chunk_id"] == "good_chunk"
+        assert result_state["retrieved_chunks"][1]["chunk_id"] == "another_good_chunk"
+        assert result_state["metadata"]["retrieval_count"] == 2
