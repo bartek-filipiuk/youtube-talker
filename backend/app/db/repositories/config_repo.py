@@ -4,7 +4,7 @@ Config Repository
 Database operations for Config model.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,3 +70,13 @@ class ConfigRepository(BaseRepository[Config]):
             await self.session.flush()
             await self.session.refresh(config)
             return config
+
+    async def get_all(self) -> List[Config]:
+        """
+        Get all configuration items.
+
+        Returns:
+            List of all Config instances
+        """
+        result = await self.session.execute(select(Config))
+        return list(result.scalars().all())

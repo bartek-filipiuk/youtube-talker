@@ -17,7 +17,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_async_sessionmaker
+from app.db.session import AsyncSessionLocal
 from app.db.repositories.config_repo import ConfigRepository
 
 
@@ -35,8 +35,7 @@ async def seed_config():
     """
 
     # Create async session
-    sessionmaker = get_async_sessionmaker()
-    async with sessionmaker() as db:
+    async with AsyncSessionLocal() as db:
         repo = ConfigRepository(db)
 
         # Define configuration items
@@ -90,26 +89,14 @@ async def seed_config():
             },
         ]
 
-        # Upsert config items
+        # Upsert config items (set_value handles both create and update)
         for item in config_items:
-            existing = await repo.get_by_key(item["key"])
-
-            if existing:
-                # Update existing item
-                await repo.update(
-                    key=item["key"],
-                    value=item["value"],
-                    description=item.get("description")
-                )
-                print(f"✓ Updated config: {item['key']}")
-            else:
-                # Create new item
-                await repo.create(
-                    key=item["key"],
-                    value=item["value"],
-                    description=item.get("description")
-                )
-                print(f"✓ Created config: {item['key']}")
+            await repo.set_value(
+                key=item["key"],
+                value=item["value"],
+                description=item.get("description")
+            )
+            print(f"✓ Seeded config: {item['key']}")
 
         # Commit changes
         await db.commit()
