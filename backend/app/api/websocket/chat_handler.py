@@ -10,10 +10,12 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import WebSocket, WebSocketDisconnect, status, Query
+from fastapi import WebSocket, WebSocketDisconnect, status, Query, Depends
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.websocket.connection_manager import connection_manager
+from app.db.session import get_db
 from app.api.websocket.messages import (
     AssistantMessage,
     ErrorMessage,
@@ -28,7 +30,11 @@ from app.services.auth_service import AuthService
 logger = logging.getLogger(__name__)
 
 
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)) -> None:
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+) -> None:
     """
     Main WebSocket endpoint for real-time chat.
 
@@ -41,6 +47,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)) -> N
     Args:
         websocket: FastAPI WebSocket instance
         token: Session token from query parameter
+        db: Database session (injected via Depends)
 
     Flow:
         1. Validate token → get user
@@ -52,7 +59,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)) -> N
         ws://localhost:8000/ws/chat?token=abc123
     """
     current_user: Optional[User] = None
-    auth_service = AuthService()
+    auth_service = AuthService(db)
 
     try:
         # Step 1: Authenticate user
