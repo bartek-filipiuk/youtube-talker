@@ -196,8 +196,8 @@ class TestGeneratorNode:
             await generate_response(state)
 
     @pytest.mark.asyncio
-    async def test_generate_response_unknown_intent_raises_error(self):
-        """Generator raises error for unknown intent."""
+    async def test_generate_response_unknown_intent_defaults_to_chitchat(self):
+        """Generator defaults to chitchat for unknown intent."""
         state: GraphState = {
             "intent": "unknown_intent",
             "user_query": "Test query",
@@ -205,8 +205,24 @@ class TestGeneratorNode:
             "conversation_history": []
         }
 
-        with pytest.raises(ValueError, match="Unknown intent"):
-            await generate_response(state)
+        mock_llm_client = MagicMock()
+        mock_llm_client.ainvoke_claude = AsyncMock(
+            return_value="<p>I'm not sure what you mean, but I'm here to help!</p>"
+        )
+
+        with patch("app.rag.nodes.generator.LLMClient", return_value=mock_llm_client):
+            result_state = await generate_response(state)
+
+        # Should fallback to chitchat
+        assert "response" in result_state
+        assert result_state["metadata"]["response_type"] == "chitchat"
+        assert result_state["metadata"]["chunks_used"] == 0
+        assert result_state["metadata"]["fallback_from_unknown_intent"] == "unknown_intent"
+
+        # Verify LLM called with chitchat params
+        call_args = mock_llm_client.ainvoke_claude.call_args
+        assert call_args.kwargs["max_tokens"] == 500
+        assert call_args.kwargs["temperature"] == 0.8
 
     @pytest.mark.asyncio
     async def test_generate_response_with_conversation_history(self):

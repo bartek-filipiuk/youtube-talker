@@ -37,9 +37,12 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
             - metadata: Dict with response metadata (sources, chunk count, etc.)
 
     Raises:
-        ValueError: If intent is missing or invalid
+        ValueError: If intent is missing
         KeyError: If required state fields are missing
         Exception: If LLM API call fails
+
+    Note:
+        Unknown intents will default to chitchat as a fallback behavior.
 
     Example:
         state = {
@@ -134,7 +137,24 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
         }
 
     else:
-        raise ValueError(f"Unknown intent: {intent}")
+        # Unknown intent - default to chitchat as fallback
+        logger.warning(f"Unknown intent '{intent}', defaulting to chitchat")
+        prompt = render_prompt(
+            "chitchat_flow.jinja2",
+            user_query=user_query,
+            conversation_history=conversation_history
+        )
+        response = await llm_client.ainvoke_claude(
+            prompt=prompt,
+            max_tokens=500,
+            temperature=0.8
+        )
+        metadata = {
+            **(state.get("metadata", {})),
+            "response_type": "chitchat",
+            "chunks_used": 0,
+            "fallback_from_unknown_intent": intent  # Track that we fell back
+        }
 
     logger.info(
         f"Generated response for {intent} "
