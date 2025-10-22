@@ -145,12 +145,12 @@ async def websocket_endpoint(
 
                 if conversation_id_str == "new" or not conversation_id_str:
                     # Auto-create new conversation
+                    # Note: Repository already flushes and refreshes, so conversation.id is available
+                    # We defer commit until after RAG succeeds to ensure all-or-nothing persistence
                     conversation = await conversation_repo.create(
                         user_id=current_user.id,
                         title=f"Chat {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
                     )
-                    await db.commit()
-                    await db.refresh(conversation)
                     logger.info(f"Created new conversation {conversation.id} for user {current_user.id}")
                 else:
                     # Verify user owns conversation
