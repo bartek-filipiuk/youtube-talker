@@ -94,9 +94,9 @@ fi
 # Test 6: WebSocket endpoint exists
 echo "6. Testing WebSocket endpoint..."
 # WebSocket endpoints can't be tested with curl easily, but we can check if it's registered
-WS_TEST=$(curl -s -w "%{http_code}" -o /dev/null "$BASE_URL/ws/chat")
+WS_TEST=$(curl -s -w "%{http_code}" -o /dev/null "$BASE_URL/api/ws/chat")
 if [ "$WS_TEST" = "400" ] || [ "$WS_TEST" = "426" ]; then
-    test_passed "WebSocket endpoint exists (/ws/chat)"
+    test_passed "WebSocket endpoint exists (/api/ws/chat)"
 else
     test_warning "WebSocket endpoint test inconclusive (HTTP $WS_TEST)"
 fi

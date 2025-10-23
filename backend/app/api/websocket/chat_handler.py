@@ -60,22 +60,28 @@ async def websocket_endpoint(
         4. Echo back for testing (will be replaced with RAG in PR #16)
 
     Example:
-        ws://localhost:8000/ws/chat?token=abc123
+        ws://localhost:8000/api/ws/chat?token=abc123
     """
     current_user: Optional[User] = None
     auth_service = AuthService(db)
 
     try:
-        # Step 1: Authenticate user
+        # Step 1: Accept the WebSocket connection (MUST be done first)
+        await websocket.accept()
+
+        # Step 2: Authenticate user
         current_user = await auth_service.validate_session(token)
 
         if not current_user:
+            # Send error and close connection
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
             logger.warning(f"WebSocket connection rejected: invalid token")
             return
 
-        # Step 2: Accept connection and register in manager
-        await connection_manager.connect(websocket, current_user.id)
+        # Step 3: Register in connection manager (don't call connect() as it tries to accept again)
+        if current_user.id not in connection_manager.active_connections:
+            connection_manager.active_connections[current_user.id] = set()
+        connection_manager.active_connections[current_user.id].add(websocket)
         logger.info(f"User {current_user.id} ({current_user.email}) connected via WebSocket")
 
         # Send welcome message

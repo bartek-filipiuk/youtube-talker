@@ -113,7 +113,7 @@ Before starting manual testing, ensure:
 ### 5. WebSocket Chat
 
 **Connection:**
-- [ ] Connect to `/ws/chat` with valid token (should succeed)
+- [ ] Connect to `/api/ws/chat` with valid token (should succeed)
 - [ ] Connect with invalid token (should fail and disconnect)
 - [ ] Connect without token (should fail and disconnect)
 

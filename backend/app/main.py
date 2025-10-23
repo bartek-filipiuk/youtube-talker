@@ -68,7 +68,7 @@ app.include_router(health.router)
 app.include_router(conversations.router)
 
 # WebSocket endpoint
-app.websocket("/ws/chat")(websocket_endpoint)
+app.websocket("/api/ws/chat")(websocket_endpoint)
 
 
 @app.get("/", tags=["root"])
