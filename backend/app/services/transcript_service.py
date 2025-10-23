@@ -1,5 +1,6 @@
 """Transcript service for fetching YouTube transcripts via SUPADATA SDK."""
 
+import asyncio
 import logging
 import re
 import uuid
@@ -77,11 +78,13 @@ class TranscriptService:
         """
         video_id = self._extract_video_id(youtube_url)
 
-        # Call 1: Fetch video metadata
-        video = self.client.youtube.video(id=video_id)
+        # Call 1: Fetch video metadata (run in thread pool to avoid blocking event loop)
+        video = await asyncio.to_thread(self.client.youtube.video, id=video_id)
 
-        # Call 2: Fetch transcript
-        transcript = self.client.youtube.transcript(video_id=video_id, text=True)
+        # Call 2: Fetch transcript (run in thread pool to avoid blocking event loop)
+        transcript = await asyncio.to_thread(
+            self.client.youtube.transcript, video_id=video_id, text=True
+        )
 
         # Extract channel info (can be dict or object)
         channel = video.channel

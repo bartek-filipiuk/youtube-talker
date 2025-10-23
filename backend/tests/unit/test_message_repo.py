@@ -70,21 +70,21 @@ async def test_get_last_n_messages(db_session: AsyncSession, test_conversation: 
     repo = MessageRepository(db_session)
 
     # Create 5 messages
-    created_ids = []
     for i in range(5):
-        msg = await repo.create(
+        await repo.create(
             conversation_id=test_conversation.id, role="user", content=f"Message {i}"
         )
-        created_ids.append(msg.id)
 
-    # Get last 3
+    # Get last 3 (returns List[dict] with {role, content})
     last_3 = await repo.get_last_n(test_conversation.id, n=3)
 
     assert len(last_3) == 3
-    # Verify all returned messages belong to this conversation
+    # Verify all returned messages have expected structure
     for msg in last_3:
-        assert msg.conversation_id == test_conversation.id
-        assert msg.id in created_ids
+        assert "role" in msg
+        assert "content" in msg
+        assert msg["role"] == "user"
+        assert msg["content"].startswith("Message ")
 
 
 @pytest.mark.asyncio
