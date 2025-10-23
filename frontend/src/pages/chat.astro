@@ -107,7 +107,7 @@ import ChatInput from '../components/ChatInput.astro';
                 : 'bg-white text-gray-900 border border-gray-200'
             }">
               <div class="whitespace-pre-wrap break-words prose prose-sm max-w-none ${isUser ? 'text-white' : ''}">
-                ${isUser ? escapeHtml(msg.content) : msg.content}
+                ${isUser ? escapeHtml(msg.content) : sanitizeHtml(msg.content)}
                 ${msg.isStreaming ? '<span class="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1"></span>' : ''}
               </div>
               <div class="text-xs mt-2 ${isUser ? 'text-blue-100' : 'text-gray-500'}">
@@ -127,6 +127,13 @@ import ChatInput from '../components/ChatInput.astro';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Sanitize HTML for assistant messages (prevents XSS)
+  function sanitizeHtml(html: string): string {
+    // For now, escape HTML similar to user messages
+    // TODO: Use DOMPurify for proper markdown sanitization when markdown rendering is added
+    return escapeHtml(html);
   }
 
   // Scroll to bottom of messages
@@ -163,6 +170,7 @@ import ChatInput from '../components/ChatInput.astro';
       // If message has no content, it's the end signal
       if (!data.content || data.message === 'complete') {
         finalizeStreaming();
+        chatInput.enable(); // Re-enable input after response completes
       }
     } else if (data.type === 'error') {
       alert('Error: ' + (data.message || 'Unknown error'));
