@@ -13,6 +13,7 @@ from app.rag.nodes.router_node import classify_intent
 from app.rag.graphs.flows.chitchat_flow import compiled_chitchat_flow
 from app.rag.graphs.flows.qa_flow import compiled_qa_flow
 from app.rag.graphs.flows.linkedin_flow import compiled_linkedin_flow
+from app.rag.graphs.flows.metadata_flow import compiled_metadata_flow
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ async def run_graph(
 
     Orchestrates the complete flow:
     1. Classify user intent (router node)
-    2. Route to appropriate flow (chitchat, qa, or linkedin)
+    2. Route to appropriate flow (chitchat, qa, linkedin, or metadata)
     3. Return final state with response
 
     Args:
@@ -40,7 +41,7 @@ async def run_graph(
             - user_query: Original query
             - user_id: User identifier
             - conversation_history: Conversation context
-            - intent: Classified intent ("chitchat", "qa", or "linkedin")
+            - intent: Classified intent ("chitchat", "qa", "linkedin", or "metadata")
             - response: Generated response (HTML formatted)
             - metadata: Response metadata including:
                 - intent_confidence: Router confidence score
@@ -88,6 +89,8 @@ async def run_graph(
         result = await compiled_qa_flow.ainvoke(state)
     elif intent == "linkedin":
         result = await compiled_linkedin_flow.ainvoke(state)
+    elif intent == "metadata":
+        result = await compiled_metadata_flow.ainvoke(state)
     else:
         # Unknown intent - log warning and default to chitchat
         logger.warning(f"Unknown intent '{intent}', defaulting to chitchat flow")
