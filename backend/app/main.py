@@ -15,6 +15,26 @@ from app.core.middleware import setup_middleware
 from app.api.routes import auth, transcripts, health, conversations
 from app.api.websocket.chat_handler import websocket_endpoint
 
+# Import custom exceptions and handlers
+from app.core.errors import (
+    ConversationNotFoundError,
+    ConversationAccessDeniedError,
+    RateLimitExceededError as CustomRateLimitExceededError,
+    InvalidInputError,
+    TranscriptNotFoundError,
+    TranscriptAlreadyExistsError,
+    ExternalAPIError,
+)
+from app.core.exception_handlers import (
+    conversation_not_found_handler,
+    conversation_access_denied_handler,
+    rate_limit_exceeded_handler,
+    invalid_input_handler,
+    transcript_not_found_handler,
+    transcript_already_exists_handler,
+    external_api_error_handler,
+)
+
 # Create FastAPI application instance
 app = FastAPI(
     title="YoutubeTalker API",
@@ -31,6 +51,15 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Setup middleware (CORS, logging, exception handling)
 setup_middleware(app)
+
+# Register custom exception handlers
+app.add_exception_handler(ConversationNotFoundError, conversation_not_found_handler)
+app.add_exception_handler(ConversationAccessDeniedError, conversation_access_denied_handler)
+app.add_exception_handler(CustomRateLimitExceededError, rate_limit_exceeded_handler)
+app.add_exception_handler(InvalidInputError, invalid_input_handler)
+app.add_exception_handler(TranscriptNotFoundError, transcript_not_found_handler)
+app.add_exception_handler(TranscriptAlreadyExistsError, transcript_already_exists_handler)
+app.add_exception_handler(ExternalAPIError, external_api_error_handler)
 
 # Include routers
 app.include_router(auth.router)
