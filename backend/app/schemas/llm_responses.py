@@ -22,8 +22,8 @@ class RelevanceGrade(BaseModel):
         description="Whether the chunk is relevant to the user's query"
     )
     reasoning: str = Field(
-        max_length=200,
-        description="Brief explanation (1-2 sentences) of why the chunk is/isn't relevant"
+        max_length=500,
+        description="Brief explanation (1-2 sentences, max 500 characters) of why the chunk is/isn't relevant"
     )
 
     model_config = ConfigDict(

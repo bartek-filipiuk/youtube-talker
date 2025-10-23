@@ -30,6 +30,9 @@ dependencies = [
     # HTTP Client
     "httpx>=0.26.0",
 
+    # YouTube Transcript Service
+    "supadata>=1.0.0",
+
     # Security
     "bcrypt>=4.1.0",
     "python-multipart>=0.0.6",

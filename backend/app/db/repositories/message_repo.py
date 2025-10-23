@@ -65,7 +65,7 @@ class MessageRepository(BaseRepository[Message]):
         )
         return list(result.scalars().all())
 
-    async def get_last_n(self, conversation_id: UUID, n: int = 10) -> List[Message]:
+    async def get_last_n(self, conversation_id: UUID, n: int = 10) -> List[dict]:
         """
         Get the last N messages from a conversation.
 
@@ -74,7 +74,7 @@ class MessageRepository(BaseRepository[Message]):
             n: Number of recent messages to retrieve
 
         Returns:
-            List of Message instances (most recent last)
+            List of message dicts with {role, content} (most recent last)
         """
         result = await self.session.execute(
             select(Message)
@@ -82,5 +82,11 @@ class MessageRepository(BaseRepository[Message]):
             .order_by(Message.created_at.desc())
             .limit(n)
         )
+        messages = list(result.scalars().all())
+
+        # Convert to dicts in async context to avoid greenlet issues
         # Reverse to get oldest first
-        return list(reversed(list(result.scalars().all())))
+        return [
+            {"role": msg.role, "content": msg.content}
+            for msg in reversed(messages)
+        ]

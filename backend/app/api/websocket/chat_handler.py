@@ -198,11 +198,8 @@ async def websocket_endpoint(
                 )
 
                 # Step 4: Fetch conversation history (last 10 messages)
-                messages = await message_repo.get_last_n(conversation.id, n=10)
-                conversation_history = [
-                    {"role": msg.role, "content": msg.content}
-                    for msg in messages
-                ]
+                # Returns list of dicts: [{"role": str, "content": str}, ...]
+                conversation_history = await message_repo.get_last_n(conversation.id, n=10)
 
                 # Step 5: Send status update - retrieving
                 await connection_manager.send_json(
