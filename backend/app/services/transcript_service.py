@@ -1,4 +1,4 @@
-"""Transcript service for fetching YouTube transcripts via SUPADATA API."""
+"""Transcript service for fetching YouTube transcripts via SUPADATA SDK."""
 
 import logging
 import re
@@ -10,7 +10,7 @@ from tenacity import (
     wait_exponential,
     retry_if_exception_type,
 )
-import httpx
+from supadata import Supadata, SupadataError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -24,22 +24,24 @@ logger = logging.getLogger(__name__)
 
 
 class TranscriptService:
-    """SUPADATA API client for fetching YouTube transcripts."""
+    """SUPADATA SDK client for fetching YouTube transcripts and metadata."""
 
     def __init__(self):
-        """Initialize with SUPADATA credentials from settings."""
-        self.api_key = settings.SUPADATA_API_KEY
-        self.base_url = settings.SUPADATA_BASE_URL
-        self.timeout = 30.0  # 30 seconds (SUPADATA can be slow for long videos)
+        """Initialize with SUPADATA SDK client."""
+        self.client = Supadata(api_key=settings.SUPADATA_API_KEY)
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.HTTPError, httpx.TimeoutException)),
+        retry=retry_if_exception_type(SupadataError),
     )
     async def fetch_transcript(self, youtube_url: str) -> Dict:
         """
-        Fetch transcript from SUPADATA API with retry logic.
+        Fetch transcript and metadata from SUPADATA SDK with retry logic.
+
+        Makes 2 API calls:
+            1. supadata.youtube.video() - Get video metadata
+            2. supadata.youtube.transcript() - Get transcript text
 
         Args:
             youtube_url: YouTube URL (youtube.com/watch?v=ID or youtu.be/ID)
@@ -50,37 +52,59 @@ class TranscriptService:
                 "transcript_text": str,
                 "metadata": {
                     "title": str,
+                    "description": str,
                     "duration": int,
+                    "channel_id": str,
+                    "channel_name": str,
+                    "tags": list[str],
+                    "thumbnail": str,
+                    "upload_date": str,
+                    "view_count": int,
+                    "like_count": int,
                     "language": str,
-                    ...
+                    "available_languages": list[str]
                 }
             }
 
         Raises:
             ValueError: If URL format is invalid
-            httpx.HTTPError: If API request fails after retries
+            SupadataError: If API request fails after retries
 
         Retry Strategy:
             - Max attempts: 3
             - Wait: Exponential backoff (2s, 4s, 8s)
-            - Retry on: httpx.HTTPError, httpx.TimeoutException
+            - Retry on: SupadataError
         """
         video_id = self._extract_video_id(youtube_url)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/transcript",
-                json={"video_id": video_id},
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            data = response.json()
+        # Call 1: Fetch video metadata
+        video = self.client.youtube.video(id=video_id)
+
+        # Call 2: Fetch transcript
+        transcript = self.client.youtube.transcript(video_id=video_id, text=True)
+
+        # Extract channel info (can be dict or object)
+        channel = video.channel
+        channel_id = channel["id"] if isinstance(channel, dict) else getattr(channel, "id", None)
+        channel_name = channel["name"] if isinstance(channel, dict) else getattr(channel, "name", "Unknown")
 
         return {
-            "youtube_video_id": video_id,
-            "transcript_text": data["transcript"],
-            "metadata": data.get("metadata", {}),
+            "youtube_video_id": getattr(video, "id", video_id),
+            "transcript_text": getattr(transcript, "content", ""),
+            "metadata": {
+                "title": getattr(video, "title", ""),
+                "description": getattr(video, "description", ""),
+                "duration": getattr(video, "duration", 0),
+                "channel_id": channel_id,
+                "channel_name": channel_name,
+                "tags": getattr(video, "tags", []),
+                "thumbnail": getattr(video, "thumbnail", ""),
+                "upload_date": getattr(video, "uploadDate", getattr(video, "upload_date", "")),
+                "view_count": getattr(video, "viewCount", getattr(video, "view_count", 0)),
+                "like_count": getattr(video, "likeCount", getattr(video, "like_count", 0)),
+                "language": getattr(transcript, "lang", "en"),
+                "available_languages": getattr(transcript, "availableLangs", getattr(transcript, "available_langs", [])),
+            },
         }
 
     async def ingest_transcript(

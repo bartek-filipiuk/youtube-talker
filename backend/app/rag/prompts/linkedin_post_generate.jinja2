@@ -14,7 +14,7 @@ Retrieved knowledge from video transcripts:
 
 {% for chunk in graded_chunks %}
 ---
-[Chunk {{ loop.index }} from Video ID: {{ chunk.metadata.get('youtube_video_id', 'Unknown') }}]
+[Chunk {{ loop.index }} from Video ID: {{ chunk.youtube_video_id|default('Unknown') }}]
 {{ chunk.chunk_text }}
 {% endfor %}
 ---
