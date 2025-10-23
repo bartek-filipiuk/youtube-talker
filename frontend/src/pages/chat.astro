@@ -1,0 +1,225 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ChatInput from '../components/ChatInput.astro';
+---
+
+<Layout title="Chat">
+  <div class="h-screen flex flex-col bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">YoutubeTalker</h1>
+        <p class="text-sm text-gray-600">Chat with your YouTube videos</p>
+      </div>
+      <a
+        href="/logout"
+        class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+      >
+        Logout
+      </a>
+    </header>
+
+    <!-- Messages Container -->
+    <div id="messagesContainer" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <!-- Messages will be rendered here -->
+      <div id="messagesList" class="space-y-4"></div>
+
+      <!-- Typing Indicator -->
+      <div id="typingIndicator" class="hidden flex items-center gap-2 text-gray-500">
+        <div class="flex gap-1">
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+        </div>
+        <span class="text-sm">AI is typing...</span>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <ChatInput />
+
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="hidden fixed bottom-24 right-6 px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-lg text-sm text-yellow-800">
+      Reconnecting...
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { requireAuth } from '../lib/auth';
+  import { WebSocketClient } from '../lib/websocket';
+  import { $messages, $isTyping, addMessage, startStreaming, appendToStream, finalizeStreaming } from '../stores/chat';
+  import ChatMessage from '../components/ChatMessage.astro';
+
+  // Ensure user is authenticated
+  const auth = await requireAuth();
+  if (!auth) {
+    // Will redirect to login
+    throw new Error('Not authenticated');
+  }
+
+  const { token } = auth;
+
+  // WebSocket configuration
+  const WS_URL = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:8000/api/ws/chat';
+
+  // Initialize WebSocket
+  const wsClient = new WebSocketClient(WS_URL, token);
+
+  // DOM elements
+  const messagesContainer = document.getElementById('messagesContainer') as HTMLDivElement;
+  const messagesList = document.getElementById('messagesList') as HTMLDivElement;
+  const typingIndicator = document.getElementById('typingIndicator') as HTMLDivElement;
+  const connectionStatus = document.getElementById('connectionStatus') as HTMLDivElement;
+  const chatForm = document.getElementById('chatForm') as HTMLFormElement;
+  const chatInput = (window as any).chatInput;
+
+  // Subscribe to message store changes
+  $messages.subscribe((messages) => {
+    renderMessages(messages);
+  });
+
+  // Subscribe to typing indicator
+  $isTyping.subscribe((isTyping) => {
+    if (isTyping) {
+      typingIndicator.classList.remove('hidden');
+    } else {
+      typingIndicator.classList.add('hidden');
+    }
+    scrollToBottom();
+  });
+
+  // Render messages
+  function renderMessages(messages: any[]) {
+    messagesList.innerHTML = messages
+      .map((msg) => {
+        const isUser = msg.role === 'user';
+        const timestamp = new Date(msg.timestamp).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return `
+          <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in">
+            <div class="max-w-2xl px-4 py-3 rounded-lg shadow-sm ${
+              isUser
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-900 border border-gray-200'
+            }">
+              <div class="whitespace-pre-wrap break-words prose prose-sm max-w-none ${isUser ? 'text-white' : ''}">
+                ${isUser ? escapeHtml(msg.content) : msg.content}
+                ${msg.isStreaming ? '<span class="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1"></span>' : ''}
+              </div>
+              <div class="text-xs mt-2 ${isUser ? 'text-blue-100' : 'text-gray-500'}">
+                ${timestamp}
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    scrollToBottom();
+  }
+
+  // Escape HTML to prevent XSS in user messages
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Scroll to bottom of messages
+  function scrollToBottom() {
+    setTimeout(() => {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 0);
+  }
+
+  // Handle WebSocket messages
+  wsClient.onMessage((data) => {
+    console.log('WebSocket message:', data);
+
+    if (data.type === 'status') {
+      if (data.message === 'thinking') {
+        startStreaming();
+      }
+    } else if (data.type === 'assistant_message') {
+      if (data.content) {
+        // Check if we're currently streaming
+        const messages = $messages.get();
+        const lastMessage = messages[messages.length - 1];
+
+        if (lastMessage && lastMessage.isStreaming) {
+          // Append to streaming message
+          appendToStream(data.content);
+        } else {
+          // Start new streaming message
+          startStreaming();
+          appendToStream(data.content);
+        }
+      }
+
+      // If message has no content, it's the end signal
+      if (!data.content || data.message === 'complete') {
+        finalizeStreaming();
+      }
+    } else if (data.type === 'error') {
+      alert('Error: ' + (data.message || 'Unknown error'));
+      finalizeStreaming();
+      chatInput.enable();
+    }
+  });
+
+  // Handle WebSocket errors
+  wsClient.onError((error) => {
+    console.error('WebSocket error:', error);
+    connectionStatus.classList.remove('hidden');
+  });
+
+  // Connect WebSocket
+  wsClient.connect();
+
+  // Handle form submission
+  chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const message = chatInput.getValue();
+    if (!message) return;
+
+    // Add user message to chat
+    addMessage('user', message);
+
+    // Clear input
+    chatInput.clear();
+    chatInput.disable();
+
+    // Send message via WebSocket
+    wsClient.sendMessage(message);
+  });
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    wsClient.disconnect();
+  });
+
+  // Focus input on load
+  chatInput.focus();
+</script>
+
+<style>
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+</style>

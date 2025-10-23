@@ -1,0 +1,87 @@
+---
+// No server-side props needed - all client-side
+---
+
+<div class="border-t border-gray-200 bg-white p-4">
+  <form id="chatForm" class="flex gap-3">
+    <textarea
+      id="messageInput"
+      name="message"
+      rows="1"
+      maxlength="2000"
+      placeholder="Type your message... (Shift+Enter for new line)"
+      class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none transition"
+    ></textarea>
+    <button
+      type="submit"
+      id="sendButton"
+      class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      Send
+    </button>
+  </form>
+  <div class="mt-2 text-xs text-gray-500 flex justify-between">
+    <span id="charCount">0 / 2000</span>
+    <span>Press Enter to send, Shift+Enter for new line</span>
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('chatForm') as HTMLFormElement;
+  const input = document.getElementById('messageInput') as HTMLTextAreaElement;
+  const sendButton = document.getElementById('sendButton') as HTMLButtonElement;
+  const charCount = document.getElementById('charCount') as HTMLSpanElement;
+
+  // Auto-resize textarea
+  function autoResize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  }
+
+  // Update character count
+  function updateCharCount() {
+    const count = input.value.length;
+    charCount.textContent = `${count} / 2000`;
+
+    if (count > 1900) {
+      charCount.classList.add('text-orange-600');
+    } else {
+      charCount.classList.remove('text-orange-600');
+    }
+  }
+
+  // Handle input
+  input.addEventListener('input', () => {
+    autoResize();
+    updateCharCount();
+  });
+
+  // Handle Enter key (send) vs Shift+Enter (new line)
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.dispatchEvent(new Event('submit'));
+    }
+  });
+
+  // Export functions for chat page to use
+  (window as any).chatInput = {
+    getValue: () => input.value.trim(),
+    clear: () => {
+      input.value = '';
+      autoResize();
+      updateCharCount();
+    },
+    disable: () => {
+      input.disabled = true;
+      sendButton.disabled = true;
+    },
+    enable: () => {
+      input.disabled = false;
+      sendButton.disabled = false;
+    },
+    focus: () => {
+      input.focus();
+    }
+  };
+</script>
