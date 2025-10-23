@@ -40,12 +40,12 @@ class IntentClassification(BaseModel):
     """
     Schema for intent classification (Router Node).
 
-    Used with Gemini 2.5 Flash to classify user intent into one of three categories.
+    Used with Gemini 2.5 Flash to classify user intent into one of four categories.
     Determines which LangGraph flow to execute.
     """
 
-    intent: Literal["chitchat", "qa", "linkedin"] = Field(
-        description="Classified user intent: chitchat (casual), qa (question-answering), linkedin (post generation)"
+    intent: Literal["chitchat", "qa", "linkedin", "metadata"] = Field(
+        description="Classified user intent: chitchat (casual), qa (question-answering), linkedin (post generation), metadata (system info)"
     )
     confidence: float = Field(
         ge=0.0,
