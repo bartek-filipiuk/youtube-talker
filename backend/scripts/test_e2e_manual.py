@@ -185,7 +185,7 @@ async def test_websocket_chat(token: str) -> Optional[str]:
     conversation_id = None
 
     try:
-        uri = f"{WS_URL}/ws/chat?token={token}"
+        uri = f"{WS_URL}/api/ws/chat?token={token}"
         print_info(f"Connecting to WebSocket: {uri}")
 
         async with websockets.connect(uri, ping_interval=20, ping_timeout=10) as websocket:

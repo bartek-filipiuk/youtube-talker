@@ -23,14 +23,14 @@ class TestWebSocketEndpoint:
         # We expect it to fail auth, but that proves the endpoint exists
         with pytest.raises(Exception):
             # Try to connect without token - should fail
-            with client.websocket_connect("/ws/chat"):
+            with client.websocket_connect("/api/ws/chat"):
                 pass
 
     def test_websocket_requires_token_parameter(self, client: TestClient):
         """WebSocket endpoint requires token query parameter."""
         # Missing required query parameter should raise exception
         with pytest.raises(Exception):
-            with client.websocket_connect("/ws/chat"):
+            with client.websocket_connect("/api/ws/chat"):
                 pass
 
 

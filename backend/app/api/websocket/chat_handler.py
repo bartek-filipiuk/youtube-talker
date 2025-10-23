@@ -60,7 +60,7 @@ async def websocket_endpoint(
         4. Echo back for testing (will be replaced with RAG in PR #16)
 
     Example:
-        ws://localhost:8000/ws/chat?token=abc123
+        ws://localhost:8000/api/ws/chat?token=abc123
     """
     current_user: Optional[User] = None
     auth_service = AuthService(db)
