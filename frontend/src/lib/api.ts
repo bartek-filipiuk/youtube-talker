@@ -157,3 +157,39 @@ export async function createConversation(token: string, title?: string): Promise
 
   return response.json();
 }
+
+/**
+ * Get all conversations for the current user
+ */
+export async function getConversations(token: string): Promise<Conversation[]> {
+  const response = await fetch(`${API_BASE}/conversations`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to load conversations');
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a conversation
+ */
+export async function deleteConversation(token: string, id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/conversations/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to delete conversation');
+  }
+}

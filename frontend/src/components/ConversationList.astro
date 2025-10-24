@@ -1,0 +1,182 @@
+---
+/**
+ * Conversation List Sidebar Component
+ *
+ * Displays list of conversations with create/switch/delete functionality
+ * Uses conversations store for state management
+ */
+
+interface Props {
+  activeId?: string | null;
+}
+
+const { activeId } = Astro.props;
+---
+
+<div class="h-full flex flex-col bg-gray-50 border-r border-gray-200">
+  <!-- Sidebar Header -->
+  <div class="p-4 border-b border-gray-200">
+    <h2 class="text-lg font-semibold text-gray-900">Conversations</h2>
+    <button
+      id="newConversationBtn"
+      class="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+    >
+      + New Conversation
+    </button>
+  </div>
+
+  <!-- Conversations List -->
+  <div id="conversationsList" class="flex-1 overflow-y-auto p-2">
+    <!-- Populated by client-side script -->
+  </div>
+</div>
+
+<script>
+  import { requireAuth } from '../lib/auth';
+  import { getConversations, deleteConversation } from '../lib/api';
+  import { $conversations, $activeConversationId, setConversations, setActiveConversation, removeConversation } from '../stores/conversations';
+
+  // Ensure user is authenticated
+  const auth = await requireAuth();
+  if (!auth) {
+    throw new Error('Not authenticated');
+  }
+
+  const { token } = auth;
+
+  // DOM elements
+  const conversationsList = document.getElementById('conversationsList') as HTMLDivElement;
+  const newConversationBtn = document.getElementById('newConversationBtn') as HTMLButtonElement;
+
+  // Get active conversation ID from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const activeId = urlParams.get('id');
+  setActiveConversation(activeId);
+
+  // Load conversations from backend
+  async function loadConversations() {
+    try {
+      const conversations = await getConversations(token);
+      setConversations(conversations);
+    } catch (error: any) {
+      console.error('Failed to load conversations:', error);
+      conversationsList.innerHTML = `
+        <div class="p-4 text-center text-gray-500">
+          <p class="text-sm">Failed to load conversations</p>
+          <button class="text-blue-600 hover:underline text-sm mt-2" onclick="location.reload()">
+            Retry
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  // Render conversations list
+  function renderConversations() {
+    const conversations = $conversations.get();
+    const activeConvId = $activeConversationId.get();
+
+    if (conversations.length === 0) {
+      conversationsList.innerHTML = `
+        <div class="p-4 text-center text-gray-500">
+          <p class="text-sm">No conversations yet</p>
+          <p class="text-xs mt-1">Click "New Conversation" to start</p>
+        </div>
+      `;
+      return;
+    }
+
+    conversationsList.innerHTML = conversations
+      .map((conv) => {
+        const isActive = conv.id === activeConvId;
+        const title = conv.title || 'New conversation';
+        const createdDate = new Date(conv.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
+
+        return `
+          <div
+            class="group conversation-item mb-2 p-3 rounded-lg cursor-pointer transition ${
+              isActive
+                ? 'bg-blue-100 border border-blue-300'
+                : 'bg-white border border-gray-200 hover:bg-gray-100'
+            }"
+            data-id="${conv.id}"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0 pr-2" data-conv-link="${conv.id}">
+                <h3 class="text-sm font-medium text-gray-900 truncate">${title}</h3>
+                <p class="text-xs text-gray-500 mt-1">${createdDate}</p>
+              </div>
+              <button
+                class="delete-btn opacity-0 group-hover:opacity-100 transition p-1 text-gray-400 hover:text-red-600"
+                data-id="${conv.id}"
+                data-title="${title}"
+                title="Delete conversation"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    // Add click handlers for conversation navigation
+    document.querySelectorAll('[data-conv-link]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-conv-link');
+        if (id) {
+          window.location.href = `/chat?id=${id}`;
+        }
+      });
+    });
+
+    // Add click handlers for delete buttons
+    document.querySelectorAll('.delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation(); // Prevent navigation
+
+        const id = (e.currentTarget as HTMLButtonElement).getAttribute('data-id');
+        const title = (e.currentTarget as HTMLButtonElement).getAttribute('data-title');
+
+        if (!id) return;
+
+        // Confirm delete
+        const confirmed = confirm(`Delete conversation "${title}"?\n\nThis action cannot be undone.`);
+        if (!confirmed) return;
+
+        try {
+          // Delete from backend
+          await deleteConversation(token, id);
+
+          // Remove from store
+          removeConversation(id);
+
+          // If deleting active conversation, redirect to new conversation
+          if (id === activeConvId) {
+            window.location.href = '/chat';
+          }
+        } catch (error: any) {
+          alert('Failed to delete conversation: ' + error.message);
+        }
+      });
+    });
+  }
+
+  // Subscribe to conversations store changes
+  $conversations.subscribe(() => {
+    renderConversations();
+  });
+
+  // New conversation button
+  newConversationBtn.addEventListener('click', () => {
+    window.location.href = '/chat';
+  });
+
+  // Load conversations on mount
+  loadConversations();
+</script>
