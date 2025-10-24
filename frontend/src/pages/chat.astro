@@ -1,42 +1,6 @@
 ---
-// Disable prerendering - this page needs server-side rendering for auth
-export const prerender = false;
-
 import Layout from '../layouts/Layout.astro';
 import ChatInput from '../components/ChatInput.astro';
-import { getConversation, createConversation, type Message } from '../lib/api';
-
-// Get token from cookie (set by requireAuth on client-side)
-const token = Astro.cookies.get('token')?.value;
-
-// If no token, user will be redirected by requireAuth in client script
-// But we need server-side conversation loading
-let conversationId: string | null = null;
-let initialMessages: Message[] = [];
-let loadError: string | null = null;
-
-if (token) {
-  try {
-    // Check for conversation_id in URL
-    conversationId = Astro.url.searchParams.get('id');
-
-    if (!conversationId) {
-      // No conversation ID - create new conversation
-      const newConversation = await createConversation(token);
-      conversationId = newConversation.id;
-
-      // Redirect to chat with new conversation ID
-      return Astro.redirect(`/chat?id=${conversationId}`);
-    }
-
-    // Load existing conversation
-    const conversation = await getConversation(token, conversationId);
-    initialMessages = conversation.messages || [];
-  } catch (error: any) {
-    console.error('Error loading conversation:', error);
-    loadError = error.message || 'Failed to load conversation';
-  }
-}
 ---
 
 <Layout title="Chat">
@@ -56,16 +20,12 @@ if (token) {
     </header>
 
     <!-- Messages Container -->
-    <div id="messagesContainer" class="flex-1 overflow-y-auto px-6 py-4 space-y-4"
-         data-conversation-id={conversationId}
-         data-initial-messages={JSON.stringify(initialMessages)}>
-      <!-- Error Message -->
-      {loadError && (
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
-          <p class="font-bold">Error loading conversation</p>
-          <p>{loadError}</p>
-        </div>
-      )}
+    <div id="messagesContainer" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <!-- Error Message (populated client-side if needed) -->
+      <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+        <p class="font-bold">Error loading conversation</p>
+        <p id="errorText"></p>
+      </div>
 
       <!-- Messages will be rendered here -->
       <div id="messagesList" class="space-y-4"></div>
@@ -94,6 +54,7 @@ if (token) {
 <script>
   import { requireAuth } from '../lib/auth';
   import { WebSocketClient } from '../lib/websocket';
+  import { getConversation, createConversation } from '../lib/api';
   import { $messages, $isTyping, addMessage, startStreaming, appendToStream, finalizeStreaming, setMessages } from '../stores/chat';
   import { renderMarkdown } from '../lib/markdown';
 
@@ -109,26 +70,55 @@ if (token) {
   // DOM elements
   const messagesContainer = document.getElementById('messagesContainer') as HTMLDivElement;
   const messagesList = document.getElementById('messagesList') as HTMLDivElement;
+  const errorMessage = document.getElementById('errorMessage') as HTMLDivElement;
+  const errorText = document.getElementById('errorText') as HTMLParagraphElement;
 
-  // Get conversation ID and initial messages from data attributes
-  const conversationId = messagesContainer.dataset.conversationId;
-  const initialMessagesJson = messagesContainer.dataset.initialMessages || '[]';
-  const initialMessages = JSON.parse(initialMessagesJson);
-
-  // Load initial messages into store
-  if (initialMessages.length > 0) {
-    const formattedMessages = initialMessages.map((msg: any) => ({
-      role: msg.role,
-      content: msg.content,
-      timestamp: new Date(msg.created_at),
-      isStreaming: false
-    }));
-    setMessages(formattedMessages);
+  // Function to show error
+  function showError(message: string) {
+    errorText.textContent = message;
+    errorMessage.classList.remove('hidden');
   }
 
-  // WebSocket configuration with conversation ID
-  const WS_BASE = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:8000/api/ws/chat';
-  const WS_URL = `${WS_BASE}/${conversationId}`;
+  // Get or create conversation ID
+  let conversationId: string | null = null;
+  const urlParams = new URLSearchParams(window.location.search);
+  conversationId = urlParams.get('id');
+
+  // If no conversation ID, create one and redirect
+  if (!conversationId) {
+    try {
+      const newConversation = await createConversation(token);
+      conversationId = newConversation.id;
+      window.location.href = `/chat?id=${conversationId}`;
+      // Stop execution here - page will reload with conversation ID
+      throw new Error('Redirecting...');
+    } catch (error: any) {
+      showError('Failed to create conversation: ' + error.message);
+      throw error;
+    }
+  }
+
+  // Load conversation messages
+  try {
+    const conversation = await getConversation(token, conversationId);
+    const initialMessages = conversation.messages || [];
+
+    if (initialMessages.length > 0) {
+      const formattedMessages = initialMessages.map((msg: any) => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+        isStreaming: false
+      }));
+      setMessages(formattedMessages);
+    }
+  } catch (error: any) {
+    console.error('Error loading conversation:', error);
+    showError('Failed to load conversation: ' + error.message);
+  }
+
+  // WebSocket configuration (conversation ID is sent in message payload, not URL)
+  const WS_URL = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:8000/api/ws/chat';
 
   // Initialize WebSocket
   const wsClient = new WebSocketClient(WS_URL, token);
@@ -213,24 +203,12 @@ if (token) {
       if (data.message === 'thinking') {
         startStreaming();
       }
-    } else if (data.type === 'assistant_message') {
+    } else if (data.type === 'message') {
       if (data.content) {
-        // Check if we're currently streaming
-        const messages = $messages.get();
-        const lastMessage = messages[messages.length - 1];
-
-        if (lastMessage && lastMessage.isStreaming) {
-          // Append to streaming message
-          appendToStream(data.content);
-        } else {
-          // Start new streaming message
-          startStreaming();
-          appendToStream(data.content);
-        }
-      }
-
-      // If message has no content, it's the end signal
-      if (!data.content || data.message === 'complete') {
+        // Backend sends complete message at once (not streamed)
+        // Start streaming, add content, and finalize immediately
+        startStreaming();
+        appendToStream(data.content);
         finalizeStreaming();
         chatInput.enable(); // Re-enable input after response completes
       }
@@ -265,7 +243,7 @@ if (token) {
     chatInput.disable();
 
     // Send message via WebSocket
-    wsClient.sendMessage(message);
+    wsClient.sendMessage(message, conversationId);
   });
 
   // Cleanup on page unload
