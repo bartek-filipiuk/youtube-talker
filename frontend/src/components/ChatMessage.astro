@@ -1,6 +1,5 @@
 ---
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { renderMarkdown } from '../lib/markdown';
 
 interface Props {
   role: 'user' | 'assistant';
@@ -13,11 +12,7 @@ const { role, content, timestamp, isStreaming } = Astro.props;
 const isUser = role === 'user';
 
 // Convert markdown to HTML for assistant messages
-let htmlContent = content;
-if (!isUser && content) {
-  const rawHtml = await marked(content);
-  htmlContent = DOMPurify.sanitize(rawHtml);
-}
+const htmlContent = !isUser && content ? renderMarkdown(content) : content;
 
 // Format timestamp
 const timeStr = new Date(timestamp).toLocaleTimeString('en-US', {

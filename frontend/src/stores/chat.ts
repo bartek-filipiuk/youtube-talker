@@ -104,3 +104,10 @@ export function clearMessages(): void {
 export function setTyping(isTyping: boolean): void {
   $isTyping.set(isTyping);
 }
+
+/**
+ * Set messages (for loading initial messages from database)
+ */
+export function setMessages(messages: Message[]): void {
+  $messages.set(messages);
+}

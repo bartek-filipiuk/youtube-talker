@@ -95,3 +95,65 @@ export async function getCurrentUser(token: string): Promise<User> {
 
   return response.json();
 }
+
+// ============================================================================
+// Conversation Management
+// ============================================================================
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  metadata?: Record<string, any>;
+}
+
+export interface Conversation {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  messages?: Message[];
+}
+
+/**
+ * Get a specific conversation with its messages
+ */
+export async function getConversation(token: string, id: string): Promise<Conversation> {
+  const response = await fetch(`${API_BASE}/conversations/${id}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to load conversation');
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a new conversation
+ */
+export async function createConversation(token: string, title?: string): Promise<Conversation> {
+  const response = await fetch(`${API_BASE}/conversations`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title: title || 'New conversation' }),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to create conversation');
+  }
+
+  return response.json();
+}
