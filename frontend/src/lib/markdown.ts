@@ -1,12 +1,14 @@
 /**
  * Markdown Rendering Utility
  *
- * Safely converts markdown to HTML with XSS protection via DOMPurify.
+ * Safely converts markdown to HTML with XSS protection via isomorphic-dompurify.
  * Used for displaying formatted AI responses in the chat interface.
+ *
+ * Uses isomorphic-dompurify for compatibility with both browser and Node.js (SSR) environments.
  */
 
 import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Convert markdown string to sanitized HTML

@@ -100,7 +100,7 @@ export async function getCurrentUser(token: string): Promise<User> {
 // Conversation Management
 // ============================================================================
 
-export interface Message {
+export interface ApiMessage {
   id: string;
   conversation_id: string;
   role: 'user' | 'assistant';
@@ -115,7 +115,7 @@ export interface Conversation {
   title: string;
   created_at: string;
   updated_at: string;
-  messages?: Message[];
+  messages?: ApiMessage[];
 }
 
 /**
