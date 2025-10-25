@@ -14,10 +14,20 @@ from fastapi import FastAPI
 from app.api.routes.conversations import router
 from app.dependencies import get_current_user
 from app.api.routes.conversations import get_db
+from app.core.errors import ConversationNotFoundError, ConversationAccessDeniedError
+from app.core.exception_handlers import (
+    conversation_not_found_handler,
+    conversation_access_denied_handler,
+)
 
 # Create test app
 app = FastAPI()
 app.include_router(router)
+
+# Register exception handlers
+app.add_exception_handler(ConversationNotFoundError, conversation_not_found_handler)
+app.add_exception_handler(ConversationAccessDeniedError, conversation_access_denied_handler)
+
 client = TestClient(app)
 
 

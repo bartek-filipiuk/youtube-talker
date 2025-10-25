@@ -13,6 +13,7 @@ from uuid import uuid4
 from app.services.auth_service import AuthService
 from app.db.models import User, Session
 from app.core.security import hash_password
+from app.core.errors import AuthenticationError
 
 
 @pytest.fixture
@@ -146,11 +147,10 @@ class TestLogin:
         auth_service.user_repo.get_by_email.return_value = mock_user
 
         # Should raise 401
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError) as exc_info:
             await auth_service.login("test@example.com", "wrongpassword")
 
-        assert exc_info.value.status_code == 401
-        assert "invalid credentials" in exc_info.value.detail.lower()
+        assert "invalid credentials" in str(exc_info.value).lower()
 
         # Should not create session
         auth_service.session_repo.create.assert_not_called()
@@ -162,11 +162,10 @@ class TestLogin:
         auth_service.user_repo.get_by_email.return_value = None
 
         # Should raise 401
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError) as exc_info:
             await auth_service.login("nonexistent@example.com", "password")
 
-        assert exc_info.value.status_code == 401
-        assert "invalid credentials" in exc_info.value.detail.lower()
+        assert "invalid credentials" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_login_case_sensitive_password(self, auth_service):
@@ -182,10 +181,8 @@ class TestLogin:
         auth_service.user_repo.get_by_email.return_value = mock_user
 
         # Should fail with lowercase
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError):
             await auth_service.login("test@example.com", "password123")
-
-        assert exc_info.value.status_code == 401
 
 
 class TestLogout:
@@ -275,11 +272,10 @@ class TestValidateSession:
         auth_service.session_repo.get_by_token.return_value = mock_session
 
         # Should raise 401
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError) as exc_info:
             await auth_service.validate_session("expired_token")
 
-        assert exc_info.value.status_code == 401
-        assert "expired" in exc_info.value.detail.lower()
+        assert "expired" in str(exc_info.value).lower()
 
         # Should not attempt to get user
         auth_service.user_repo.get_by_id.assert_not_called()
@@ -291,11 +287,10 @@ class TestValidateSession:
         auth_service.session_repo.get_by_token.return_value = None
 
         # Should raise 401
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError) as exc_info:
             await auth_service.validate_session("invalid_token")
 
-        assert exc_info.value.status_code == 401
-        assert "invalid session" in exc_info.value.detail.lower()
+        assert "invalid session" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_validate_session_user_deleted(self, auth_service):
@@ -312,11 +307,10 @@ class TestValidateSession:
         auth_service.user_repo.get_by_id.return_value = None  # User deleted
 
         # Should raise 401
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError) as exc_info:
             await auth_service.validate_session("token_for_deleted_user")
 
-        assert exc_info.value.status_code == 401
-        assert "user not found" in exc_info.value.detail.lower()
+        assert "user not found" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_validate_session_exactly_at_expiry(self, auth_service):
@@ -332,7 +326,5 @@ class TestValidateSession:
         auth_service.session_repo.get_by_token.return_value = mock_session
 
         # Should raise 401 (expired)
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AuthenticationError):
             await auth_service.validate_session("expiring_token")
-
-        assert exc_info.value.status_code == 401
