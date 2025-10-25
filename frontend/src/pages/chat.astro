@@ -213,11 +213,22 @@ const activeConversationId = urlParams.get('id');
     console.log('WebSocket message:', data);
 
     if (data.type === 'status') {
-      if (data.message === 'thinking') {
-        startStreaming();
+      // Show status message in typing indicator (without creating a message)
+      // Skip "Connected as..." messages - those are just connection confirmations
+      if (data.message && !data.message.startsWith('Connected as')) {
+        // Show typing indicator with custom status text
+        typingIndicator.classList.remove('hidden');
+        const statusText = typingIndicator.querySelector('span.text-sm');
+        if (statusText) {
+          statusText.textContent = data.message;
+        }
+        scrollToBottom();
       }
     } else if (data.type === 'message') {
       if (data.content) {
+        // Hide typing indicator
+        typingIndicator.classList.add('hidden');
+
         // Backend sends complete message at once (not streamed)
         // Start streaming, add content, and finalize immediately
         startStreaming();
@@ -226,6 +237,8 @@ const activeConversationId = urlParams.get('id');
         chatInput.enable(); // Re-enable input after response completes
       }
     } else if (data.type === 'error') {
+      // Hide typing indicator on error
+      typingIndicator.classList.add('hidden');
       alert('Error: ' + (data.message || 'Unknown error'));
       finalizeStreaming();
       chatInput.enable();

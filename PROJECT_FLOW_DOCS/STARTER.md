@@ -784,3 +784,12 @@ we need some simple but safe solution for mvp - what is your proposition
 3. save nothing, just error messge that api fails
 update date on success 
 error - just log them
+
+
+
+i see error in console: Failed to load conversations: TypeError: 
+conversations.sort is not a function - alos i need see all websocket 
+messages (those which shows that something is happening) in chat window
+ (styled) so user will see that something is happening, now i can not 
+see it in chat but i see messages in console so it should be easy to 
+show in chat

@@ -174,7 +174,9 @@ export async function getConversations(token: string): Promise<Conversation[]> {
     throw new Error(error.detail || 'Failed to load conversations');
   }
 
-  return response.json();
+  // Backend returns paginated response: { conversations: [...], total, limit, offset }
+  const data = await response.json();
+  return data.conversations || [];
 }
 
 /**
