@@ -5,7 +5,7 @@ Provides REST endpoints for conversation management (CRUD).
 All endpoints require authentication.
 """
 
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -26,7 +26,6 @@ from app.schemas.conversation import (
     MessageResponse,
 )
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 

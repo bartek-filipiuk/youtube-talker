@@ -5,7 +5,7 @@ Provides service health status for monitoring and orchestration.
 Used by load balancers, monitoring tools, and deployment scripts.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, status
@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services.qdrant_service import QdrantService
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 

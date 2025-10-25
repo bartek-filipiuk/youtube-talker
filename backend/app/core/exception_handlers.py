@@ -5,7 +5,7 @@ These handlers convert custom exceptions into appropriate HTTP responses
 with consistent formatting.
 """
 
-import logging
+from loguru import logger
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -19,7 +19,6 @@ from app.core.errors import (
     ExternalAPIError,
 )
 
-logger = logging.getLogger(__name__)
 
 
 async def conversation_not_found_handler(

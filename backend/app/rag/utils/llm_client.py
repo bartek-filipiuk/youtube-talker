@@ -6,7 +6,7 @@ Supports both text generation (Claude) and structured output (Gemini).
 """
 
 import json
-import logging
+from loguru import logger
 from typing import Type, TypeVar
 
 from openai import AsyncOpenAI
@@ -14,7 +14,6 @@ from pydantic import BaseModel, ValidationError
 
 from app.config import settings
 
-logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 

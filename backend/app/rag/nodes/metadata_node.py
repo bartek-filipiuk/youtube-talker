@@ -5,7 +5,7 @@ Handles metadata queries about available videos and system information.
 Queries database for user's transcripts and returns formatted list.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 from uuid import UUID
 
@@ -13,7 +13,6 @@ from app.rag.utils.state import GraphState
 from app.db.session import AsyncSessionLocal
 from app.db.repositories.transcript_repo import TranscriptRepository
 
-logger = logging.getLogger(__name__)
 
 
 async def get_user_videos(state: GraphState) -> Dict[str, Any]:

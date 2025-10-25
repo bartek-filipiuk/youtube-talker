@@ -5,14 +5,13 @@ Generates final responses based on intent and graded chunks.
 Uses Claude Haiku 4.5 for natural text generation.
 """
 
-import logging
 from typing import Dict, Any, List
+
+from loguru import logger
 
 from app.rag.utils.state import GraphState
 from app.rag.utils.llm_client import LLMClient
 from app.rag.utils.prompt_loader import render_prompt
-
-logger = logging.getLogger(__name__)
 
 
 async def generate_response(state: GraphState) -> Dict[str, Any]:

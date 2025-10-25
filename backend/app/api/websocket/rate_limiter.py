@@ -5,13 +5,12 @@ Simple in-memory rate limiter for WebSocket connections.
 Limits messages per user within a sliding time window.
 """
 
-import logging
+from loguru import logger
 from collections import defaultdict
 from time import time
 from typing import Dict, List
 from uuid import UUID
 
-logger = logging.getLogger(__name__)
 
 
 class RateLimiter:

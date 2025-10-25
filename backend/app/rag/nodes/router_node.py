@@ -5,15 +5,14 @@ Classifies user intent to route to appropriate flow.
 Uses Gemini 2.5 Flash for structured JSON output.
 """
 
-import logging
 from typing import Dict, Any
+
+from loguru import logger
 
 from app.rag.utils.state import GraphState
 from app.rag.utils.llm_client import LLMClient
 from app.rag.utils.prompt_loader import render_prompt
 from app.schemas.llm_responses import IntentClassification
-
-logger = logging.getLogger(__name__)
 
 
 async def classify_intent(state: GraphState) -> Dict[str, Any]:

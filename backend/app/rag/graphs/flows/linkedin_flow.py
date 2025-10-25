@@ -5,7 +5,7 @@ RAG flow for generating LinkedIn posts with topic extraction.
 Similar to Q&A flow but uses LinkedIn-specific template.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
@@ -16,7 +16,6 @@ from app.rag.nodes.retriever import retrieve_chunks
 from app.rag.nodes.grader import grade_chunks
 from app.rag.nodes.generator import generate_response
 
-logger = logging.getLogger(__name__)
 
 # RetryPolicy for nodes with external dependencies
 # Same configuration as Q&A flow: retriever (Qdrant + DB) and grader (LLM)

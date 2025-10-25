@@ -15,6 +15,10 @@ from app.core.middleware import setup_middleware
 from app.api.routes import auth, transcripts, health, conversations
 from app.api.websocket.chat_handler import websocket_endpoint
 
+# Import logging configuration to initialize loguru
+# This must be imported early to ensure all subsequent imports use the configured logger
+import app.core.logging  # noqa: F401
+
 # Import custom exceptions and handlers
 from app.core.errors import (
     ConversationNotFoundError,

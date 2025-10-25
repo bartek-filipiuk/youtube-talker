@@ -5,7 +5,7 @@ Simple conversational flow without RAG retrieval.
 Just generates a friendly response using the generator node.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
@@ -13,7 +13,6 @@ from langgraph.graph import StateGraph, END
 from app.rag.utils.state import GraphState
 from app.rag.nodes.generator import generate_response
 
-logger = logging.getLogger(__name__)
 
 
 def build_chitchat_flow() -> StateGraph:

@@ -4,15 +4,14 @@ Binary relevance classification: determines if retrieved chunks are relevant to 
 Uses Gemini 2.5 Flash with structured output (RelevanceGrade schema).
 """
 
-import logging
 from typing import Dict, List
+
+from loguru import logger
 
 from app.rag.utils.state import GraphState
 from app.rag.utils.llm_client import LLMClient
 from app.rag.utils.prompt_loader import render_prompt
 from app.schemas.llm_responses import RelevanceGrade
-
-logger = logging.getLogger(__name__)
 
 
 async def grade_chunks(state: GraphState) -> GraphState:

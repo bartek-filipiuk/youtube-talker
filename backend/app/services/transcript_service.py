@@ -1,7 +1,7 @@
 """Transcript service for fetching YouTube transcripts via SUPADATA SDK."""
 
 import asyncio
-import logging
+from loguru import logger
 import re
 import uuid
 from typing import Dict
@@ -22,7 +22,6 @@ from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
 from app.services.config_service import ConfigService
 
-logger = logging.getLogger(__name__)
 
 
 class TranscriptService:

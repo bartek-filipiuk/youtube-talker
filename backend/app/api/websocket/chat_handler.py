@@ -5,7 +5,7 @@ Main WebSocket endpoint for real-time chat.
 Handles authentication, message validation, RAG integration, and message persistence (PR #16).
 """
 
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -33,7 +33,6 @@ from app.services.config_service import ConfigService
 from app.rag.graphs.router import run_graph
 from app.config import settings
 
-logger = logging.getLogger(__name__)
 
 
 async def websocket_endpoint(
