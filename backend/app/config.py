@@ -50,11 +50,13 @@ class Settings(BaseSettings):
     SUPADATA_API_KEY: str = ""
     SUPADATA_BASE_URL: str = "https://api.supadata.ai"
 
-    # RAG Configuration
-    RAG_TOP_K: int = 12
-    RAG_CONTEXT_MESSAGES: int = 10
-    CHUNK_SIZE: int = 700
-    CHUNK_OVERLAP_PERCENT: int = 20
+    # RAG Configuration (Fallback defaults - prefer database config via ConfigService)
+    # These values are used when ConfigService is unavailable (e.g., during setup)
+    # Production code should load from ConfigService for dynamic configuration
+    RAG_TOP_K: int = 12  # Database key: rag.top_k
+    RAG_CONTEXT_MESSAGES: int = 10  # Database key: rag.context_messages
+    CHUNK_SIZE: int = 700  # Database key: rag.chunk_size
+    CHUNK_OVERLAP_PERCENT: int = 20  # Database key: rag.chunk_overlap_percent
 
     # Authentication & Security
     SESSION_EXPIRES_DAYS: int = 7

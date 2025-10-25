@@ -70,14 +70,18 @@ async def retrieve_chunks(state: GraphState) -> GraphState:
     query_vector = embeddings[0]  # Extract single embedding (1536-dim)
     logger.debug(f"Generated query embedding (dim={len(query_vector)})")
 
-    # Step 2: Search Qdrant (top-12, user_id filtered)
+    # Step 2: Search Qdrant (user_id filtered)
+    # Load top_k from config (loaded from database via ConfigService), fallback to 12
+    config = state.get("config", {})
+    top_k = config.get("top_k", 12)
+
     qdrant_service = QdrantService()
     qdrant_results = await qdrant_service.search(
         query_vector=query_vector,
         user_id=user_id,
-        top_k=12,  # Standard RAG top-k
+        top_k=top_k,
     )
-    logger.info(f"Qdrant returned {len(qdrant_results)} chunks")
+    logger.info(f"Qdrant returned {len(qdrant_results)} chunks (top_k={top_k})")
 
     # Step 3: Format results (chunk_text already in Qdrant payload - no PostgreSQL fetch!)
     # Defensive: Skip chunks with missing required payload fields (handles legacy data)
