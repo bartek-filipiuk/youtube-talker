@@ -9,6 +9,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError, ExternalAPIError
 from app.db.session import get_db
 from app.db.models import User
 from app.dependencies import get_current_user
@@ -92,21 +93,15 @@ async def ingest_transcript(
         # Duplicate or validation error
         error_msg = str(e)
         if "already exists" in error_msg.lower():
-            raise HTTPException(status_code=409, detail=error_msg)
+            raise TranscriptAlreadyExistsError()
         else:
-            raise HTTPException(status_code=422, detail=error_msg)
+            raise InvalidInputError(error_msg)
 
     except Exception as e:
         # External service error (SUPADATA, OpenAI, Qdrant)
         error_msg = str(e)
         if "httpx" in error_msg.lower() or "api" in error_msg.lower():
-            raise HTTPException(
-                status_code=502,
-                detail=f"External service error: {error_msg}",
-            )
+            raise ExternalAPIError(f"External service error: {error_msg}")
         else:
-            # Unexpected server error
-            raise HTTPException(
-                status_code=500,
-                detail=f"Ingestion failed: {error_msg}",
-            )
+            # Unexpected server error - let global handler catch it
+            raise

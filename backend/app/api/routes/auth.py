@@ -10,6 +10,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AuthenticationError
 from app.db.session import get_db
 from app.db.models import User
 from app.dependencies import get_current_user
@@ -115,7 +116,7 @@ async def logout(
         None (204 No Content)
 
     Raises:
-        HTTPException(401): No Authorization header provided
+        AuthenticationError: No Authorization header provided
 
     Example:
         >>> POST /api/auth/logout
@@ -125,7 +126,7 @@ async def logout(
     # Extract token from Authorization header
     auth_header = request.headers.get("Authorization")
     if not auth_header:
-        raise HTTPException(status_code=401, detail="Authorization header required")
+        raise AuthenticationError("Authorization header required")
 
     # Parse Bearer token
     try:
@@ -133,9 +134,7 @@ async def logout(
         if scheme.lower() != "bearer":
             raise ValueError("Invalid scheme")
     except ValueError:
-        raise HTTPException(
-            status_code=401, detail="Invalid Authorization header format. Use: Bearer <token>"
-        )
+        raise AuthenticationError("Invalid Authorization header format. Use: Bearer <token>")
 
     # Logout (idempotent - doesn't fail if token doesn't exist)
     auth_service = AuthService(db)

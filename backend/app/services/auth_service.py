@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password, generate_session_token, hash_token
+from app.core.errors import AuthenticationError
 from app.db.models import User
 from app.db.repositories.user_repo import UserRepository
 from app.db.repositories.session_repo import SessionRepository
@@ -100,7 +101,7 @@ class AuthService:
             dict with keys: token, user_id, email
 
         Raises:
-            HTTPException(401): Invalid credentials (wrong email or password)
+            AuthenticationError: Invalid credentials (wrong email or password)
 
         Example:
             >>> result = await auth_service.login("test@example.com", "password123")
@@ -110,11 +111,11 @@ class AuthService:
         # Get user by email
         user = await self.user_repo.get_by_email(email)
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise AuthenticationError("Invalid credentials")
 
         # Verify password
         if not verify_password(password, user.password_hash):
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise AuthenticationError("Invalid credentials")
 
         # Generate session token
         token = generate_session_token()
@@ -168,8 +169,8 @@ class AuthService:
             User object if session valid
 
         Raises:
-            HTTPException(401): Invalid session (not found)
-            HTTPException(401): Session expired
+            AuthenticationError: Invalid session (not found)
+            AuthenticationError: Session expired
 
         Example:
             >>> user = await auth_service.validate_session("valid_token")
@@ -181,16 +182,16 @@ class AuthService:
         session = await self.session_repo.get_by_token(token_hash)
 
         if not session:
-            raise HTTPException(status_code=401, detail="Invalid session")
+            raise AuthenticationError("Invalid session")
 
         # Check if expired
         if session.expires_at < datetime.utcnow():
-            raise HTTPException(status_code=401, detail="Session expired")
+            raise AuthenticationError("Session expired")
 
         # Get user
         user = await self.user_repo.get_by_id(session.user_id)
         if not user:
             # Edge case: user was deleted but session still exists
-            raise HTTPException(status_code=401, detail="User not found")
+            raise AuthenticationError("User not found")
 
         return user

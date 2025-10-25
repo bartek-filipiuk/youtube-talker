@@ -23,6 +23,7 @@ from app.api.websocket.chat_handler import websocket_endpoint
 
 # Import custom exceptions and handlers
 from app.core.errors import (
+    AuthenticationError,
     ConversationNotFoundError,
     ConversationAccessDeniedError,
     RateLimitExceededError as CustomRateLimitExceededError,
@@ -32,6 +33,7 @@ from app.core.errors import (
     ExternalAPIError,
 )
 from app.core.exception_handlers import (
+    authentication_error_handler,
     conversation_not_found_handler,
     conversation_access_denied_handler,
     rate_limit_exceeded_handler,
@@ -39,6 +41,7 @@ from app.core.exception_handlers import (
     transcript_not_found_handler,
     transcript_already_exists_handler,
     external_api_error_handler,
+    global_exception_handler,
 )
 
 # Create FastAPI application instance
@@ -59,6 +62,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 setup_middleware(app)
 
 # Register custom exception handlers
+app.add_exception_handler(AuthenticationError, authentication_error_handler)
 app.add_exception_handler(ConversationNotFoundError, conversation_not_found_handler)
 app.add_exception_handler(ConversationAccessDeniedError, conversation_access_denied_handler)
 app.add_exception_handler(CustomRateLimitExceededError, rate_limit_exceeded_handler)
@@ -66,6 +70,9 @@ app.add_exception_handler(InvalidInputError, invalid_input_handler)
 app.add_exception_handler(TranscriptNotFoundError, transcript_not_found_handler)
 app.add_exception_handler(TranscriptAlreadyExistsError, transcript_already_exists_handler)
 app.add_exception_handler(ExternalAPIError, external_api_error_handler)
+
+# Register global exception handler (catch-all for unhandled exceptions)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # Include routers
 app.include_router(auth.router)

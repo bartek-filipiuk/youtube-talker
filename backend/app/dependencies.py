@@ -8,6 +8,7 @@ These dependencies will be used throughout the application via Depends().
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AuthenticationError
 from app.db.models import User
 from app.db.session import get_db
 from app.services.auth_service import AuthService
@@ -31,10 +32,10 @@ async def get_current_user(
         User: Authenticated user object
 
     Raises:
-        HTTPException(401): Missing Authorization header
-        HTTPException(401): Invalid Authorization header format
-        HTTPException(401): Invalid or expired session token
-        HTTPException(401): User not found (deleted after session created)
+        AuthenticationError: Missing Authorization header
+        AuthenticationError: Invalid Authorization header format
+        AuthenticationError: Invalid or expired session token
+        AuthenticationError: User not found (deleted after session created)
 
     Example:
         >>> @app.get("/protected")
@@ -44,11 +45,7 @@ async def get_current_user(
     # Extract Authorization header
     auth_header = request.headers.get("Authorization")
     if not auth_header:
-        raise HTTPException(
-            status_code=401,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise AuthenticationError("Not authenticated")
 
     # Parse Bearer token
     try:
@@ -56,11 +53,7 @@ async def get_current_user(
         if scheme.lower() != "bearer":
             raise ValueError("Invalid scheme")
     except ValueError:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise AuthenticationError("Invalid authentication credentials")
 
     # Validate session and get user
     auth_service = AuthService(db)
