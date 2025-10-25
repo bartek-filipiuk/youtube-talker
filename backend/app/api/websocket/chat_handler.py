@@ -29,7 +29,9 @@ from app.db.models import User, Conversation
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.repositories.message_repo import MessageRepository
 from app.services.auth_service import AuthService
+from app.services.config_service import ConfigService
 from app.rag.graphs.router import run_graph
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +196,14 @@ async def websocket_endpoint(
                         )
                         continue
 
-                # Step 3: Send status update - classifying
+                # Step 3: Load config values from database (via ConfigService)
+                config_service = ConfigService(db)
+                rag_config = {
+                    "top_k": await config_service.get_config("rag.top_k", default=settings.RAG_TOP_K),
+                    "context_messages": await config_service.get_config("rag.context_messages", default=settings.RAG_CONTEXT_MESSAGES),
+                }
+
+                # Step 4: Send status update - classifying
                 await connection_manager.send_json(
                     websocket,
                     StatusMessage(
@@ -203,11 +212,14 @@ async def websocket_endpoint(
                     ).model_dump()
                 )
 
-                # Step 4: Fetch conversation history (last 10 messages)
+                # Step 5: Fetch conversation history (last N messages from config)
                 # Returns list of dicts: [{"role": str, "content": str}, ...]
-                conversation_history = await message_repo.get_last_n(conversation.id, n=10)
+                conversation_history = await message_repo.get_last_n(
+                    conversation.id,
+                    n=rag_config["context_messages"]
+                )
 
-                # Step 5: Send status update - retrieving
+                # Step 6: Send status update - retrieving
                 await connection_manager.send_json(
                     websocket,
                     StatusMessage(
@@ -216,14 +228,15 @@ async def websocket_endpoint(
                     ).model_dump()
                 )
 
-                # Step 6: Call run_graph (RAG flow)
+                # Step 7: Call run_graph (RAG flow) with config
                 result = await run_graph(
                     user_query=message.content,
                     user_id=str(current_user.id),
-                    conversation_history=conversation_history
+                    conversation_history=conversation_history,
+                    config=rag_config
                 )
 
-                # Step 7: Send status update - generating
+                # Step 8: Send status update - generating
                 await connection_manager.send_json(
                     websocket,
                     StatusMessage(
@@ -232,7 +245,7 @@ async def websocket_endpoint(
                     ).model_dump()
                 )
 
-                # Step 8: Send complete response
+                # Step 9: Send complete response
                 response_metadata = {
                     "intent": result.get("intent", "unknown"),
                     "conversation_id": str(conversation.id),
@@ -247,7 +260,7 @@ async def websocket_endpoint(
                     ).model_dump()
                 )
 
-                # Step 9: Save messages to database
+                # Step 10: Save messages to database
                 # Save user message
                 await message_repo.create(
                     conversation_id=conversation.id,

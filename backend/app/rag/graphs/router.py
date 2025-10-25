@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 async def run_graph(
     user_query: str,
     user_id: str,
-    conversation_history: list
+    conversation_history: list,
+    config: Dict[str, Any] = None
 ) -> Dict[str, Any]:
     """
     Main entry point for RAG system.
@@ -35,6 +36,7 @@ async def run_graph(
         user_query: The user's input text
         user_id: User identifier for personalization
         conversation_history: List of previous messages for context
+        config: Optional runtime configuration (loaded from ConfigService)
 
     Returns:
         Final GraphState containing:
@@ -58,7 +60,8 @@ async def run_graph(
         result = await run_graph(
             user_query="What is FastAPI?",
             user_id="user123",
-            conversation_history=[]
+            conversation_history=[],
+            config={"top_k": 12}
         )
         print(result["response"])  # "<p>FastAPI is...</p>"
         print(result["intent"])     # "qa"
@@ -68,7 +71,8 @@ async def run_graph(
     state: GraphState = {
         "user_query": user_query,
         "user_id": user_id,
-        "conversation_history": conversation_history
+        "conversation_history": conversation_history,
+        "config": config or {}
     }
 
     logger.info(f"Starting RAG flow for user {user_id}: {user_query[:50]}...")

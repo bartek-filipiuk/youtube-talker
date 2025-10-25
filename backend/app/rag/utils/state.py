@@ -16,6 +16,7 @@ class GraphState(TypedDict, total=False):
         user_query: The original user question/request
         user_id: UUID of the user making the request (for data isolation)
         conversation_history: Last N messages for context (list of dicts with role, content)
+        config: Runtime configuration values (loaded from database via ConfigService)
         intent: Classified intent ("chitchat" | "qa" | "linkedin")
         retrieved_chunks: Raw chunks from Qdrant search (before grading)
         graded_chunks: Filtered chunks after relevance grading
@@ -32,6 +33,7 @@ class GraphState(TypedDict, total=False):
     user_query: str
     user_id: str
     conversation_history: List[Dict[str, str]]
+    config: Optional[Dict[str, any]]  # RAG config values (top_k, chunk_size, etc.)
 
     # Intermediate fields (set during graph execution)
     intent: Optional[str]

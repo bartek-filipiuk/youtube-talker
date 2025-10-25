@@ -20,6 +20,7 @@ from app.db.repositories.chunk_repo import ChunkRepository
 from app.services.chunking_service import ChunkingService
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
+from app.services.config_service import ConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -189,11 +190,17 @@ class TranscriptService:
             transcript_id = str(transcript.id)
             logger.info(f"✓ Saved transcript with id={transcript_id}")
 
-            # Step 4: Chunk the transcript
-            logger.info("Step 4/7: Chunking transcript text")
+            # Step 4: Load chunking config from database (via ConfigService)
+            logger.info("Step 4/7: Loading chunking configuration")
+            config_service = ConfigService(db_session)
+            chunk_size = await config_service.get_config("rag.chunk_size", default=settings.CHUNK_SIZE)
+            overlap_percent = await config_service.get_config("rag.chunk_overlap_percent", default=settings.CHUNK_OVERLAP_PERCENT)
+
+            # Step 4.5: Chunk the transcript
+            logger.info(f"Chunking transcript text (chunk_size={chunk_size}, overlap={overlap_percent}%)")
             chunking_service = ChunkingService(
-                chunk_size=settings.CHUNK_SIZE,
-                overlap_percent=settings.CHUNK_OVERLAP_PERCENT,
+                chunk_size=chunk_size,
+                overlap_percent=overlap_percent,
             )
             chunks = chunking_service.chunk_text(transcript_text)
             logger.info(f"✓ Created {len(chunks)} chunks")
