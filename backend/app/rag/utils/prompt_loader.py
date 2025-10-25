@@ -5,13 +5,12 @@ Centralized utility for loading and rendering Jinja2 prompt templates.
 All RAG node prompts are stored in app/rag/prompts/ as .jinja2 files.
 """
 
-import logging
+from loguru import logger
 from pathlib import Path
 from typing import Dict, Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-logger = logging.getLogger(__name__)
 
 # Get the prompts directory path
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"

@@ -4,13 +4,12 @@ WebSocket Connection Manager
 Manages active WebSocket connections and handles heartbeat mechanism.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Set
 from uuid import UUID
 
 from fastapi import WebSocket
 
-logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:

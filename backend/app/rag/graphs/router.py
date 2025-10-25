@@ -5,7 +5,7 @@ Orchestrates intent classification and routing to appropriate flow.
 Entry point for all RAG operations.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from app.rag.utils.state import GraphState
@@ -15,7 +15,6 @@ from app.rag.graphs.flows.qa_flow import compiled_qa_flow
 from app.rag.graphs.flows.linkedin_flow import compiled_linkedin_flow
 from app.rag.graphs.flows.metadata_flow import compiled_metadata_flow
 
-logger = logging.getLogger(__name__)
 
 
 async def run_graph(

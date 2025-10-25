@@ -4,14 +4,13 @@ Generates query embedding and searches Qdrant for top-k semantically similar chu
 Chunk text is read directly from Qdrant payload (no PostgreSQL fetch needed).
 """
 
-import logging
 from typing import Dict, List
+
+from loguru import logger
 
 from app.rag.utils.state import GraphState
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
-
-logger = logging.getLogger(__name__)
 
 
 async def retrieve_chunks(state: GraphState) -> GraphState:

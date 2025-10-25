@@ -5,7 +5,7 @@ Main WebSocket endpoint for real-time chat.
 Handles authentication, message validation, RAG integration, and message persistence (PR #16).
 """
 
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -33,7 +33,6 @@ from app.services.config_service import ConfigService
 from app.rag.graphs.router import run_graph
 from app.config import settings
 
-logger = logging.getLogger(__name__)
 
 
 async def websocket_endpoint(
@@ -288,9 +287,8 @@ async def websocket_endpoint(
 
             except Exception as e:
                 # Error handling: don't save anything, just log and send error
-                logger.error(
-                    f"Error processing message for user {current_user.id}: {e}",
-                    exc_info=True
+                logger.exception(
+                    f"Error processing message for user {current_user.id}: {e}"
                 )
                 await db.rollback()
 
@@ -306,7 +304,7 @@ async def websocket_endpoint(
         logger.info(f"User {current_user.id if current_user else 'unknown'} disconnected")
 
     except Exception as e:
-        logger.error(f"WebSocket error for user {current_user.id if current_user else 'unknown'}: {e}", exc_info=True)
+        logger.exception(f"WebSocket error for user {current_user.id if current_user else 'unknown'}: {e}")
 
         # Try to send error message before closing
         try:

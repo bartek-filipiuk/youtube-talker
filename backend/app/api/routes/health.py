@@ -5,7 +5,7 @@ Provides service health status for monitoring and orchestration.
 Used by load balancers, monitoring tools, and deployment scripts.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, status
@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.services.qdrant_service import QdrantService
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
 
@@ -65,7 +64,7 @@ async def health_check_db(db: AsyncSession = Depends(get_db)) -> JSONResponse:
             content={"status": "healthy", "service": "postgresql"}
         )
     except Exception as e:
-        logger.error(f"Database health check failed: {e}", exc_info=True)
+        logger.exception(f"Database health check failed: {e}")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
@@ -112,7 +111,7 @@ async def health_check_qdrant() -> JSONResponse:
                 }
             )
     except Exception as e:
-        logger.error(f"Qdrant health check failed: {e}", exc_info=True)
+        logger.exception(f"Qdrant health check failed: {e}")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={

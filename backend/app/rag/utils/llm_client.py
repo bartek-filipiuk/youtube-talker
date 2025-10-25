@@ -6,7 +6,7 @@ Supports both text generation (Claude) and structured output (Gemini).
 """
 
 import json
-import logging
+from loguru import logger
 from typing import Type, TypeVar
 
 from openai import AsyncOpenAI
@@ -14,7 +14,6 @@ from pydantic import BaseModel, ValidationError
 
 from app.config import settings
 
-logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -118,7 +117,7 @@ class LLMClient:
             return content
 
         except Exception as e:
-            logger.error(f"Claude API call failed: {e}", exc_info=True)
+            logger.exception(f"Claude API call failed: {e}")
             raise
 
     async def ainvoke_gemini_structured(
@@ -206,5 +205,5 @@ Do not include explanations or additional text. Only output the JSON object."""
 
         except Exception as e:
             if not isinstance(e, (ValidationError, ValueError)):
-                logger.error(f"Gemini API call failed: {e}", exc_info=True)
+                logger.exception(f"Gemini API call failed: {e}")
             raise

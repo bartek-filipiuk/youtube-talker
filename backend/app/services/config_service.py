@@ -5,14 +5,13 @@ Provides access to configuration values stored in the database.
 Uses in-memory caching for performance.
 """
 
-import logging
+from loguru import logger
 from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.repositories.config_repo import ConfigRepository
 
-logger = logging.getLogger(__name__)
 
 
 class ConfigService:

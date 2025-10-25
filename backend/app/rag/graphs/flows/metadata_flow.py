@@ -5,7 +5,7 @@ Simple flow for handling metadata queries about available videos.
 Just queries the database and returns formatted list - no RAG retrieval needed.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
@@ -13,7 +13,6 @@ from langgraph.graph import StateGraph, END
 from app.rag.utils.state import GraphState
 from app.rag.nodes.metadata_node import get_user_videos
 
-logger = logging.getLogger(__name__)
 
 
 def build_metadata_flow() -> StateGraph:

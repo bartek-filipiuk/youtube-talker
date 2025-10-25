@@ -5,7 +5,7 @@ Full RAG flow with retrieval, grading, and generation.
 Includes retry policies for nodes with external dependencies.
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any
 
 from langgraph.graph import StateGraph, END
@@ -16,7 +16,6 @@ from app.rag.nodes.retriever import retrieve_chunks
 from app.rag.nodes.grader import grade_chunks
 from app.rag.nodes.generator import generate_response
 
-logger = logging.getLogger(__name__)
 
 # RetryPolicy for nodes with external dependencies or coordination
 # Applied to retriever (Qdrant + DB) and grader (LLM structured output)

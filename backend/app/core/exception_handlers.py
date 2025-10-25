@@ -5,7 +5,7 @@ These handlers convert custom exceptions into appropriate HTTP responses
 with consistent formatting.
 """
 
-import logging
+from loguru import logger
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -19,7 +19,6 @@ from app.core.errors import (
     ExternalAPIError,
 )
 
-logger = logging.getLogger(__name__)
 
 
 async def conversation_not_found_handler(
@@ -92,7 +91,7 @@ async def external_api_error_handler(
     request: Request, exc: ExternalAPIError
 ) -> JSONResponse:
     """Handle ExternalAPIError → 503 response."""
-    logger.error(f"External API error: {request.url.path} - {str(exc)}", exc_info=True)
+    logger.exception(f"External API error: {request.url.path} - {str(exc)}")
     return JSONResponse(
         status_code=503,
         content={"detail": "External service temporarily unavailable. Please try again later."}

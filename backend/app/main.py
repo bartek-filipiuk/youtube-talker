@@ -11,6 +11,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.config import settings
+
+# Import logging configuration to initialize loguru
+# This must be imported early to ensure all subsequent imports use the configured logger
+import app.core.logging  # noqa: F401
+from loguru import logger
+
 from app.core.middleware import setup_middleware
 from app.api.routes import auth, transcripts, health, conversations
 from app.api.websocket.chat_handler import websocket_endpoint
@@ -106,14 +112,14 @@ async def health_check() -> dict:
 @app.on_event("startup")
 async def startup_event() -> None:
     """Execute tasks on application startup."""
-    print("🚀 YoutubeTalker API starting...")
-    print(f"📝 Environment: {settings.ENV}")
-    print(f"🔍 Debug mode: {settings.DEBUG}")
-    print(f"📚 API docs: http://localhost:8000/docs")
+    logger.info("🚀 YoutubeTalker API starting...")
+    logger.info(f"📝 Environment: {settings.ENV}")
+    logger.info(f"🔍 Debug mode: {settings.DEBUG}")
+    logger.info("📚 API docs: http://localhost:8000/docs")
 
 
 # Application shutdown event
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Execute cleanup tasks on application shutdown."""
-    print("👋 YoutubeTalker API shutting down...")
+    logger.info("👋 YoutubeTalker API shutting down...")
