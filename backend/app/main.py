@@ -4,9 +4,9 @@ YoutubeTalker API - Main Application Entry Point
 FastAPI application for AI-powered YouTube video Q&A and content generation.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
@@ -23,6 +23,7 @@ from app.api.websocket.chat_handler import websocket_endpoint
 
 # Import custom exceptions and handlers
 from app.core.errors import (
+    AuthenticationError,
     ConversationNotFoundError,
     ConversationAccessDeniedError,
     RateLimitExceededError as CustomRateLimitExceededError,
@@ -32,6 +33,7 @@ from app.core.errors import (
     ExternalAPIError,
 )
 from app.core.exception_handlers import (
+    authentication_error_handler,
     conversation_not_found_handler,
     conversation_access_denied_handler,
     rate_limit_exceeded_handler,
@@ -39,6 +41,8 @@ from app.core.exception_handlers import (
     transcript_not_found_handler,
     transcript_already_exists_handler,
     external_api_error_handler,
+    http_exception_handler,
+    global_exception_handler,
 )
 
 # Create FastAPI application instance
@@ -53,12 +57,14 @@ app = FastAPI(
 # Configure rate limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Use custom handler for consistent error format with request_id
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Setup middleware (CORS, logging, exception handling)
 setup_middleware(app)
 
 # Register custom exception handlers
+app.add_exception_handler(AuthenticationError, authentication_error_handler)
 app.add_exception_handler(ConversationNotFoundError, conversation_not_found_handler)
 app.add_exception_handler(ConversationAccessDeniedError, conversation_access_denied_handler)
 app.add_exception_handler(CustomRateLimitExceededError, rate_limit_exceeded_handler)
@@ -66,6 +72,13 @@ app.add_exception_handler(InvalidInputError, invalid_input_handler)
 app.add_exception_handler(TranscriptNotFoundError, transcript_not_found_handler)
 app.add_exception_handler(TranscriptAlreadyExistsError, transcript_already_exists_handler)
 app.add_exception_handler(ExternalAPIError, external_api_error_handler)
+
+# Register HTTPException handler (preserves FastAPI's built-in HTTP exceptions)
+# MUST be registered before global Exception handler to prevent override
+app.add_exception_handler(HTTPException, http_exception_handler)
+
+# Register global exception handler (catch-all for unhandled exceptions)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # Include routers
 app.include_router(auth.router)

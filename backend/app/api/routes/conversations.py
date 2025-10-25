@@ -13,6 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import ConversationNotFoundError, ConversationAccessDeniedError
 from app.db.session import get_db
 from app.db.models import User, Conversation
 from app.dependencies import get_current_user
@@ -104,8 +105,8 @@ async def get_conversation_detail(
         ConversationDetailResponse with conversation + messages
 
     Raises:
-        HTTPException(404): Conversation not found
-        HTTPException(403): User doesn't own this conversation
+        ConversationNotFoundError: Conversation not found
+        ConversationAccessDeniedError: User doesn't own this conversation
 
     Example:
         >>> GET /api/conversations/550e8400-e29b-41d4-a716-446655440000
@@ -122,10 +123,7 @@ async def get_conversation_detail(
     conversation = await conversation_repo.get_by_id(conversation_id)
 
     if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found"
-        )
+        raise ConversationNotFoundError()
 
     # Verify ownership
     if conversation.user_id != current_user.id:
@@ -133,10 +131,7 @@ async def get_conversation_detail(
             f"User {current_user.id} attempted to access conversation {conversation_id} "
             f"owned by user {conversation.user_id}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this conversation"
-        )
+        raise ConversationAccessDeniedError()
 
     # Fetch messages
     messages = await message_repo.list_by_conversation(conversation_id)
@@ -226,8 +221,8 @@ async def delete_conversation(
         204 No Content on success
 
     Raises:
-        HTTPException(404): Conversation not found
-        HTTPException(403): User doesn't own this conversation
+        ConversationNotFoundError: Conversation not found
+        ConversationAccessDeniedError: User doesn't own this conversation
 
     Example:
         >>> DELETE /api/conversations/550e8400-e29b-41d4-a716-446655440000
@@ -240,10 +235,7 @@ async def delete_conversation(
     conversation = await repo.get_by_id(conversation_id)
 
     if not conversation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found"
-        )
+        raise ConversationNotFoundError()
 
     # Verify ownership
     if conversation.user_id != current_user.id:
@@ -251,10 +243,7 @@ async def delete_conversation(
             f"User {current_user.id} attempted to delete conversation {conversation_id} "
             f"owned by user {conversation.user_id}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this conversation"
-        )
+        raise ConversationAccessDeniedError()
 
     # Delete conversation (cascade deletes messages)
     await repo.delete(conversation_id)

@@ -6,6 +6,11 @@ error handling and response formatting.
 """
 
 
+class AuthenticationError(Exception):
+    """Raised when authentication fails (401)."""
+    pass
+
+
 class ConversationNotFoundError(Exception):
     """Raised when conversation doesn't exist in database."""
     pass
