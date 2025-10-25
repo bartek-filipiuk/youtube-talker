@@ -115,7 +115,7 @@ async def startup_event() -> None:
     logger.info("🚀 YoutubeTalker API starting...")
     logger.info(f"📝 Environment: {settings.ENV}")
     logger.info(f"🔍 Debug mode: {settings.DEBUG}")
-    logger.info(f"📚 API docs: http://localhost:8000/docs")
+    logger.info("📚 API docs: http://localhost:8000/docs")
 
 
 # Application shutdown event
