@@ -116,7 +116,7 @@ async def logout(
         None (204 No Content)
 
     Raises:
-        AuthenticationError: No Authorization header provided
+        AuthenticationError: No Authorization header provided or invalid format
 
     Example:
         >>> POST /api/auth/logout

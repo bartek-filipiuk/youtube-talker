@@ -171,6 +171,7 @@ class AuthService:
         Raises:
             AuthenticationError: Invalid session (not found)
             AuthenticationError: Session expired
+            AuthenticationError: User not found (deleted after session created)
 
         Example:
             >>> user = await auth_service.validate_session("valid_token")

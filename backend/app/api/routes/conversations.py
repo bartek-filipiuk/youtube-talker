@@ -105,8 +105,8 @@ async def get_conversation_detail(
         ConversationDetailResponse with conversation + messages
 
     Raises:
-        HTTPException(404): Conversation not found
-        HTTPException(403): User doesn't own this conversation
+        ConversationNotFoundError: Conversation not found
+        ConversationAccessDeniedError: User doesn't own this conversation
 
     Example:
         >>> GET /api/conversations/550e8400-e29b-41d4-a716-446655440000
@@ -221,8 +221,8 @@ async def delete_conversation(
         204 No Content on success
 
     Raises:
-        HTTPException(404): Conversation not found
-        HTTPException(403): User doesn't own this conversation
+        ConversationNotFoundError: Conversation not found
+        ConversationAccessDeniedError: User doesn't own this conversation
 
     Example:
         >>> DELETE /api/conversations/550e8400-e29b-41d4-a716-446655440000

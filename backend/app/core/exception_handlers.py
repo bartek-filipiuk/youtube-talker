@@ -6,7 +6,7 @@ with consistent formatting including request IDs for tracing.
 """
 
 from loguru import logger
-from fastapi import Request
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.core.errors import (
@@ -150,6 +150,42 @@ async def external_api_error_handler(
         status_code=503,
         detail="External service temporarily unavailable. Please try again later.",
         error_code="EXTERNAL_API_ERROR",
+        request_id=request.headers.get("X-Request-ID")
+    )
+
+
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """
+    Handle FastAPI's HTTPException → preserve original status and detail.
+
+    This ensures that explicit HTTPException raises (like 409 for duplicate email)
+    are not overridden by the global catch-all handler. Maintains backward
+    compatibility while adding consistent error format.
+    """
+    # Map common status codes to error codes
+    status_to_code = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "UNPROCESSABLE_ENTITY",
+        500: "INTERNAL_SERVER_ERROR",
+        502: "BAD_GATEWAY",
+        503: "SERVICE_UNAVAILABLE",
+    }
+
+    error_code = status_to_code.get(exc.status_code, "HTTP_ERROR")
+
+    logger.warning(
+        f"HTTPException: {request.method} {request.url.path} - "
+        f"Status: {exc.status_code}, Detail: {exc.detail}"
+    )
+
+    return create_error_response(
+        status_code=exc.status_code,
+        detail=exc.detail,
+        error_code=error_code,
         request_id=request.headers.get("X-Request-ID")
     )
 

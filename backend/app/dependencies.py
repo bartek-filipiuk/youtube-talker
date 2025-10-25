@@ -5,7 +5,7 @@ FastAPI dependencies for database sessions, authentication, and other services.
 These dependencies will be used throughout the application via Depends().
 """
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthenticationError

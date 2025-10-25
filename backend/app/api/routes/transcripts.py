@@ -4,7 +4,7 @@ Transcript API Endpoints
 Provides REST endpoints for transcript ingestion and management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,12 +55,12 @@ async def ingest_transcript(
         TranscriptResponse with ingestion results
 
     Raises:
-        HTTPException(401): User not authenticated
-        HTTPException(409): Transcript already exists for this video
-        HTTPException(422): Invalid YouTube URL format
-        HTTPException(429): Rate limit exceeded
-        HTTPException(502): SUPADATA API error or external service failure
-        HTTPException(500): Unexpected server error
+        AuthenticationError: User not authenticated (401)
+        TranscriptAlreadyExistsError: Transcript already exists for this video (409)
+        InvalidInputError: Invalid YouTube URL format (400)
+        RateLimitExceededError: Rate limit exceeded (429)
+        ExternalAPIError: SUPADATA API error or external service failure (503)
+        Exception: Unexpected server errors handled by global handler (500)
 
     Example:
         >>> POST /api/transcripts/ingest
@@ -93,15 +93,15 @@ async def ingest_transcript(
         # Duplicate or validation error
         error_msg = str(e)
         if "already exists" in error_msg.lower():
-            raise TranscriptAlreadyExistsError()
+            raise TranscriptAlreadyExistsError() from e
         else:
-            raise InvalidInputError(error_msg)
+            raise InvalidInputError(error_msg) from e
 
     except Exception as e:
         # External service error (SUPADATA, OpenAI, Qdrant)
         error_msg = str(e)
         if "httpx" in error_msg.lower() or "api" in error_msg.lower():
-            raise ExternalAPIError(f"External service error: {error_msg}")
+            raise ExternalAPIError(f"External service error: {error_msg}") from e
         else:
             # Unexpected server error - let global handler catch it
             raise

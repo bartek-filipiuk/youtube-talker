@@ -4,9 +4,9 @@ YoutubeTalker API - Main Application Entry Point
 FastAPI application for AI-powered YouTube video Q&A and content generation.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
@@ -41,6 +41,7 @@ from app.core.exception_handlers import (
     transcript_not_found_handler,
     transcript_already_exists_handler,
     external_api_error_handler,
+    http_exception_handler,
     global_exception_handler,
 )
 
@@ -56,7 +57,8 @@ app = FastAPI(
 # Configure rate limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Use custom handler for consistent error format with request_id
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Setup middleware (CORS, logging, exception handling)
 setup_middleware(app)
@@ -70,6 +72,10 @@ app.add_exception_handler(InvalidInputError, invalid_input_handler)
 app.add_exception_handler(TranscriptNotFoundError, transcript_not_found_handler)
 app.add_exception_handler(TranscriptAlreadyExistsError, transcript_already_exists_handler)
 app.add_exception_handler(ExternalAPIError, external_api_error_handler)
+
+# Register HTTPException handler (preserves FastAPI's built-in HTTP exceptions)
+# MUST be registered before global Exception handler to prevent override
+app.add_exception_handler(HTTPException, http_exception_handler)
 
 # Register global exception handler (catch-all for unhandled exceptions)
 app.add_exception_handler(Exception, global_exception_handler)
