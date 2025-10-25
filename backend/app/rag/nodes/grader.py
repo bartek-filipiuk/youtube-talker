@@ -118,9 +118,8 @@ async def grade_chunks(state: GraphState) -> GraphState:
                 )
 
         except Exception as e:
-            logger.error(
-                f"Error grading chunk {chunk.get('chunk_index', 'unknown')}: {e}",
-                exc_info=True,
+            logger.exception(
+                f"Error grading chunk {chunk.get('chunk_index', 'unknown')}: {e}"
             )
             # Skip this chunk, continue with others
             not_relevant_count += 1

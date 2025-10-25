@@ -126,7 +126,7 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Error fetching video metadata: {e}", exc_info=True)
+        logger.exception(f"Error fetching video metadata: {e}")
         return {
             **state,
             "response": "<p>Sorry, I encountered an error while fetching your videos. Please try again.</p>",

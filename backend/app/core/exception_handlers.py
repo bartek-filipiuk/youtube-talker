@@ -91,7 +91,7 @@ async def external_api_error_handler(
     request: Request, exc: ExternalAPIError
 ) -> JSONResponse:
     """Handle ExternalAPIError → 503 response."""
-    logger.error(f"External API error: {request.url.path} - {str(exc)}", exc_info=True)
+    logger.exception(f"External API error: {request.url.path} - {str(exc)}")
     return JSONResponse(
         status_code=503,
         content={"detail": "External service temporarily unavailable. Please try again later."}

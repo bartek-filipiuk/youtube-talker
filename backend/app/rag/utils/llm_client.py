@@ -117,7 +117,7 @@ class LLMClient:
             return content
 
         except Exception as e:
-            logger.error(f"Claude API call failed: {e}", exc_info=True)
+            logger.exception(f"Claude API call failed: {e}")
             raise
 
     async def ainvoke_gemini_structured(
@@ -205,5 +205,5 @@ Do not include explanations or additional text. Only output the JSON object."""
 
         except Exception as e:
             if not isinstance(e, (ValidationError, ValueError)):
-                logger.error(f"Gemini API call failed: {e}", exc_info=True)
+                logger.exception(f"Gemini API call failed: {e}")
             raise

@@ -64,7 +64,7 @@ async def health_check_db(db: AsyncSession = Depends(get_db)) -> JSONResponse:
             content={"status": "healthy", "service": "postgresql"}
         )
     except Exception as e:
-        logger.error(f"Database health check failed: {e}", exc_info=True)
+        logger.exception(f"Database health check failed: {e}")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
@@ -111,7 +111,7 @@ async def health_check_qdrant() -> JSONResponse:
                 }
             )
     except Exception as e:
-        logger.error(f"Qdrant health check failed: {e}", exc_info=True)
+        logger.exception(f"Qdrant health check failed: {e}")
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={

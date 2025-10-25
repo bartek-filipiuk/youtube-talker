@@ -250,9 +250,8 @@ class TranscriptService:
                 logger.info(f"✓ Upserted {len(chunk_ids)} vectors to Qdrant")
             except Exception as e:
                 # Qdrant is best-effort - log error but don't fail
-                logger.error(
-                    f"⚠ Qdrant upsert failed (data saved in PostgreSQL): {e}",
-                    exc_info=True,
+                logger.exception(
+                    f"⚠ Qdrant upsert failed (data saved in PostgreSQL): {e}"
                 )
 
             logger.info(
@@ -275,7 +274,7 @@ class TranscriptService:
         except Exception as e:
             # Unexpected error - rollback everything
             await db_session.rollback()
-            logger.error(f"✗ Ingestion failed, rolled back: {e}", exc_info=True)
+            logger.exception(f"✗ Ingestion failed, rolled back: {e}")
             raise
 
     def _extract_video_id(self, url: str) -> str:
