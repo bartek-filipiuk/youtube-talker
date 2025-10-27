@@ -45,3 +45,24 @@ class UserRepository(BaseRepository[User]):
             Created User instance
         """
         return await super().create(email=email, password_hash=password_hash)
+
+    async def increment_transcript_count(self, user_id: UUID) -> None:
+        """
+        Increment the transcript_count for a user.
+
+        This method is called after successfully ingesting a new transcript.
+        Used for quota enforcement (e.g., max 10 videos for regular users).
+
+        Args:
+            user_id: UUID of the user
+
+        Raises:
+            ValueError: If user not found
+        """
+        user = await self.get_by_id(user_id)
+        if not user:
+            raise ValueError(f"User {user_id} not found")
+
+        user.transcript_count += 1
+        await self.session.commit()
+        await self.session.refresh(user)
