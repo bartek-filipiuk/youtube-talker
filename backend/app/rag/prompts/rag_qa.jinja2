@@ -16,18 +16,17 @@ Retrieved knowledge from video transcripts:
 
 {% for chunk in graded_chunks %}
 ---
-[Chunk {{ loop.index }} from Video ID: {{ chunk.youtube_video_id|default('Unknown') }}]
+[From Video: {{ chunk.youtube_video_id|default('Unknown') }}]
 {{ chunk.chunk_text }}
 {% endfor %}
 ---
 
 Instructions:
-1. Answer the question based on the retrieved chunks above
-2. If the chunks contain sufficient information, provide a clear, concise answer
+1. Answer the question based on the retrieved knowledge from the video transcripts above
+2. If the retrieved content contains sufficient information, provide a clear, concise answer
 3. If the information is partial or unclear, acknowledge the limitations
-4. If the chunks don't contain relevant information, say "I don't have enough information in the knowledge base to answer this question."
-5. Cite which video chunks you're using when relevant (e.g., "According to Chunk 2...")
-6. Keep your answer conversational and helpful
-7. Format your response in simple HTML (use <p>, <strong>, <em>, <ul>, <li> tags for structure)
+4. If the retrieved content doesn't contain relevant information, say "I don't have enough information in the knowledge base to answer this question."
+5. Keep your answer conversational and helpful
+6. Use markdown formatting for structure (**bold**, *italic*, lists, headings, etc.)
 
 Provide your answer now:
