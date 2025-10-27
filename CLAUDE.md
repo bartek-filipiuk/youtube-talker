@@ -37,6 +37,8 @@
 
 ## 💻 Common Commands
 
+Start system by ./dev.sh
+
 ### Backend
 ```bash
 # Start environment

@@ -47,6 +47,10 @@ This document tracks features and improvements to implement after the MVP launch
 - **Impact**: Good UX, prevents accidental loads
 - **Effort**: Low (intent detection + confirmation dialog)
 
+### 2.4 Disable user registration for now
+- in the future we need register by google account or github account ONLY
+NO FOR SIMPLE REGISTRATION BY EMAIL like now.
+
 ---
 
 ## Priority 3 - UX Improvements
