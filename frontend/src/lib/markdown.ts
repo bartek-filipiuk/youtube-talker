@@ -25,8 +25,24 @@ export function renderMarkdown(content: string): string {
     return '';
   }
 
-  // Convert markdown to HTML
-  const rawHtml = marked.parse(content);
+  let rawHtml: string;
+
+  try {
+    // In marked v16+, we need to be explicit about synchronous parsing
+    // Use marked() directly with async: false option
+    const result = marked(content, { async: false, breaks: true, gfm: true });
+
+    // If result is a Promise (shouldn't be with async: false), handle it
+    if (result instanceof Promise) {
+      console.error('Unexpected Promise returned from marked()');
+      rawHtml = content; // Fallback to raw content
+    } else {
+      rawHtml = result as string;
+    }
+  } catch (error) {
+    console.error('Markdown parsing error:', error);
+    rawHtml = content; // Fallback to raw content
+  }
 
   // Sanitize to prevent XSS attacks
   const cleanHtml = DOMPurify.sanitize(rawHtml);
