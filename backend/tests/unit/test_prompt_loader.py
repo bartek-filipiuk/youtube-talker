@@ -157,11 +157,11 @@ class TestRagQATemplate:
         chunks = [
             {
                 "chunk_text": "FastAPI is a modern web framework for Python.",
-                "metadata": {"youtube_video_id": "video1"}
+                "youtube_video_id": "video1"
             },
             {
                 "chunk_text": "It supports async operations out of the box.",
-                "metadata": {"youtube_video_id": "video2"}
+                "youtube_video_id": "video2"
             }
         ]
 
@@ -175,8 +175,9 @@ class TestRagQATemplate:
         assert "What is FastAPI?" in prompt
         assert "FastAPI is a modern web framework" in prompt
         assert "async operations" in prompt
-        assert "Chunk 1" in prompt
-        assert "Chunk 2" in prompt
+        assert "From Video:" in prompt
+        assert "video1" in prompt
+        assert "video2" in prompt
 
     def test_rag_qa_with_conversation_history(self):
         """Test RAG Q&A includes conversation history."""
@@ -187,7 +188,7 @@ class TestRagQATemplate:
             {"role": "assistant", "content": "Python is a programming language"}
         ]
 
-        chunks = [{"chunk_text": "Test chunk", "metadata": {}}]
+        chunks = [{"chunk_text": "Test chunk"}]
 
         prompt = loader.render(
             "rag_qa.jinja2",
@@ -211,7 +212,7 @@ class TestRagQATemplate:
         )
 
         # Should not have any chunk sections
-        assert "Chunk 1" not in prompt
+        assert "From Video:" not in prompt
 
 
 class TestLinkedInPostTemplate:
@@ -224,7 +225,7 @@ class TestLinkedInPostTemplate:
         chunks = [
             {
                 "chunk_text": "FastAPI provides automatic API documentation.",
-                "metadata": {"youtube_video_id": "video1"}
+                "youtube_video_id": "video1"
             }
         ]
 
@@ -247,9 +248,9 @@ class TestLinkedInPostTemplate:
         loader = PromptLoader()
 
         chunks = [
-            {"chunk_text": "Point 1", "metadata": {"youtube_video_id": "v1"}},
-            {"chunk_text": "Point 2", "metadata": {"youtube_video_id": "v2"}},
-            {"chunk_text": "Point 3", "metadata": {"youtube_video_id": "v3"}}
+            {"chunk_text": "Point 1", "youtube_video_id": "v1"},
+            {"chunk_text": "Point 2", "youtube_video_id": "v2"},
+            {"chunk_text": "Point 3", "youtube_video_id": "v3"}
         ]
 
         prompt = loader.render(
@@ -262,8 +263,9 @@ class TestLinkedInPostTemplate:
         assert "Point 1" in prompt
         assert "Point 2" in prompt
         assert "Point 3" in prompt
-        assert "Chunk 1" in prompt
-        assert "Chunk 3" in prompt
+        assert "From Video:" in prompt
+        assert "v1" in prompt
+        assert "v3" in prompt
 
 
 class TestChitchatFlowTemplate:

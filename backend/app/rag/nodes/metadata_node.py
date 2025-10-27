@@ -74,9 +74,6 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
                     # Format duration (seconds to minutes)
                     duration_min = transcript.duration // 60 if transcript.duration else 0
 
-                    # Get chunk count from meta_data if available
-                    chunk_count = transcript.meta_data.get("chunk_count", "N/A")
-
                     # Get language from meta_data
                     language = transcript.meta_data.get("language", "Unknown")
 
@@ -88,8 +85,7 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
                         f"<strong>{transcript.title or 'Untitled Video'}</strong><br>"
                         f"<small>Channel: {channel} | "
                         f"Duration: {duration_min} min | "
-                        f"Language: {language} | "
-                        f"Chunks: {chunk_count}</small>"
+                        f"Language: {language}</small>"
                         f"</li>"
                     )
 

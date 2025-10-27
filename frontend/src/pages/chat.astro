@@ -32,7 +32,7 @@ const activeConversationId = urlParams.get('id');
       </header>
 
       <!-- Messages Container -->
-      <div id="messagesContainer" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div id="messagesContainer" class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
       <!-- Error Message (populated client-side if needed) -->
       <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
         <p class="font-bold">Error loading conversation</p>
@@ -167,16 +167,20 @@ const activeConversationId = urlParams.get('id');
 
         return `
           <div class="flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in">
-            <div class="max-w-2xl px-4 py-3 rounded-lg shadow-sm ${
+            <div class="max-w-3xl px-3 py-2 rounded-lg shadow-sm ${
               isUser
-                ? 'bg-blue-600 text-white'
+                ? 'bg-gray-50 text-gray-900 border border-gray-200'
                 : 'bg-white text-gray-900 border border-gray-200'
             }">
-              <div class="whitespace-pre-wrap break-words prose prose-sm max-w-none ${isUser ? 'text-white' : ''}">
+              <div class="break-words ${
+                isUser
+                  ? 'whitespace-pre-line'
+                  : 'prose'
+              }">
                 ${isUser ? escapeHtml(msg.content) : sanitizeHtml(msg.content)}
                 ${msg.isStreaming ? '<span class="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1"></span>' : ''}
               </div>
-              <div class="text-xs mt-2 ${isUser ? 'text-blue-100' : 'text-gray-500'}">
+              <div class="text-xs mt-2 text-gray-500">
                 ${timestamp}
               </div>
             </div>
