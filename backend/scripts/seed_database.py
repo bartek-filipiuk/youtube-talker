@@ -16,9 +16,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import async_session_maker
-from app.db.repositories.user_repo import UserRepository
 from app.db.repositories.transcript_repo import TranscriptRepository
+from app.db.repositories.user_repo import UserRepository
+from app.db.session import async_session_maker
 from app.services.auth_service import AuthService
 from app.services.transcript_service import TranscriptService
 
@@ -72,7 +72,7 @@ async def create_test_users(db: AsyncSession) -> list:
             if idx == 0 and existing_user.role != "admin":
                 existing_user.role = "admin"
                 await db.commit()
-                print(f"  ✓ Updated to admin role")
+                print("  ✓ Updated to admin role")
             created_users.append(existing_user)
         else:
             # Create new user
@@ -147,7 +147,7 @@ async def ingest_sample_transcripts(db: AsyncSession, users: list) -> None:
                 db_session=db,
             )
 
-            print(f"  ✓ Ingested successfully!")
+            print("  ✓ Ingested successfully!")
             print(f"    - Transcript ID: {result['transcript_id']}")
             print(f"    - Video ID: {result['youtube_video_id']}")
             print(f"    - Chunks created: {result['chunk_count']}")
@@ -162,7 +162,7 @@ async def ingest_sample_transcripts(db: AsyncSession, users: list) -> None:
             print(f"  ✗ Failed to ingest: {e}")
             continue
 
-    print(f"\n✓ Transcripts processed:")
+    print("\n✓ Transcripts processed:")
     print(f"  - Ingested: {ingested_count}")
     print(f"  - Skipped (existing): {skipped_count}")
 
