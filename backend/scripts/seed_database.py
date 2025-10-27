@@ -16,9 +16,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import async_session_maker
-from app.db.repositories.user_repo import UserRepository
 from app.db.repositories.transcript_repo import TranscriptRepository
+from app.db.repositories.user_repo import UserRepository
+from app.db.session import async_session_maker
 from app.services.auth_service import AuthService
 from app.services.transcript_service import TranscriptService
 
@@ -60,7 +60,7 @@ async def create_test_users(db: AsyncSession) -> list:
     user_repo = UserRepository(db)
     created_users = []
 
-    for user_data in TEST_USERS:
+    for idx, user_data in enumerate(TEST_USERS):
         print(f"\nProcessing user: {user_data['email']}")
 
         # Check if user already exists
@@ -68,6 +68,11 @@ async def create_test_users(db: AsyncSession) -> list:
 
         if existing_user:
             print(f"  ⏭ User already exists, skipping (id={existing_user.id})")
+            # Make first user admin if not already
+            if idx == 0 and existing_user.role != "admin":
+                existing_user.role = "admin"
+                await db.commit()
+                print("  ✓ Updated to admin role")
             created_users.append(existing_user)
         else:
             # Create new user
@@ -77,8 +82,12 @@ async def create_test_users(db: AsyncSession) -> list:
                     email=user_data["email"],
                     password=user_data["password"],
                 )
+                # Make first user admin
+                if idx == 0:
+                    new_user.role = "admin"
                 await db.commit()
-                print(f"  ✓ Created user (id={new_user.id})")
+                role_label = " (admin)" if idx == 0 else ""
+                print(f"  ✓ Created user{role_label} (id={new_user.id})")
                 created_users.append(new_user)
             except Exception as e:
                 await db.rollback()
@@ -138,7 +147,7 @@ async def ingest_sample_transcripts(db: AsyncSession, users: list) -> None:
                 db_session=db,
             )
 
-            print(f"  ✓ Ingested successfully!")
+            print("  ✓ Ingested successfully!")
             print(f"    - Transcript ID: {result['transcript_id']}")
             print(f"    - Video ID: {result['youtube_video_id']}")
             print(f"    - Chunks created: {result['chunk_count']}")
@@ -153,7 +162,7 @@ async def ingest_sample_transcripts(db: AsyncSession, users: list) -> None:
             print(f"  ✗ Failed to ingest: {e}")
             continue
 
-    print(f"\n✓ Transcripts processed:")
+    print("\n✓ Transcripts processed:")
     print(f"  - Ingested: {ingested_count}")
     print(f"  - Skipped (existing): {skipped_count}")
 

@@ -51,6 +51,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
     updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    role: Mapped[str] = mapped_column(String(50), nullable=False, server_default=text("user"), index=True)
+    transcript_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
     # Relationships
     sessions: Mapped[List["Session"]] = relationship(
@@ -73,6 +75,10 @@ class User(Base):
         CheckConstraint(
             "email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'",
             name="check_email_format",
+        ),
+        CheckConstraint(
+            "role IN ('user', 'admin')",
+            name="check_user_role",
         ),
     )
 

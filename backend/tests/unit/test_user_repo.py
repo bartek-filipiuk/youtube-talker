@@ -74,3 +74,43 @@ async def test_delete_user(db_session: AsyncSession, test_user: User):
     # Verify user is deleted
     user = await repo.get_by_id(test_user.id)
     assert user is None
+
+
+@pytest.mark.asyncio
+async def test_user_default_role_and_transcript_count(db_session: AsyncSession):
+    """Test that new users get default role='user' and transcript_count=0."""
+    repo = UserRepository(db_session)
+    user = await repo.create(email="testdefault@example.com", password_hash="hashed")
+
+    assert user.role == "user"
+    assert user.transcript_count == 0
+
+
+@pytest.mark.asyncio
+async def test_increment_transcript_count(db_session: AsyncSession, test_user: User):
+    """Test incrementing transcript count for a user."""
+    repo = UserRepository(db_session)
+
+    # Initial count should be 0
+    assert test_user.transcript_count == 0
+
+    # Increment once
+    await repo.increment_transcript_count(test_user.id)
+    await db_session.refresh(test_user)
+    assert test_user.transcript_count == 1
+
+    # Increment again
+    await repo.increment_transcript_count(test_user.id)
+    await db_session.refresh(test_user)
+    assert test_user.transcript_count == 2
+
+
+@pytest.mark.asyncio
+async def test_increment_transcript_count_user_not_found(db_session: AsyncSession):
+    """Test incrementing transcript count for non-existent user raises ValueError."""
+    from uuid import uuid4
+
+    repo = UserRepository(db_session)
+
+    with pytest.raises(ValueError, match="User .* not found"):
+        await repo.increment_transcript_count(uuid4())
