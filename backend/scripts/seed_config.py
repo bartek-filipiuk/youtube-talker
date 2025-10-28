@@ -87,6 +87,23 @@ async def seed_config():
                 "value": {"value": "false", "type": "bool"},
                 "description": "Enable LangSmith tracing (default: false)"
             },
+
+            # Video Loading Quotas
+            {
+                "key": "quota.user_video_count_limit",
+                "value": {"value": "10", "type": "int"},
+                "description": "Max videos per regular user (default: 10)"
+            },
+            {
+                "key": "quota.user_video_duration_limit_seconds",
+                "value": {"value": "10800", "type": "int"},
+                "description": "Max video duration for regular users in seconds (default: 10800 = 3 hours)"
+            },
+            {
+                "key": "quota.premium_video_duration_limit_seconds",
+                "value": {"value": "36000", "type": "int"},
+                "description": "Max video duration for premium users in seconds (future: 36000 = 10 hours)"
+            },
         ]
 
         # Upsert config items (set_value handles both create and update)

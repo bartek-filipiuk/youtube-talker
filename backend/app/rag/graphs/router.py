@@ -14,6 +14,7 @@ from app.rag.graphs.flows.chitchat_flow import compiled_chitchat_flow
 from app.rag.graphs.flows.qa_flow import compiled_qa_flow
 from app.rag.graphs.flows.linkedin_flow import compiled_linkedin_flow
 from app.rag.graphs.flows.metadata_flow import compiled_metadata_flow
+from app.rag.graphs.flows.video_load_flow import compiled_video_load_flow
 
 
 
@@ -53,7 +54,6 @@ async def run_graph(
 
     Raises:
         ValueError: If intent classification fails or returns unknown intent
-        NotImplementedError: If video_load intent detected (feature not yet implemented)
         Exception: If any flow execution fails
 
     Example:
@@ -96,12 +96,7 @@ async def run_graph(
     elif intent == "metadata":
         result = await compiled_metadata_flow.ainvoke(state)
     elif intent == "video_load":
-        # Video loading feature not yet implemented (coming in PR #3)
-        logger.error(f"video_load intent detected but handler not implemented yet")
-        raise NotImplementedError(
-            "Video loading feature is not yet available. "
-            "This feature will be implemented in a future update."
-        )
+        result = await compiled_video_load_flow.ainvoke(state)
     else:
         # Unknown intent - log warning and default to chitchat
         logger.warning(f"Unknown intent '{intent}', defaulting to chitchat flow")

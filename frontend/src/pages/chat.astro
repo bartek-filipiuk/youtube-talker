@@ -240,6 +240,54 @@ const activeConversationId = urlParams.get('id');
         finalizeStreaming();
         chatInput.enable(); // Re-enable input after response completes
       }
+    } else if (data.type === 'video_load_confirmation') {
+      // Video loading confirmation request from backend
+      typingIndicator.classList.add('hidden');
+
+      // Display confirmation message from assistant (using simple text)
+      let confirmationText = data.message;
+      if (data.video_title) {
+        confirmationText += `\n\n**Video:** ${data.video_title}`;
+      }
+      confirmationText += '\n\nReply with "yes" or "no"';
+
+      startStreaming();
+      appendToStream(confirmationText);
+      finalizeStreaming();
+      chatInput.enable(); // Re-enable input to allow yes/no response
+    } else if (data.type === 'video_load_status') {
+      // Video loading status update
+      typingIndicator.classList.add('hidden');
+
+      let statusContent = '';
+      if (data.status === 'started') {
+        // Show status in typing indicator instead of message
+        const statusText = typingIndicator.querySelector('span.text-sm');
+        if (statusText) {
+          statusText.textContent = data.message || 'Loading video...';
+        }
+        typingIndicator.classList.remove('hidden');
+        scrollToBottom();
+        return; // Don't create a message for 'started' status
+      } else if (data.status === 'completed') {
+        statusContent = `✓ **Success:** ${data.message}`;
+        if (data.video_title) {
+          statusContent += `\n\n**Video:** ${data.video_title}`;
+        }
+        chatInput.enable(); // Re-enable input after completion
+      } else if (data.status === 'failed') {
+        statusContent = `✗ **Failed:** ${data.message}`;
+        if (data.error) {
+          statusContent += `\n\nError: ${data.error}`;
+        }
+        chatInput.enable(); // Re-enable input after failure
+      }
+
+      if (statusContent) {
+        startStreaming();
+        appendToStream(statusContent);
+        finalizeStreaming();
+      }
     } else if (data.type === 'error') {
       // Hide typing indicator on error
       typingIndicator.classList.add('hidden');

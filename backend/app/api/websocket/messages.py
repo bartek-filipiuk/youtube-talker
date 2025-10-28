@@ -48,7 +48,7 @@ class StatusMessage(BaseModel):
 
     type: Literal["status"] = "status"
     message: str = Field(..., description="Human-readable status message")
-    step: Literal["routing", "retrieving", "grading", "generating"] = Field(
+    step: Literal["routing", "retrieving", "grading", "generating", "checking"] = Field(
         ...,
         description="Current processing step"
     )
@@ -227,7 +227,9 @@ class VideoLoadStatusMessage(BaseModel):
     )
     error: Optional[str] = Field(
         None,
-        description="Error details (only present when status=failed)"
+        description="Error code (only present when status=failed). Possible values: "
+                    "INVALID_URL, DUPLICATE_VIDEO, QUOTA_EXCEEDED, DURATION_EXCEEDED, "
+                    "DURATION_UNAVAILABLE, DURATION_CHECK_FAILED, USER_CANCELLED"
     )
 
     model_config = ConfigDict(
