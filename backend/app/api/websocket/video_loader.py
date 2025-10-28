@@ -196,15 +196,22 @@ async def fetch_video_duration(youtube_url: str) -> Tuple[Optional[int], Optiona
         duration = getattr(video, "duration", 0)
         title = getattr(video, "title", None)
 
-        # Store in cache
-        video_metadata_cache[video_id] = VideoMetadata(
-            video_id=video_id,
-            duration=duration,
-            title=title,
-            fetched_at=datetime.utcnow(),
-        )
-
-        logger.debug(f"Fetched and cached video metadata: video_id={video_id}, duration={duration}s, title={title}")
+        # Only cache if duration is valid (> 0)
+        # Zero duration indicates missing/invalid data and should not be cached
+        # to allow retries in case of temporary API issues
+        if duration > 0:
+            video_metadata_cache[video_id] = VideoMetadata(
+                video_id=video_id,
+                duration=duration,
+                title=title,
+                fetched_at=datetime.utcnow(),
+            )
+            logger.debug(f"Fetched and cached video metadata: video_id={video_id}, duration={duration}s, title={title}")
+        else:
+            logger.warning(
+                f"Skipping cache for video_id={video_id} - invalid duration: {duration}s. "
+                f"Will allow retry on next request."
+            )
 
         return duration, title
 

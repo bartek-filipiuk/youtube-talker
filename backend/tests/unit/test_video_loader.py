@@ -996,3 +996,78 @@ class TestVideoMetadataCache:
 
         assert "notitle123" in video_metadata_cache
         assert video_metadata_cache["notitle123"].title is None
+
+    @pytest.mark.asyncio
+    async def test_zero_duration_not_cached(self):
+        """Zero-duration metadata should NOT be cached to allow retries."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=zerodur123"
+
+        # Mock SUPADATA returning zero duration
+        mock_video = MagicMock()
+        mock_video.duration = 0
+        mock_video.title = "Zero Duration Video"
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="zerodur123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        # Check zero duration was returned
+        assert duration == 0
+        assert title == "Zero Duration Video"
+
+        # Check it was NOT cached
+        assert "zerodur123" not in video_metadata_cache
+
+    @pytest.mark.asyncio
+    async def test_retry_after_zero_duration(self):
+        """Second request after zero-duration should retry API (not cached)."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=retry123"
+
+        # First call: API returns zero duration
+        mock_video_zero = MagicMock()
+        mock_video_zero.duration = 0
+        mock_video_zero.title = "Temp Unavailable"
+
+        mock_service_1 = MagicMock()
+        mock_service_1.client.youtube.video = MagicMock(return_value=mock_video_zero)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service_1), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="retry123"):
+
+            duration_1, title_1 = await fetch_video_duration(youtube_url)
+
+        # Verify first call returned zero and NOT cached
+        assert duration_1 == 0
+        assert "retry123" not in video_metadata_cache
+
+        # Second call: API now returns valid duration
+        mock_video_valid = MagicMock()
+        mock_video_valid.duration = 3600
+        mock_video_valid.title = "Now Available"
+
+        mock_service_2 = MagicMock()
+        mock_service_2.client.youtube.video = MagicMock(return_value=mock_video_valid)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service_2), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="retry123"):
+
+            duration_2, title_2 = await fetch_video_duration(youtube_url)
+
+        # Verify second call fetched from API (not cache) and got valid data
+        assert duration_2 == 3600
+        assert title_2 == "Now Available"
+
+        # Verify API was called (not using cache)
+        mock_service_2.client.youtube.video.assert_called_once_with(id="retry123")
+
+        # Now it should be cached
+        assert "retry123" in video_metadata_cache
+        assert video_metadata_cache["retry123"].duration == 3600
