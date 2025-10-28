@@ -152,3 +152,92 @@ class PongMessage(BaseModel):
             }
         }
     )
+
+
+class LoadVideoConfirmationMessage(BaseModel):
+    """
+    Video load confirmation request (server to client).
+
+    Server asks user to confirm whether to load a detected YouTube video.
+    """
+
+    type: Literal["video_load_confirmation"] = "video_load_confirmation"
+    youtube_url: str = Field(..., description="Full YouTube URL detected")
+    video_id: str = Field(..., description="Extracted video ID (11 chars)")
+    video_title: Optional[str] = Field(
+        None,
+        description="Video title from YouTube (if available)"
+    )
+    message: str = Field(
+        ...,
+        description="Confirmation prompt message for user"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "video_load_confirmation",
+                "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "video_id": "dQw4w9WgXcQ",
+                "video_title": "Rick Astley - Never Gonna Give You Up",
+                "message": "Load this video to your knowledge base? Reply 'yes' or 'no'."
+            }
+        }
+    )
+
+
+class LoadVideoResponseMessage(BaseModel):
+    """
+    Video load confirmation response (client to server).
+
+    Client confirms or rejects video loading request.
+    """
+
+    type: Literal["video_load_response"] = "video_load_response"
+    confirmed: bool = Field(..., description="True for yes, False for no")
+    conversation_id: str = Field(..., description="Conversation UUID")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "video_load_response",
+                "confirmed": True,
+                "conversation_id": "123e4567-e89b-12d3-a456-426614174000"
+            }
+        }
+    )
+
+
+class VideoLoadStatusMessage(BaseModel):
+    """
+    Video load status update (server to client).
+
+    Server notifies about video loading progress or completion.
+    """
+
+    type: Literal["video_load_status"] = "video_load_status"
+    status: Literal["started", "completed", "failed"] = Field(
+        ...,
+        description="Current status of video loading"
+    )
+    message: str = Field(..., description="Status message for user")
+    video_title: Optional[str] = Field(
+        None,
+        description="Video title (if available)"
+    )
+    error: Optional[str] = Field(
+        None,
+        description="Error details (only present when status=failed)"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "video_load_status",
+                "status": "completed",
+                "message": "Video loaded successfully to your knowledge base!",
+                "video_title": "Rick Astley - Never Gonna Give You Up",
+                "error": None
+            }
+        }
+    )
