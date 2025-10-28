@@ -125,10 +125,22 @@ async def health_check() -> dict:
 @app.on_event("startup")
 async def startup_event() -> None:
     """Execute tasks on application startup."""
+    import os
+
     logger.info("🚀 YoutubeTalker API starting...")
     logger.info(f"📝 Environment: {settings.ENV}")
     logger.info(f"🔍 Debug mode: {settings.DEBUG}")
     logger.info("📚 API docs: http://localhost:8000/docs")
+
+    # Configure LangSmith tracing if enabled
+    if settings.LANGSMITH_TRACING and settings.LANGSMITH_API_KEY:
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_API_KEY"] = settings.LANGSMITH_API_KEY
+        os.environ["LANGCHAIN_PROJECT"] = settings.LANGSMITH_PROJECT
+        os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
+        logger.info(f"🔬 LangSmith tracing enabled: {settings.LANGSMITH_PROJECT}")
+    else:
+        logger.info("🔬 LangSmith tracing disabled")
 
 
 # Application shutdown event

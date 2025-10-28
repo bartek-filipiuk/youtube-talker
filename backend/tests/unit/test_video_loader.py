@@ -11,12 +11,14 @@ from uuid import uuid4
 
 from app.api.websocket.video_loader import (
     PendingVideoLoad,
+    VideoMetadata,
     check_user_quota,
     handle_video_load_intent,
     handle_confirmation_response,
     trigger_background_load,
     load_video_background,
     pending_loads,
+    video_metadata_cache,
 )
 from app.db.models import User, Transcript
 
@@ -79,10 +81,12 @@ def user_at_quota():
 
 @pytest.fixture(autouse=True)
 def clear_pending_loads():
-    """Clear pending_loads dict before each test."""
+    """Clear pending_loads and video_metadata_cache dicts before each test."""
     pending_loads.clear()
+    video_metadata_cache.clear()
     yield
     pending_loads.clear()
+    video_metadata_cache.clear()
 
 
 class TestCheckUserQuota:
@@ -203,12 +207,20 @@ class TestHandleVideoLoadIntent:
                     websocket=mock_websocket,
                 )
 
-        mock_websocket.send_json.assert_called_once()
-        call_args = mock_websocket.send_json.call_args[0][0]
-        assert call_args["type"] == "video_load_status"
-        assert call_args["status"] == "failed"
-        assert call_args["error"] == "DUPLICATE_VIDEO"
-        assert "already have this video" in call_args["message"]
+        # Should send 2 messages: status "Checking video..." then error message
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check first call is status message
+        first_call = mock_websocket.send_json.call_args_list[0][0][0]
+        assert first_call["type"] == "status"
+        assert first_call["message"] == "Checking video..."
+
+        # Check second call is error message
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_status"
+        assert second_call["status"] == "failed"
+        assert second_call["error"] == "DUPLICATE_VIDEO"
+        assert "already have this video" in second_call["message"]
 
     @pytest.mark.asyncio
     async def test_quota_exceeded(self, user_at_quota, mock_db, mock_websocket):
@@ -223,6 +235,10 @@ class TestHandleVideoLoadIntent:
             with patch(
                 "app.api.websocket.video_loader.TranscriptRepository",
                 return_value=mock_transcript_repo,
+            ), patch(
+                "app.api.websocket.video_loader.fetch_video_duration",
+                new_callable=AsyncMock,
+                return_value=(7200, "Test Video")  # 2 hour video
             ):
                 await handle_video_load_intent(
                     youtube_url=f"https://youtube.com/watch?v={video_id}",
@@ -232,11 +248,19 @@ class TestHandleVideoLoadIntent:
                     websocket=mock_websocket,
                 )
 
-        mock_websocket.send_json.assert_called_once()
-        call_args = mock_websocket.send_json.call_args[0][0]
-        assert call_args["type"] == "video_load_status"
-        assert call_args["status"] == "failed"
-        assert call_args["error"] == "QUOTA_EXCEEDED"
+        # Should send 2 messages: status "Checking video..." then error message
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check first call is status message
+        first_call = mock_websocket.send_json.call_args_list[0][0][0]
+        assert first_call["type"] == "status"
+        assert first_call["message"] == "Checking video..."
+
+        # Check second call is error message
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_status"
+        assert second_call["status"] == "failed"
+        assert second_call["error"] == "QUOTA_EXCEEDED"
 
     @pytest.mark.asyncio
     async def test_success_sends_confirmation(self, regular_user, mock_db, mock_websocket):
@@ -253,6 +277,10 @@ class TestHandleVideoLoadIntent:
             with patch(
                 "app.api.websocket.video_loader.TranscriptRepository",
                 return_value=mock_transcript_repo,
+            ), patch(
+                "app.api.websocket.video_loader.fetch_video_duration",
+                new_callable=AsyncMock,
+                return_value=(7200, "Test Video")  # 2 hour video
             ):
                 await handle_video_load_intent(
                     youtube_url=youtube_url,
@@ -262,12 +290,19 @@ class TestHandleVideoLoadIntent:
                     websocket=mock_websocket,
                 )
 
-        # Check confirmation message sent
-        mock_websocket.send_json.assert_called_once()
-        call_args = mock_websocket.send_json.call_args[0][0]
-        assert call_args["type"] == "video_load_confirmation"
-        assert call_args["video_id"] == video_id
-        assert call_args["youtube_url"] == youtube_url
+        # Should send 2 messages: status "Checking video..." then confirmation
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check first call is status message
+        first_call = mock_websocket.send_json.call_args_list[0][0][0]
+        assert first_call["type"] == "status"
+        assert first_call["message"] == "Checking video..."
+
+        # Check second call is confirmation message
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_confirmation"
+        assert second_call["video_id"] == video_id
+        assert second_call["youtube_url"] == youtube_url
 
         # Check pending load stored
         assert conversation_id in pending_loads
@@ -513,3 +548,526 @@ class TestLoadVideoBackground:
         assert call_args["type"] == "video_load_status"
         assert call_args["status"] == "failed"
         assert "Failed to load video" in call_args["message"]
+
+
+class TestCheckDurationLimit:
+    """Tests for check_duration_limit() function."""
+
+    @pytest.mark.asyncio
+    async def test_admin_unlimited_duration(self, admin_user):
+        """Admin users have no duration limit."""
+        from app.api.websocket.video_loader import check_duration_limit
+
+        # Test with extremely long video (27+ hours)
+        allowed, msg = await check_duration_limit(admin_user, 100000)
+
+        assert allowed is True
+        assert msg == ""
+
+    @pytest.mark.asyncio
+    async def test_user_within_limit(self, regular_user):
+        """Regular user with video under 3h limit passes."""
+        from app.api.websocket.video_loader import check_duration_limit
+
+        # Test with 2.5 hour video (9000 seconds)
+        allowed, msg = await check_duration_limit(regular_user, 9000)
+
+        assert allowed is True
+        assert msg == ""
+
+    @pytest.mark.asyncio
+    async def test_user_exceeds_limit(self, regular_user):
+        """Regular user with video over 3h limit fails."""
+        from app.api.websocket.video_loader import check_duration_limit
+
+        # Test with 4 hour video (14400 seconds)
+        allowed, msg = await check_duration_limit(regular_user, 14400)
+
+        assert allowed is False
+        assert "4h 0m long" in msg
+        assert "3 hours" in msg
+        assert "contact support" in msg
+
+    @pytest.mark.asyncio
+    async def test_user_exactly_at_limit(self, regular_user):
+        """Regular user with video exactly at 3h limit passes."""
+        from app.api.websocket.video_loader import check_duration_limit
+
+        # Test with exactly 3 hour video (10800 seconds)
+        allowed, msg = await check_duration_limit(regular_user, 10800)
+
+        assert allowed is True
+        assert msg == ""
+
+    @pytest.mark.asyncio
+    async def test_user_one_second_over_limit(self, regular_user):
+        """Regular user with video 1 second over limit fails."""
+        from app.api.websocket.video_loader import check_duration_limit
+
+        # Test with 3h 0m 1s video (10801 seconds)
+        allowed, msg = await check_duration_limit(regular_user, 10801)
+
+        assert allowed is False
+        assert "3h 0m long" in msg
+        assert "3 hours" in msg
+
+    @pytest.mark.asyncio
+    async def test_duration_formatting_minutes(self, regular_user):
+        """Error message correctly formats hours and minutes."""
+        from app.api.websocket.video_loader import check_duration_limit
+
+        # Test with 3h 45m video (13500 seconds)
+        allowed, msg = await check_duration_limit(regular_user, 13500)
+
+        assert allowed is False
+        assert "3h 45m long" in msg
+
+
+class TestFetchVideoDuration:
+    """Tests for fetch_video_duration() function."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_success(self):
+        """Successfully fetch duration and title from SUPADATA."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=test123"
+
+        # Mock TranscriptService and SUPADATA client
+        mock_video = MagicMock()
+        mock_video.duration = 7200  # 2 hours
+        mock_video.title = "Test Video Title"
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="test123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        assert duration == 7200
+        assert title == "Test Video Title"
+
+    @pytest.mark.asyncio
+    async def test_fetch_no_title(self):
+        """Handle video with duration but no title."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=test123"
+
+        # Mock video without title
+        mock_video = MagicMock()
+        mock_video.duration = 3600
+        del mock_video.title  # Simulate missing title attribute
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="test123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        assert duration == 3600
+        assert title is None
+
+    @pytest.mark.asyncio
+    async def test_fetch_invalid_url(self):
+        """Invalid YouTube URL raises ValueError."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        with patch("app.api.websocket.video_loader.detect_youtube_url", return_value=None):
+            with pytest.raises(ValueError, match="Invalid YouTube URL"):
+                await fetch_video_duration("not-a-youtube-url")
+
+    @pytest.mark.asyncio
+    async def test_fetch_api_failure(self):
+        """SUPADATA API failure raises exception."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=test123"
+
+        # Mock SUPADATA client failure
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(side_effect=Exception("API Error"))
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="test123"):
+
+            with pytest.raises(Exception, match="API Error"):
+                await fetch_video_duration(youtube_url)
+
+
+class TestDurationCheckIntegration:
+    """Integration tests for duration check in handle_video_load_intent()."""
+
+    @pytest.mark.asyncio
+    async def test_user_video_within_duration_limit(self, regular_user, mock_db, mock_websocket):
+        """User loading video under 3h passes all checks."""
+        from app.api.websocket.video_loader import handle_video_load_intent
+
+        youtube_url = "https://youtube.com/watch?v=short123"
+        conversation_id = "conv-123"
+
+        # Mock no existing transcript
+        mock_transcript_repo = AsyncMock()
+        mock_transcript_repo.get_by_video_id = AsyncMock(return_value=None)
+
+        # Mock duration fetch - 2 hour video
+        with patch("app.api.websocket.video_loader.TranscriptRepository", return_value=mock_transcript_repo), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="short123"), \
+             patch("app.api.websocket.video_loader.fetch_video_duration", new_callable=AsyncMock, return_value=(7200, "Short Video")):
+
+            await handle_video_load_intent(youtube_url, regular_user, conversation_id, mock_db, mock_websocket)
+
+        # Should send 2 messages: status then confirmation
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check second message is confirmation (not error)
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_confirmation"
+
+    @pytest.mark.asyncio
+    async def test_user_video_exceeds_duration_limit(self, regular_user, mock_db, mock_websocket):
+        """User loading video over 3h gets rejected."""
+        from app.api.websocket.video_loader import handle_video_load_intent
+
+        youtube_url = "https://youtube.com/watch?v=long123"
+        conversation_id = "conv-123"
+
+        # Mock no existing transcript
+        mock_transcript_repo = AsyncMock()
+        mock_transcript_repo.get_by_video_id = AsyncMock(return_value=None)
+
+        # Mock duration fetch - 5 hour video
+        with patch("app.api.websocket.video_loader.TranscriptRepository", return_value=mock_transcript_repo), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="long123"), \
+             patch("app.api.websocket.video_loader.fetch_video_duration", new_callable=AsyncMock, return_value=(18000, "Long Video")):
+
+            await handle_video_load_intent(youtube_url, regular_user, conversation_id, mock_db, mock_websocket)
+
+        # Should send 2 messages: status then error
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check second message is error
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_status"
+        assert second_call["status"] == "failed"
+        assert second_call["error"] == "DURATION_EXCEEDED"
+        assert "5h 0m long" in second_call["message"]
+        assert second_call["video_title"] == "Long Video"
+
+    @pytest.mark.asyncio
+    async def test_admin_video_exceeds_user_limit(self, admin_user, mock_db, mock_websocket):
+        """Admin can load video over 3h limit."""
+        from app.api.websocket.video_loader import handle_video_load_intent
+
+        youtube_url = "https://youtube.com/watch?v=long123"
+        conversation_id = "conv-123"
+
+        # Mock no existing transcript
+        mock_transcript_repo = AsyncMock()
+        mock_transcript_repo.get_by_video_id = AsyncMock(return_value=None)
+
+        # Mock duration fetch - 5 hour video
+        with patch("app.api.websocket.video_loader.TranscriptRepository", return_value=mock_transcript_repo), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="long123"), \
+             patch("app.api.websocket.video_loader.fetch_video_duration", new_callable=AsyncMock, return_value=(18000, "Long Video")):
+
+            await handle_video_load_intent(youtube_url, admin_user, conversation_id, mock_db, mock_websocket)
+
+        # Should send 2 messages: status then confirmation (not error)
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check second message is confirmation
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_confirmation"
+
+    @pytest.mark.asyncio
+    async def test_duration_unavailable(self, regular_user, mock_db, mock_websocket):
+        """Video with zero duration gets rejected."""
+        from app.api.websocket.video_loader import handle_video_load_intent
+
+        youtube_url = "https://youtube.com/watch?v=noduration"
+        conversation_id = "conv-123"
+
+        # Mock no existing transcript
+        mock_transcript_repo = AsyncMock()
+        mock_transcript_repo.get_by_video_id = AsyncMock(return_value=None)
+
+        # Mock duration fetch - 0 duration
+        with patch("app.api.websocket.video_loader.TranscriptRepository", return_value=mock_transcript_repo), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="noduration"), \
+             patch("app.api.websocket.video_loader.fetch_video_duration", new_callable=AsyncMock, return_value=(0, "Unknown")):
+
+            await handle_video_load_intent(youtube_url, regular_user, conversation_id, mock_db, mock_websocket)
+
+        # Should send 2 messages: status then error
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check second message is error
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_status"
+        assert second_call["status"] == "failed"
+        assert second_call["error"] == "DURATION_UNAVAILABLE"
+
+    @pytest.mark.asyncio
+    async def test_duration_fetch_failure(self, regular_user, mock_db, mock_websocket):
+        """SUPADATA API failure during duration fetch."""
+        from app.api.websocket.video_loader import handle_video_load_intent
+
+        youtube_url = "https://youtube.com/watch?v=error123"
+        conversation_id = "conv-123"
+
+        # Mock no existing transcript
+        mock_transcript_repo = AsyncMock()
+        mock_transcript_repo.get_by_video_id = AsyncMock(return_value=None)
+
+        # Mock duration fetch failure
+        with patch("app.api.websocket.video_loader.TranscriptRepository", return_value=mock_transcript_repo), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="error123"), \
+             patch("app.api.websocket.video_loader.fetch_video_duration", new_callable=AsyncMock, side_effect=Exception("API Error")):
+
+            await handle_video_load_intent(youtube_url, regular_user, conversation_id, mock_db, mock_websocket)
+
+        # Should send 2 messages: status then error
+        assert mock_websocket.send_json.call_count == 2
+
+        # Check second message is error
+        second_call = mock_websocket.send_json.call_args_list[1][0][0]
+        assert second_call["type"] == "video_load_status"
+        assert second_call["status"] == "failed"
+        assert second_call["error"] == "DURATION_CHECK_FAILED"
+
+
+class TestVideoMetadataCache:
+    """Tests for video metadata caching functionality."""
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_fetches_from_api(self):
+        """First call to fetch_video_duration fetches from SUPADATA API."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=test123"
+
+        # Mock SUPADATA client
+        mock_video = MagicMock()
+        mock_video.duration = 7200  # 2 hours
+        mock_video.title = "Test Video"
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="test123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        # Check API was called
+        mock_service.client.youtube.video.assert_called_once_with(id="test123")
+
+        # Check result
+        assert duration == 7200
+        assert title == "Test Video"
+
+        # Check cache was populated
+        assert "test123" in video_metadata_cache
+        assert video_metadata_cache["test123"].duration == 7200
+        assert video_metadata_cache["test123"].title == "Test Video"
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_skips_api(self):
+        """Second call to fetch_video_duration uses cached data."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=cached123"
+
+        # Pre-populate cache
+        video_metadata_cache["cached123"] = VideoMetadata(
+            video_id="cached123",
+            duration=3600,
+            title="Cached Video",
+            fetched_at=datetime.utcnow(),
+        )
+
+        # Mock SUPADATA client (should NOT be called)
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock()
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="cached123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        # Check API was NOT called
+        mock_service.client.youtube.video.assert_not_called()
+
+        # Check cached result was returned
+        assert duration == 3600
+        assert title == "Cached Video"
+
+    @pytest.mark.asyncio
+    async def test_cache_prevents_repeated_api_calls_for_same_video(self):
+        """Multiple calls for same video only hit API once."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=repeat123"
+
+        # Mock SUPADATA client
+        mock_video = MagicMock()
+        mock_video.duration = 5400
+        mock_video.title = "Repeat Test"
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="repeat123"):
+
+            # First call - cache miss
+            duration1, title1 = await fetch_video_duration(youtube_url)
+
+            # Second call - cache hit
+            duration2, title2 = await fetch_video_duration(youtube_url)
+
+            # Third call - cache hit
+            duration3, title3 = await fetch_video_duration(youtube_url)
+
+        # Check API was called only ONCE
+        assert mock_service.client.youtube.video.call_count == 1
+
+        # Check all calls returned same cached data
+        assert duration1 == duration2 == duration3 == 5400
+        assert title1 == title2 == title3 == "Repeat Test"
+
+    @pytest.mark.asyncio
+    async def test_cache_stores_metadata_after_fetch(self):
+        """Cache correctly stores all metadata fields."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=store123"
+
+        # Mock SUPADATA client
+        mock_video = MagicMock()
+        mock_video.duration = 9999
+        mock_video.title = "Storage Test Video"
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="store123"):
+
+            await fetch_video_duration(youtube_url)
+
+        # Verify cache entry
+        assert "store123" in video_metadata_cache
+        cached = video_metadata_cache["store123"]
+
+        assert cached.video_id == "store123"
+        assert cached.duration == 9999
+        assert cached.title == "Storage Test Video"
+        assert isinstance(cached.fetched_at, datetime)
+
+    @pytest.mark.asyncio
+    async def test_cache_handles_video_without_title(self):
+        """Cache correctly stores None for missing title."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=notitle123"
+
+        # Mock video without title
+        mock_video = MagicMock()
+        mock_video.duration = 1234
+        del mock_video.title  # Simulate missing title attribute
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="notitle123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        # Check None was returned and cached
+        assert duration == 1234
+        assert title is None
+
+        assert "notitle123" in video_metadata_cache
+        assert video_metadata_cache["notitle123"].title is None
+
+    @pytest.mark.asyncio
+    async def test_zero_duration_not_cached(self):
+        """Zero-duration metadata should NOT be cached to allow retries."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=zerodur123"
+
+        # Mock SUPADATA returning zero duration
+        mock_video = MagicMock()
+        mock_video.duration = 0
+        mock_video.title = "Zero Duration Video"
+
+        mock_service = MagicMock()
+        mock_service.client.youtube.video = MagicMock(return_value=mock_video)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="zerodur123"):
+
+            duration, title = await fetch_video_duration(youtube_url)
+
+        # Check zero duration was returned
+        assert duration == 0
+        assert title == "Zero Duration Video"
+
+        # Check it was NOT cached
+        assert "zerodur123" not in video_metadata_cache
+
+    @pytest.mark.asyncio
+    async def test_retry_after_zero_duration(self):
+        """Second request after zero-duration should retry API (not cached)."""
+        from app.api.websocket.video_loader import fetch_video_duration
+
+        youtube_url = "https://youtube.com/watch?v=retry123"
+
+        # First call: API returns zero duration
+        mock_video_zero = MagicMock()
+        mock_video_zero.duration = 0
+        mock_video_zero.title = "Temp Unavailable"
+
+        mock_service_1 = MagicMock()
+        mock_service_1.client.youtube.video = MagicMock(return_value=mock_video_zero)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service_1), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="retry123"):
+
+            duration_1, title_1 = await fetch_video_duration(youtube_url)
+
+        # Verify first call returned zero and NOT cached
+        assert duration_1 == 0
+        assert "retry123" not in video_metadata_cache
+
+        # Second call: API now returns valid duration
+        mock_video_valid = MagicMock()
+        mock_video_valid.duration = 3600
+        mock_video_valid.title = "Now Available"
+
+        mock_service_2 = MagicMock()
+        mock_service_2.client.youtube.video = MagicMock(return_value=mock_video_valid)
+
+        with patch("app.api.websocket.video_loader.TranscriptService", return_value=mock_service_2), \
+             patch("app.api.websocket.video_loader.detect_youtube_url", return_value="retry123"):
+
+            duration_2, title_2 = await fetch_video_duration(youtube_url)
+
+        # Verify second call fetched from API (not cache) and got valid data
+        assert duration_2 == 3600
+        assert title_2 == "Now Available"
+
+        # Verify API was called (not using cache)
+        mock_service_2.client.youtube.video.assert_called_once_with(id="retry123")
+
+        # Now it should be cached
+        assert "retry123" in video_metadata_cache
+        assert video_metadata_cache["retry123"].duration == 3600
