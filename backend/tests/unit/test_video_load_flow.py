@@ -106,15 +106,6 @@ class TestCompiledVideoLoadFlow:
             "config": {},
         }
 
-        mock_result = {
-            **state,
-            "response": f"VIDEO_LOAD_REQUEST:{video_id}",
-            "metadata": {
-                "response_type": "video_load_request",
-                "video_id": video_id,
-                "requires_websocket_handling": True,
-            },
-        }
 
         # Test the node directly (graph compilation is tested above)
         with patch("app.rag.graphs.flows.video_load_flow.detect_youtube_url", return_value=video_id):

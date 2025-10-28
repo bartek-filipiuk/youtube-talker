@@ -5,7 +5,7 @@ Tests video loading confirmation flow, quota checking, and background ingestion.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -46,8 +46,8 @@ def admin_user():
         password_hash="hashed",
         role="admin",
         transcript_count=100,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -60,8 +60,8 @@ def regular_user():
         password_hash="hashed",
         role="user",
         transcript_count=5,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -74,8 +74,8 @@ def user_at_quota():
         password_hash="hashed",
         role="user",
         transcript_count=10,  # At limit
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -109,8 +109,8 @@ class TestCheckUserQuota:
             password_hash="hashed",
             role="admin",
             transcript_count=1000,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         allowed, message = await check_user_quota(admin, mock_db)
@@ -144,8 +144,8 @@ class TestCheckUserQuota:
             password_hash="hashed",
             role="user",
             transcript_count=15,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         allowed, message = await check_user_quota(user, mock_db)
@@ -341,7 +341,7 @@ class TestHandleConfirmationResponse:
             video_id="abc123",
             video_title=None,
             user_id=other_user_id,  # Different user
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         handled = await handle_confirmation_response(
@@ -371,7 +371,7 @@ class TestHandleConfirmationResponse:
             video_id="abc123",
             video_title=None,
             user_id=regular_user.id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         with patch("app.api.websocket.video_loader.trigger_background_load") as mock_trigger:
@@ -402,7 +402,7 @@ class TestHandleConfirmationResponse:
             video_id="abc123",
             video_title=None,
             user_id=regular_user.id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         handled = await handle_confirmation_response(
@@ -433,7 +433,7 @@ class TestHandleConfirmationResponse:
             video_id="abc123",
             video_title=None,
             user_id=regular_user.id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
 
         handled = await handle_confirmation_response(
@@ -460,7 +460,6 @@ class TestTriggerBackgroundLoad:
                 youtube_url="https://youtube.com/watch?v=abc123",
                 user_id=regular_user.id,
                 conversation_id="conv-123",
-                db=mock_db,
                 websocket=mock_websocket,
             )
 
@@ -494,25 +493,37 @@ class TestLoadVideoBackground:
         # Mock UserRepository
         mock_user_repo = AsyncMock()
 
+        # Mock AsyncSessionLocal context manager
+        mock_session = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+
         with patch(
             "app.api.websocket.video_loader.TranscriptService", return_value=mock_service
-        ), patch("app.api.websocket.video_loader.UserRepository", return_value=mock_user_repo):
+        ), patch(
+            "app.api.websocket.video_loader.UserRepository", return_value=mock_user_repo
+        ), patch(
+            "app.api.websocket.video_loader.AsyncSessionLocal", return_value=mock_session_ctx
+        ):
 
             await load_video_background(
                 youtube_url=youtube_url,
                 user_id=regular_user.id,
                 conversation_id="conv-123",
-                db=mock_db,
                 websocket=mock_websocket,
             )
 
-        # Check ingestion called
+        # Check ingestion called with new session
         mock_service.ingest_transcript.assert_called_once_with(
-            youtube_url=youtube_url, user_id=regular_user.id, db_session=mock_db
+            youtube_url=youtube_url, user_id=regular_user.id, db_session=mock_session
         )
 
         # Check quota incremented
         mock_user_repo.increment_transcript_count.assert_called_once_with(regular_user.id)
+
+        # Check session committed
+        mock_session.commit.assert_called_once()
 
         # Check success message sent
         mock_websocket.send_json.assert_called_once()
@@ -530,17 +541,27 @@ class TestLoadVideoBackground:
         mock_service = AsyncMock()
         mock_service.ingest_transcript.side_effect = Exception("Transcript not available")
 
+        # Mock AsyncSessionLocal context manager
+        mock_session = AsyncMock()
+        mock_session_ctx = AsyncMock()
+        mock_session_ctx.__aenter__.return_value = mock_session
+        mock_session_ctx.__aexit__.return_value = None
+
         with patch(
             "app.api.websocket.video_loader.TranscriptService", return_value=mock_service
+        ), patch(
+            "app.api.websocket.video_loader.AsyncSessionLocal", return_value=mock_session_ctx
         ):
 
             await load_video_background(
                 youtube_url=youtube_url,
                 user_id=regular_user.id,
                 conversation_id="conv-123",
-                db=mock_db,
                 websocket=mock_websocket,
             )
+
+        # Check session rollback called on error
+        mock_session.rollback.assert_called_once()
 
         # Check error message sent
         mock_websocket.send_json.assert_called_once()
@@ -888,7 +909,7 @@ class TestVideoMetadataCache:
             video_id="cached123",
             duration=3600,
             title="Cached Video",
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
         )
 
         # Mock SUPADATA client (should NOT be called)

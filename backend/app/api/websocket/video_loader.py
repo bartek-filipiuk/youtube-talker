@@ -5,8 +5,9 @@ Handles YouTube video loading confirmation flow and background ingestion.
 """
 
 import asyncio
+import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple
 from uuid import UUID
 
@@ -23,6 +24,7 @@ from app.api.websocket.messages import (
 from app.db.models import User
 from app.db.repositories.transcript_repo import TranscriptRepository
 from app.db.repositories.user_repo import UserRepository
+from app.db.session import AsyncSessionLocal
 from app.services.transcript_service import TranscriptService
 from app.utils.url_detector import detect_youtube_url
 
@@ -55,6 +57,9 @@ pending_loads: Dict[str, PendingVideoLoad] = {}
 # In-memory cache for video metadata (persists until server restart)
 # Key: video_id, Value: VideoMetadata
 video_metadata_cache: Dict[str, VideoMetadata] = {}
+
+# Pending confirmation expiration timeout (5 minutes)
+PENDING_LOAD_TTL_SECONDS = 300
 
 
 async def check_user_quota(user: User, db: AsyncSession) -> tuple[bool, str]:
@@ -204,7 +209,7 @@ async def fetch_video_duration(youtube_url: str) -> Tuple[Optional[int], Optiona
                 video_id=video_id,
                 duration=duration,
                 title=title,
-                fetched_at=datetime.utcnow(),
+                fetched_at=datetime.now(timezone.utc),
             )
             logger.debug(f"Fetched and cached video metadata: video_id={video_id}, duration={duration}s, title={title}")
         else:
@@ -379,7 +384,7 @@ async def handle_video_load_intent(
         video_id=video_id,
         video_title=None,  # Will be fetched during ingestion
         user_id=user.id,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
 
     pending_loads[conversation_id] = pending_load
@@ -434,6 +439,17 @@ async def handle_confirmation_response(
     if not pending:
         return False  # No pending confirmation
 
+    # Check if pending confirmation has expired (5 minutes)
+    elapsed_seconds = (datetime.now(timezone.utc) - pending.created_at).total_seconds()
+    if elapsed_seconds > PENDING_LOAD_TTL_SECONDS:
+        # Expired - remove and return False
+        del pending_loads[conversation_id]
+        logger.info(
+            f"Expired pending load removed: conversation={conversation_id}, "
+            f"elapsed={elapsed_seconds:.0f}s"
+        )
+        return False
+
     # Verify user ownership (security check)
     if pending.user_id != user_id:
         logger.warning(
@@ -445,17 +461,17 @@ async def handle_confirmation_response(
     # Normalize response
     response_lower = response.strip().lower()
 
-    # Match yes/no patterns
-    yes_patterns = ["yes", "y", "yeah", "sure", "ok", "okay", "yep", "yup", "load it"]
-    no_patterns = ["no", "n", "nope", "cancel", "don't", "stop"]
+    # Match yes/no patterns with word boundaries to avoid false positives
+    # (e.g., "yesterday" should NOT match "yes", "I'm not sure" should NOT match "sure")
+    yes_pattern = r'\b(yes|y|yeah|sure|ok(ay)?|yep|yup|load\s+it)\b'
+    no_pattern = r'\b(no|n|nope|cancel|don\'?t|stop)\b'
 
-    if any(pattern in response_lower for pattern in yes_patterns):
+    if re.search(yes_pattern, response_lower):
         # User confirmed - trigger background load
         await trigger_background_load(
             youtube_url=pending.youtube_url,
             user_id=user_id,
             conversation_id=conversation_id,
-            db=db,
             websocket=websocket,
         )
 
@@ -464,7 +480,7 @@ async def handle_confirmation_response(
         logger.info(f"Confirmation accepted: conversation={conversation_id}")
         return True
 
-    elif any(pattern in response_lower for pattern in no_patterns):
+    elif re.search(no_pattern, response_lower):
         # User declined - cancel load
         await connection_manager.send_json(
             websocket,
@@ -488,7 +504,6 @@ async def trigger_background_load(
     youtube_url: str,
     user_id: UUID,
     conversation_id: str,
-    db: AsyncSession,
     websocket: WebSocket,
 ) -> None:
     """
@@ -500,7 +515,6 @@ async def trigger_background_load(
         youtube_url: YouTube URL to load
         user_id: User UUID
         conversation_id: Conversation UUID
-        db: Database session
         websocket: WebSocket connection
     """
     # Send immediate status
@@ -513,12 +527,13 @@ async def trigger_background_load(
     )
 
     # Create background task (don't await - runs in background)
+    # NOTE: Background task creates its own database session to avoid
+    # reusing the request-scoped session which will be closed
     asyncio.create_task(
         load_video_background(
             youtube_url=youtube_url,
             user_id=user_id,
             conversation_id=conversation_id,
-            db=db,
             websocket=websocket,
         )
     )
@@ -528,63 +543,70 @@ async def load_video_background(
     youtube_url: str,
     user_id: UUID,
     conversation_id: str,
-    db: AsyncSession,
     websocket: WebSocket,
 ) -> None:
     """
     Background task for video loading.
 
     Performs actual transcript ingestion, increments quota, and sends status updates.
+    Creates its own database session to avoid reusing the request-scoped session.
 
     Args:
         youtube_url: YouTube URL to load
         user_id: User UUID
         conversation_id: Conversation UUID
-        db: Database session
         websocket: WebSocket connection
     """
-    try:
-        logger.info(f"Background load started: user={user_id}, url={youtube_url}")
+    # Create a new database session for this background task
+    async with AsyncSessionLocal() as db:
+        try:
+            logger.info(f"Background load started: user={user_id}, url={youtube_url}")
 
-        # Ingest transcript
-        service = TranscriptService()
-        result = await service.ingest_transcript(
-            youtube_url=youtube_url,
-            user_id=user_id,
-            db_session=db,
-        )
+            # Ingest transcript
+            service = TranscriptService()
+            result = await service.ingest_transcript(
+                youtube_url=youtube_url,
+                user_id=user_id,
+                db_session=db,
+            )
 
-        # Increment user transcript count
-        user_repo = UserRepository(db)
-        await user_repo.increment_transcript_count(user_id)
+            # Increment user transcript count
+            user_repo = UserRepository(db)
+            await user_repo.increment_transcript_count(user_id)
 
-        # Extract video title from result
-        video_title = result.get("metadata", {}).get("title", "Unknown")
+            # Commit the transaction
+            await db.commit()
 
-        # Send success message
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="completed",
-                message=f"Video loaded successfully! You can now ask questions about it.",
-                video_title=video_title,
-            ).model_dump()
-        )
+            # Extract video title from result
+            video_title = result.get("metadata", {}).get("title", "Unknown")
 
-        logger.info(
-            f"Background load completed: user={user_id}, "
-            f"video_id={result['youtube_video_id']}, title={video_title}"
-        )
+            # Send success message
+            await connection_manager.send_json(
+                websocket,
+                VideoLoadStatusMessage(
+                    status="completed",
+                    message="Video loaded successfully! You can now ask questions about it.",
+                    video_title=video_title,
+                ).model_dump()
+            )
 
-    except Exception as e:
-        logger.exception(f"Background video load failed: user={user_id}, error={e}")
+            logger.info(
+                f"Background load completed: user={user_id}, "
+                f"video_id={result['youtube_video_id']}, title={video_title}"
+            )
 
-        # Send failure message
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message=f"Failed to load video: {str(e)}",
-                error=str(e),
-            ).model_dump()
-        )
+        except Exception as e:
+            logger.exception(f"Background video load failed: user={user_id}, error={e}")
+
+            # Rollback on error
+            await db.rollback()
+
+            # Send failure message
+            await connection_manager.send_json(
+                websocket,
+                VideoLoadStatusMessage(
+                    status="failed",
+                    message=f"Failed to load video: {str(e)}",
+                    error=str(e),
+                ).model_dump()
+            )
