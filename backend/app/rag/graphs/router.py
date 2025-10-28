@@ -28,7 +28,7 @@ async def run_graph(
 
     Orchestrates the complete flow:
     1. Classify user intent (router node)
-    2. Route to appropriate flow (chitchat, qa, linkedin, or metadata)
+    2. Route to appropriate flow (chitchat, qa, linkedin, metadata, or video_load)
     3. Return final state with response
 
     Args:
@@ -42,7 +42,7 @@ async def run_graph(
             - user_query: Original query
             - user_id: User identifier
             - conversation_history: Conversation context
-            - intent: Classified intent ("chitchat", "qa", "linkedin", or "metadata")
+            - intent: Classified intent ("chitchat", "qa", "linkedin", "metadata", or "video_load")
             - response: Generated response (HTML formatted)
             - metadata: Response metadata including:
                 - intent_confidence: Router confidence score
@@ -53,6 +53,7 @@ async def run_graph(
 
     Raises:
         ValueError: If intent classification fails or returns unknown intent
+        NotImplementedError: If video_load intent detected (feature not yet implemented)
         Exception: If any flow execution fails
 
     Example:
@@ -94,6 +95,13 @@ async def run_graph(
         result = await compiled_linkedin_flow.ainvoke(state)
     elif intent == "metadata":
         result = await compiled_metadata_flow.ainvoke(state)
+    elif intent == "video_load":
+        # Video loading feature not yet implemented (coming in PR #3)
+        logger.error(f"video_load intent detected but handler not implemented yet")
+        raise NotImplementedError(
+            "Video loading feature is not yet available. "
+            "This feature will be implemented in a future update."
+        )
     else:
         # Unknown intent - log warning and default to chitchat
         logger.warning(f"Unknown intent '{intent}', defaulting to chitchat flow")
