@@ -25,6 +25,8 @@ from app.api.websocket.messages import (
     PongMessage,
     StatusMessage,
 )
+from app.api.websocket.video_loader import handle_video_load_intent, handle_confirmation_response
+from app.utils.url_detector import detect_youtube_url
 from app.db.models import User, Conversation
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.repositories.message_repo import MessageRepository
@@ -150,6 +152,20 @@ async def websocket_endpoint(
                 conversation: Optional[Conversation] = None
                 conversation_id_str = message.conversation_id
 
+                # Step 2a: Check if this is a confirmation response (yes/no)
+                # Must happen after we have conversation_id but before we process as normal message
+                if conversation_id_str and conversation_id_str != "new":
+                    is_confirmation = await handle_confirmation_response(
+                        response=message.content,
+                        conversation_id=conversation_id_str,
+                        user_id=current_user.id,
+                        db=db,
+                        websocket=websocket,
+                    )
+                    if is_confirmation:
+                        # Confirmation was handled - skip normal message processing
+                        continue
+
                 if conversation_id_str == "new" or not conversation_id_str:
                     # Auto-create new conversation
                     # Note: Repository already flushes and refreshes, so conversation.id is available
@@ -234,6 +250,27 @@ async def websocket_endpoint(
                     conversation_history=conversation_history,
                     config=rag_config
                 )
+
+                # Step 7a: Check if response requires WebSocket handling (video_load)
+                if result.get("metadata", {}).get("requires_websocket_handling"):
+                    # This is a video load request - extract URL and handle it
+                    youtube_url = message.content
+                    # Extract full URL if it's embedded in text
+                    for word in message.content.split():
+                        if "youtube.com" in word or "youtu.be" in word:
+                            youtube_url = word.strip()
+                            break
+
+                    await handle_video_load_intent(
+                        youtube_url=youtube_url,
+                        user=current_user,
+                        conversation_id=str(conversation.id),
+                        db=db,
+                        websocket=websocket,
+                    )
+                    # Don't send normal response - video_loader handles WebSocket messages
+                    # Don't save to database - this isn't a normal chat message
+                    continue
 
                 # Step 8: Send status update - generating
                 await connection_manager.send_json(
