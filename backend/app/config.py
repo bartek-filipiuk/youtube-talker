@@ -66,8 +66,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:4321,http://localhost:3000"
 
     # LangSmith Configuration (Optional)
+    # Note: LangChain looks for LANGCHAIN_* env vars, not LANGSMITH_*
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "youtube-talker"
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_ENDPOINT: str = "https://eu.api.smith.langchain.com"
 
     @property
     def allowed_origins_list(self) -> List[str]:
