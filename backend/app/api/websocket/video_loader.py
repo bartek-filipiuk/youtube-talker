@@ -14,6 +14,7 @@ from fastapi import WebSocket
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.websocket.connection_manager import connection_manager
 from app.api.websocket.messages import (
     LoadVideoConfirmationMessage,
     VideoLoadStatusMessage,
@@ -108,7 +109,8 @@ async def handle_video_load_intent(
     video_id = detect_youtube_url(youtube_url)
 
     if not video_id:
-        await websocket.send_json(
+        await connection_manager.send_json(
+            websocket,
             VideoLoadStatusMessage(
                 status="failed",
                 message="Could not extract video ID from URL. Please check the link and try again.",
@@ -124,7 +126,8 @@ async def handle_video_load_intent(
     existing = await transcript_repo.get_by_video_id(user.id, video_id)
 
     if existing:
-        await websocket.send_json(
+        await connection_manager.send_json(
+            websocket,
             VideoLoadStatusMessage(
                 status="failed",
                 message=f"You already have this video in your knowledge base (added {existing.created_at.strftime('%Y-%m-%d')}).",
@@ -139,7 +142,8 @@ async def handle_video_load_intent(
     allowed, quota_message = await check_user_quota(user, db)
 
     if not allowed:
-        await websocket.send_json(
+        await connection_manager.send_json(
+            websocket,
             VideoLoadStatusMessage(
                 status="failed",
                 message=quota_message,
@@ -163,7 +167,8 @@ async def handle_video_load_intent(
     logger.info(f"Pending load created: conversation={conversation_id}, video={video_id}")
 
     # Step 5: Send confirmation request
-    await websocket.send_json(
+    await connection_manager.send_json(
+        websocket,
         LoadVideoConfirmationMessage(
             youtube_url=youtube_url,
             video_id=video_id,
@@ -242,7 +247,8 @@ async def handle_confirmation_response(
 
     elif any(pattern in response_lower for pattern in no_patterns):
         # User declined - cancel load
-        await websocket.send_json(
+        await connection_manager.send_json(
+            websocket,
             VideoLoadStatusMessage(
                 status="failed",
                 message="Video loading cancelled.",
@@ -279,7 +285,8 @@ async def trigger_background_load(
         websocket: WebSocket connection
     """
     # Send immediate status
-    await websocket.send_json(
+    await connection_manager.send_json(
+        websocket,
         VideoLoadStatusMessage(
             status="started",
             message="Loading video in background. You can continue chatting...",
@@ -336,7 +343,8 @@ async def load_video_background(
         video_title = result.get("metadata", {}).get("title", "Unknown")
 
         # Send success message
-        await websocket.send_json(
+        await connection_manager.send_json(
+            websocket,
             VideoLoadStatusMessage(
                 status="completed",
                 message=f"Video loaded successfully! You can now ask questions about it.",
@@ -353,7 +361,8 @@ async def load_video_background(
         logger.exception(f"Background video load failed: user={user_id}, error={e}")
 
         # Send failure message
-        await websocket.send_json(
+        await connection_manager.send_json(
+            websocket,
             VideoLoadStatusMessage(
                 status="failed",
                 message=f"Failed to load video: {str(e)}",

@@ -71,7 +71,7 @@ async def handle_video_load_node(state: GraphState) -> GraphState:
 
 
 # Build the graph
-workflow = StateGraph(dict)
+workflow = StateGraph(GraphState)
 workflow.add_node("handle_video_load", handle_video_load_node)
 workflow.set_entry_point("handle_video_load")
 workflow.add_edge("handle_video_load", END)

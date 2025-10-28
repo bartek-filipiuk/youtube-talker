@@ -4,10 +4,16 @@
  */
 
 export interface WebSocketMessage {
-  type: 'status' | 'assistant_message' | 'error' | 'ping' | 'pong';
+  type: 'status' | 'assistant_message' | 'error' | 'ping' | 'pong' | 'video_load_confirmation' | 'video_load_status';
   message?: string;
   content?: string;
   code?: string;
+  // Video load specific fields
+  youtube_url?: string;
+  video_id?: string;
+  video_title?: string;
+  status?: 'started' | 'completed' | 'failed';
+  error?: string;
 }
 
 export interface IncomingMessage {
