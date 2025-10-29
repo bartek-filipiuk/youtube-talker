@@ -43,8 +43,10 @@ def setup_middleware(app: FastAPI) -> None:
         """
         Generate and inject request ID for distributed tracing.
 
-        Creates a unique UUID for each request and makes it available:
+        Reuses X-Request-ID from upstream services if available (for distributed tracing),
+        otherwise generates new UUID. Makes request ID available:
         - In logs via contextvars
+        - In request.state for exception handlers
         - In response headers as X-Request-ID
 
         Args:
@@ -54,15 +56,21 @@ def setup_middleware(app: FastAPI) -> None:
         Returns:
             Response: HTTP response with X-Request-ID header
         """
-        # Generate unique request ID
-        req_id = str(uuid.uuid4())
+        # Check for existing X-Request-ID from upstream (load balancer, API gateway, etc.)
+        req_id = request.headers.get("X-Request-ID")
+        if not req_id:
+            # Generate new UUID if not provided
+            req_id = str(uuid.uuid4())
+
+        # Store in contextvar (for structured logging) and request.state (for exception handlers)
         request_id_var.set(req_id)
+        request.state.request_id = req_id
 
         # Process request with request_id in context
         with logger.contextualize(request_id=req_id):
             response = await call_next(request)
 
-            # Add request ID to response headers for client-side tracing
+            # Echo request ID back in response headers for client-side tracing
             response.headers["X-Request-ID"] = req_id
 
         return response
@@ -80,7 +88,8 @@ def setup_middleware(app: FastAPI) -> None:
         Returns:
             Response: HTTP response
         """
-        start_time = time.time()
+        # Use perf_counter for accurate duration measurement (not affected by system clock changes)
+        start_time = time.perf_counter()
 
         # Log incoming request
         logger.info(f"→ {request.method} {request.url.path}")
@@ -89,7 +98,7 @@ def setup_middleware(app: FastAPI) -> None:
         response = await call_next(request)
 
         # Calculate duration in milliseconds
-        duration = (time.time() - start_time) * 1000
+        duration = (time.perf_counter() - start_time) * 1000
 
         # Log response with status and timing
         logger.info(
