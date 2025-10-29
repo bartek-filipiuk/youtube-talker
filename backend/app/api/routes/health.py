@@ -20,6 +20,26 @@ from app.services.qdrant_service import QdrantService
 router = APIRouter(tags=["health"])
 
 
+# Singleton QdrantService to prevent socket leaks
+_qdrant_service: QdrantService | None = None
+
+
+def get_qdrant_service() -> QdrantService:
+    """
+    Dependency for getting singleton QdrantService instance.
+
+    Reuses the same client across requests to prevent socket/connection leaks.
+    The QdrantService manages its own connection pool internally.
+
+    Returns:
+        QdrantService: Singleton Qdrant service instance
+    """
+    global _qdrant_service
+    if _qdrant_service is None:
+        _qdrant_service = QdrantService()
+    return _qdrant_service
+
+
 @router.get("/api/health")
 async def health_check() -> Dict[str, str]:
     """
@@ -76,12 +96,17 @@ async def health_check_db(db: AsyncSession = Depends(get_db)) -> JSONResponse:
 
 
 @router.get("/api/health/qdrant")
-async def health_check_qdrant() -> JSONResponse:
+async def health_check_qdrant(
+    qdrant_service: QdrantService = Depends(get_qdrant_service)
+) -> JSONResponse:
     """
     Qdrant vector store health check endpoint.
 
     Tests Qdrant connectivity using QdrantService health check.
     Returns 200 OK if connection succeeds, 503 Service Unavailable if fails.
+
+    Args:
+        qdrant_service: Singleton Qdrant service (injected via Depends)
 
     Returns:
         200: {"status": "healthy", "service": "qdrant"}
@@ -91,7 +116,6 @@ async def health_check_qdrant() -> JSONResponse:
         curl http://localhost:8000/api/health/qdrant
     """
     try:
-        qdrant_service = QdrantService()
         is_healthy = await qdrant_service.health_check()
 
         if is_healthy:

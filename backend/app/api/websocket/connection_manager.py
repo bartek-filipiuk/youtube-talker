@@ -4,6 +4,7 @@ WebSocket Connection Manager
 Manages active WebSocket connections and handles heartbeat mechanism.
 """
 
+import asyncio
 from loguru import logger
 from typing import Dict, Set
 from uuid import UUID
@@ -24,6 +25,8 @@ class ConnectionManager:
         """Initialize connection manager with empty connection tracking."""
         # Map of user_id -> set of websockets
         self.active_connections: Dict[UUID, Set[WebSocket]] = {}
+        # Per-WebSocket locks to prevent concurrent send operations
+        self.send_locks: Dict[WebSocket, asyncio.Lock] = {}
         logger.info("ConnectionManager initialized")
 
     async def connect(self, websocket: WebSocket, user_id: UUID) -> None:
@@ -43,6 +46,8 @@ class ConnectionManager:
             self.active_connections[user_id] = set()
 
         self.active_connections[user_id].add(websocket)
+        # Create lock for this WebSocket to prevent concurrent sends
+        self.send_locks[websocket] = asyncio.Lock()
         logger.info(f"User {user_id} connected. Total connections: {len(self.active_connections[user_id])}")
 
     async def disconnect(self, websocket: WebSocket, user_id: UUID) -> None:
@@ -65,9 +70,14 @@ class ConnectionManager:
 
             logger.info(f"User {user_id} disconnected. Remaining connections: {len(self.active_connections.get(user_id, []))}")
 
+        # Clean up the send lock for this WebSocket
+        self.send_locks.pop(websocket, None)
+
     async def send_json(self, websocket: WebSocket, data: dict) -> None:
         """
         Send JSON data to a specific WebSocket connection.
+
+        Thread-safe: Uses per-WebSocket lock to prevent concurrent send operations.
 
         Args:
             websocket: FastAPI WebSocket instance
@@ -79,12 +89,17 @@ class ConnectionManager:
         Example:
             await manager.send_json(websocket, {"type": "status", "message": "Processing..."})
         """
-        try:
-            await websocket.send_json(data)
-            logger.debug(f"Sent message: {data.get('type', 'unknown')}")
-        except Exception as e:
-            logger.error(f"Failed to send message: {e}")
-            raise
+        # Get or create lock for this WebSocket (fallback for edge cases)
+        if websocket not in self.send_locks:
+            self.send_locks[websocket] = asyncio.Lock()
+
+        async with self.send_locks[websocket]:
+            try:
+                await websocket.send_json(data)
+                logger.debug(f"Sent message: {data.get('type', 'unknown')}")
+            except Exception as e:
+                logger.error(f"Failed to send message: {e}")
+                raise
 
     def get_user_connections(self, user_id: UUID) -> Set[WebSocket]:
         """
