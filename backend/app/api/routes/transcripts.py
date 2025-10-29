@@ -89,19 +89,15 @@ async def ingest_transcript(
             metadata=result["metadata"],
         )
 
-    except ValueError as e:
-        # Duplicate or validation error
-        error_msg = str(e)
-        if "already exists" in error_msg.lower():
-            raise TranscriptAlreadyExistsError() from e
-        else:
-            raise InvalidInputError(error_msg) from e
+    except TranscriptAlreadyExistsError:
+        # Re-raise as-is (already the correct exception type)
+        raise
+
+    except InvalidInputError:
+        # Re-raise as-is (already the correct exception type)
+        raise
 
     except Exception as e:
-        # External service error (SUPADATA, OpenAI, Qdrant)
-        error_msg = str(e)
-        if "httpx" in error_msg.lower() or "api" in error_msg.lower():
-            raise ExternalAPIError(f"External service error: {error_msg}") from e
-        else:
-            # Unexpected server error - let global handler catch it
-            raise
+        # External service errors or unexpected errors
+        # Let global exception handler catch and log unexpected errors
+        raise

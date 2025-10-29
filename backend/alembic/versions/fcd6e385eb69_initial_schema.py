@@ -83,6 +83,15 @@ def upgrade() -> None:
     op.create_index('idx_templates_type_default', 'templates', ['template_type', 'is_default'], unique=False)
     op.create_index('idx_templates_user_id', 'templates', ['user_id'], unique=False)
     op.create_index('unique_user_template', 'templates', ['user_id', 'template_type', 'template_name'], unique=True)
+    # Partial unique index for default templates (user_id IS NULL)
+    # Prevents duplicate system defaults since NULL != NULL in SQL unique constraints
+    op.create_index(
+        'unique_default_template',
+        'templates',
+        ['template_type', 'template_name'],
+        unique=True,
+        postgresql_where=sa.text('user_id IS NULL')
+    )
     op.create_table('transcripts',
     sa.Column('id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -178,6 +187,7 @@ def downgrade() -> None:
     op.drop_index('idx_transcripts_user_id', table_name='transcripts')
     op.drop_index('idx_transcripts_metadata', table_name='transcripts', postgresql_using='gin')
     op.drop_table('transcripts')
+    op.drop_index('unique_default_template', table_name='templates')
     op.drop_index('unique_user_template', table_name='templates')
     op.drop_index('idx_templates_user_id', table_name='templates')
     op.drop_index('idx_templates_type_default', table_name='templates')

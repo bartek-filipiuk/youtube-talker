@@ -15,6 +15,7 @@ from supadata import Supadata, SupadataError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError
 from app.db.repositories.transcript_repo import TranscriptRepository
 from app.db.repositories.chunk_repo import ChunkRepository
 from app.services.chunking_service import ChunkingService
@@ -169,9 +170,8 @@ class TranscriptService:
             transcript_repo = TranscriptRepository(db_session)
             existing = await transcript_repo.get_by_video_id(user_id, youtube_video_id)
             if existing:
-                raise ValueError(
-                    f"Transcript already exists for video_id={youtube_video_id}, "
-                    f"user_id={user_id}"
+                raise TranscriptAlreadyExistsError(
+                    f"Transcript already exists for video_id={youtube_video_id}"
                 )
             logger.info("✓ No duplicate found")
 
@@ -305,4 +305,4 @@ class TranscriptService:
             if match:
                 return match.group(1)
 
-        raise ValueError(f"Invalid YouTube URL format: {url}")
+        raise InvalidInputError(f"Invalid YouTube URL format: {url}")
