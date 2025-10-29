@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -49,8 +50,8 @@ class User(Base):
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
-    updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
     role: Mapped[str] = mapped_column(String(50), nullable=False, server_default="user", index=True)
     transcript_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
@@ -102,8 +103,8 @@ class Session(Base):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="sessions")
@@ -132,8 +133,8 @@ class Conversation(Base):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
-    updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="conversations")
@@ -173,7 +174,7 @@ class Message(Base):
     meta_data: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=text("'{}'")
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"), index=True)
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
@@ -218,7 +219,7 @@ class Transcript(Base):
     meta_data: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=text("'{}'")
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="transcripts")
@@ -254,9 +255,10 @@ class Chunk(Base):
     )
     user_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
+        comment="Denormalized for fast lookups. RESTRICT prevents multi-cascade path conflict with transcript FK.",
     )
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -264,7 +266,7 @@ class Chunk(Base):
     meta_data: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=text("'{}'")
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
     # Relationships
     transcript: Mapped["Transcript"] = relationship("Transcript", back_populates="chunks")
@@ -303,8 +305,8 @@ class Template(Base):
     template_content: Mapped[str] = mapped_column(Text, nullable=False)
     variables: Mapped[list] = mapped_column(JSONB, nullable=False, server_default=text("'[]'"))
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("FALSE"))
-    created_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
-    updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
     # Relationships
     user: Mapped[Optional["User"]] = relationship("User", back_populates="templates")
@@ -336,7 +338,7 @@ class Config(Base):
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[dict] = mapped_column(JSONB, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
     def __repr__(self) -> str:
         return f"<Config(key={self.key}, value={self.value})>"

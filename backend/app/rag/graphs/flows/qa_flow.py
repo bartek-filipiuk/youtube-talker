@@ -62,8 +62,8 @@ def build_qa_flow() -> StateGraph:
     workflow = StateGraph(GraphState)
 
     # Add nodes with selective retry policies
-    workflow.add_node("retriever", retrieve_chunks, retry=retry_policy)
-    workflow.add_node("grader", grade_chunks, retry=retry_policy)
+    workflow.add_node("retriever", retrieve_chunks, retry_policy=retry_policy)
+    workflow.add_node("grader", grade_chunks, retry_policy=retry_policy)
     workflow.add_node("generator", generate_response)  # No retry
 
     # Set entry point

@@ -596,17 +596,18 @@ async def load_video_background(
             )
 
         except Exception as e:
-            logger.exception(f"Background video load failed: user={user_id}, error={e}")
+            # Log full exception details server-side (for debugging)
+            logger.exception(f"Background video load failed: user={user_id}, url={youtube_url}")
 
             # Rollback on error
             await db.rollback()
 
-            # Send failure message
+            # Send generic failure message to client (don't leak internals)
             await connection_manager.send_json(
                 websocket,
                 VideoLoadStatusMessage(
                     status="failed",
-                    message=f"Failed to load video: {str(e)}",
-                    error=str(e),
+                    message="Failed to load video. Please try again later or contact support if the issue persists.",
+                    error="VIDEO_LOAD_FAILED",
                 ).model_dump()
             )

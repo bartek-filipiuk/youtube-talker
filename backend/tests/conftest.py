@@ -14,7 +14,7 @@ from app.db.models import Base, User, Conversation, Session
 from app.main import app
 from app.db.session import get_db
 from app.core.security import hash_password, generate_session_token, hash_token
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import AsyncGenerator
 
 # Test database URL (uses different database than dev)
@@ -149,7 +149,7 @@ async def test_session(db_session: AsyncSession, test_user: User) -> dict:
     session = Session(
         user_id=test_user.id,
         token_hash=token_hash,
-        expires_at=datetime.utcnow() + timedelta(days=7),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
     )
     db_session.add(session)
     await db_session.flush()
@@ -173,7 +173,7 @@ async def test_expired_session(db_session: AsyncSession, test_user: User) -> dic
     session = Session(
         user_id=test_user.id,
         token_hash=token_hash,
-        expires_at=datetime.utcnow() - timedelta(hours=1),  # Expired 1 hour ago
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),  # Expired 1 hour ago
     )
     db_session.add(session)
     await db_session.flush()

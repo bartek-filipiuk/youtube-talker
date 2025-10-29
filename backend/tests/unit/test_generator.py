@@ -184,16 +184,26 @@ class TestGeneratorNode:
             assert expected_topic.lower() in result_state["metadata"]["topic"].lower()
 
     @pytest.mark.asyncio
-    async def test_generate_response_missing_intent_raises_error(self):
-        """Generator raises error when intent is missing."""
+    async def test_generate_response_missing_intent_defaults_to_chitchat(self):
+        """Generator defaults to chitchat when intent is missing."""
         state: GraphState = {
             "user_query": "Test query",
             "user_id": "user123",
             "conversation_history": []
         }  # No intent
 
-        with pytest.raises(ValueError, match="Intent must be set"):
-            await generate_response(state)
+        mock_llm_client = MagicMock()
+        mock_llm_client.ainvoke_claude = AsyncMock(
+            return_value="<p>I'm here to help!</p>"
+        )
+
+        with patch("app.rag.nodes.generator.LLMClient", return_value=mock_llm_client):
+            result_state = await generate_response(state)
+
+        # Should default to chitchat
+        assert "response" in result_state
+        assert result_state["metadata"]["response_type"] == "chitchat"
+        assert result_state["metadata"]["chunks_used"] == 0
 
     @pytest.mark.asyncio
     async def test_generate_response_unknown_intent_defaults_to_chitchat(self):

@@ -39,7 +39,16 @@ export async function register(email: string, password: string): Promise<AuthRes
     throw new Error(error.detail || 'Registration failed');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Transform backend response to match AuthResponse interface
+  return {
+    token: data.token,
+    user: {
+      id: data.user_id,
+      email: data.email,
+    },
+  };
 }
 
 /**
@@ -57,7 +66,16 @@ export async function login(email: string, password: string): Promise<AuthRespon
     throw new Error(error.detail || 'Login failed');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Transform backend response to match AuthResponse interface
+  return {
+    token: data.token,
+    user: {
+      id: data.user_id,
+      email: data.email,
+    },
+  };
 }
 
 /**

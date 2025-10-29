@@ -77,27 +77,42 @@ async def test_database_health_check_failure():
     app.dependency_overrides.clear()
 
 
-@patch('app.api.routes.health.QdrantService')
-def test_qdrant_health_check_success(mock_qdrant_service_class):
+def test_qdrant_health_check_success():
     """Qdrant health check should return healthy when connection succeeds."""
     # Mock QdrantService instance
     mock_service = MagicMock()
     mock_service.health_check = AsyncMock(return_value=True)
-    mock_qdrant_service_class.return_value = mock_service
+
+    # Override the get_qdrant_service dependency
+    from app.api.routes.health import get_qdrant_service
+
+    def override_get_qdrant_service():
+        return mock_service
+
+    app.dependency_overrides[get_qdrant_service] = override_get_qdrant_service
 
     response = client.get("/api/health/qdrant")
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"status": "healthy", "service": "qdrant"}
 
+    # Cleanup
+    app.dependency_overrides.clear()
 
-@patch('app.api.routes.health.QdrantService')
-def test_qdrant_health_check_connection_unsuccessful(mock_qdrant_service_class):
+
+def test_qdrant_health_check_connection_unsuccessful():
     """Qdrant health check should return unhealthy when health_check returns False."""
     # Mock QdrantService instance - health_check returns False
     mock_service = MagicMock()
     mock_service.health_check = AsyncMock(return_value=False)
-    mock_qdrant_service_class.return_value = mock_service
+
+    # Override the get_qdrant_service dependency
+    from app.api.routes.health import get_qdrant_service
+
+    def override_get_qdrant_service():
+        return mock_service
+
+    app.dependency_overrides[get_qdrant_service] = override_get_qdrant_service
 
     response = client.get("/api/health/qdrant")
 
@@ -107,12 +122,23 @@ def test_qdrant_health_check_connection_unsuccessful(mock_qdrant_service_class):
     assert data["service"] == "qdrant"
     assert "error" in data
 
+    # Cleanup
+    app.dependency_overrides.clear()
 
-@patch('app.api.routes.health.QdrantService')
-def test_qdrant_health_check_failure(mock_qdrant_service_class):
+
+def test_qdrant_health_check_failure():
     """Qdrant health check should return unhealthy when exception is raised."""
-    # Mock QdrantService to raise connection error
-    mock_qdrant_service_class.side_effect = ConnectionError("Cannot connect to Qdrant")
+    # Mock QdrantService to raise connection error on health_check
+    mock_service = MagicMock()
+    mock_service.health_check = AsyncMock(side_effect=ConnectionError("Cannot connect to Qdrant"))
+
+    # Override the get_qdrant_service dependency
+    from app.api.routes.health import get_qdrant_service
+
+    def override_get_qdrant_service():
+        return mock_service
+
+    app.dependency_overrides[get_qdrant_service] = override_get_qdrant_service
 
     response = client.get("/api/health/qdrant")
 
@@ -121,6 +147,9 @@ def test_qdrant_health_check_failure(mock_qdrant_service_class):
     assert data["status"] == "unhealthy"
     assert data["service"] == "qdrant"
     assert "error" in data
+
+    # Cleanup
+    app.dependency_overrides.clear()
 
 
 def test_health_endpoints_exist():

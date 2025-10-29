@@ -29,15 +29,15 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 
-@router.post("/register", response_model=UserResponse, status_code=201)
+@router.post("/register", response_model=TokenResponse, status_code=201)
 @limiter.limit("5/minute")
 async def register(
     request: Request,
     body: RegisterRequest,
     db: AsyncSession = Depends(get_db),
-) -> UserResponse:
+) -> TokenResponse:
     """
-    Register new user account.
+    Register new user account and create session (auto-login).
 
     Rate limit: 5 requests per minute per IP.
 
@@ -47,7 +47,7 @@ async def register(
         db: Database session
 
     Returns:
-        UserResponse with user info (id, email, created_at)
+        TokenResponse with session token and user info (auto-login)
 
     Raises:
         HTTPException(409): Email already registered
@@ -57,11 +57,14 @@ async def register(
     Example:
         >>> POST /api/auth/register
         >>> {"email": "user@example.com", "password": "securepass123"}
-        >>> Response: {"id": "...", "email": "user@example.com", "created_at": "..."}
+        >>> Response: {"token": "...", "user_id": "...", "email": "user@example.com"}
     """
     auth_service = AuthService(db)
+    # Create user
     user = await auth_service.register_user(body.email, body.password)
-    return UserResponse.model_validate(user)
+    # Auto-login: create session and return token
+    result = await auth_service.login(body.email, body.password)
+    return TokenResponse(**result)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -130,7 +133,10 @@ async def logout(
 
     # Parse Bearer token
     try:
-        scheme, token = auth_header.split()
+        parts = auth_header.split(maxsplit=1)
+        if len(parts) != 2:
+            raise ValueError("Header must have exactly 2 parts")
+        scheme, token = parts
         if scheme.lower() != "bearer":
             raise ValueError("Invalid scheme")
     except ValueError:

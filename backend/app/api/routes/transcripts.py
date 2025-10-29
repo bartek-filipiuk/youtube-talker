@@ -9,7 +9,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError, ExternalAPIError
+from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError
 from app.db.session import get_db
 from app.db.models import User
 from app.dependencies import get_current_user
@@ -75,33 +75,15 @@ async def ingest_transcript(
     """
     service = TranscriptService()
 
-    try:
-        result = await service.ingest_transcript(
-            youtube_url=body.youtube_url,
-            user_id=user.id,
-            db_session=db,
-        )
+    result = await service.ingest_transcript(
+        youtube_url=body.youtube_url,
+        user_id=user.id,
+        db_session=db,
+    )
 
-        return TranscriptResponse(
-            id=result["transcript_id"],
-            youtube_video_id=result["youtube_video_id"],
-            chunk_count=result["chunk_count"],
-            metadata=result["metadata"],
-        )
-
-    except ValueError as e:
-        # Duplicate or validation error
-        error_msg = str(e)
-        if "already exists" in error_msg.lower():
-            raise TranscriptAlreadyExistsError() from e
-        else:
-            raise InvalidInputError(error_msg) from e
-
-    except Exception as e:
-        # External service error (SUPADATA, OpenAI, Qdrant)
-        error_msg = str(e)
-        if "httpx" in error_msg.lower() or "api" in error_msg.lower():
-            raise ExternalAPIError(f"External service error: {error_msg}") from e
-        else:
-            # Unexpected server error - let global handler catch it
-            raise
+    return TranscriptResponse(
+        id=result["transcript_id"],
+        youtube_video_id=result["youtube_video_id"],
+        chunk_count=result["chunk_count"],
+        metadata=result["metadata"],
+    )

@@ -54,13 +54,11 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
         updated_state = await generate_response(state)
         # updated_state["response"] contains the generated answer
     """
-    intent = state.get("intent")
+    # Default to "chitchat" if intent not set by router (defensive fallback)
+    intent = state.get("intent", "chitchat")
     user_query = state.get("user_query", "")
     conversation_history = state.get("conversation_history", [])
     graded_chunks = state.get("graded_chunks", [])
-
-    if not intent:
-        raise ValueError("Intent must be set before calling generator node")
 
     logger.info(f"Generating response for intent: {intent}")
 

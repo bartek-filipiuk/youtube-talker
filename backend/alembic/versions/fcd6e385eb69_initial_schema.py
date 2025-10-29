@@ -30,15 +30,15 @@ def upgrade() -> None:
     sa.Column('key', sa.String(length=100), nullable=False),
     sa.Column('value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.PrimaryKeyConstraint('key')
     )
     op.create_table('users',
     sa.Column('id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.CheckConstraint("email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='check_email_format'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -47,19 +47,19 @@ def upgrade() -> None:
     sa.Column('id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('title', sa.String(length=500), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_conversations_updated_at', 'conversations', [sa.literal_column('updated_at DESC')], unique=False)
+    op.create_index('idx_conversations_updated_at', 'conversations', ['updated_at'], unique=False)
     op.create_index('idx_conversations_user_id', 'conversations', ['user_id'], unique=False)
     op.create_table('sessions',
     sa.Column('id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('token_hash', sa.String(length=255), nullable=False),
-    sa.Column('expires_at', sa.DateTime(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -74,15 +74,23 @@ def upgrade() -> None:
     sa.Column('template_content', sa.Text(), nullable=False),
     sa.Column('variables', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'[]'"), nullable=False),
     sa.Column('is_default', sa.Boolean(), server_default=sa.text('FALSE'), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
-    sa.CheckConstraint("template_type IN ('linkedin', 'twitter', 'blog', 'email')", name='check_template_type'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_templates_type_default', 'templates', ['template_type', 'is_default'], unique=False)
     op.create_index('idx_templates_user_id', 'templates', ['user_id'], unique=False)
     op.create_index('unique_user_template', 'templates', ['user_id', 'template_type', 'template_name'], unique=True)
+    # Partial unique index for default templates (user_id IS NULL)
+    # Prevents duplicate system defaults since NULL != NULL in SQL unique constraints
+    op.create_index(
+        'unique_default_template',
+        'templates',
+        ['template_type', 'template_name'],
+        unique=True,
+        postgresql_where=sa.text('user_id IS NULL')
+    )
     op.create_table('transcripts',
     sa.Column('id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -92,7 +100,7 @@ def upgrade() -> None:
     sa.Column('duration', sa.Integer(), nullable=True),
     sa.Column('transcript_text', sa.Text(), nullable=False),
     sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'"), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -107,9 +115,9 @@ def upgrade() -> None:
     sa.Column('chunk_index', sa.Integer(), nullable=False),
     sa.Column('token_count', sa.Integer(), nullable=False),
     sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'"), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.ForeignKeyConstraint(['transcript_id'], ['transcripts.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_chunks_metadata', 'chunks', ['metadata'], unique=False, postgresql_using='gin')
@@ -122,7 +130,7 @@ def upgrade() -> None:
     sa.Column('role', sa.String(length=50), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'"), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.CheckConstraint("role IN ('user', 'assistant', 'system')", name='check_role'),
     sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
@@ -178,6 +186,7 @@ def downgrade() -> None:
     op.drop_index('idx_transcripts_user_id', table_name='transcripts')
     op.drop_index('idx_transcripts_metadata', table_name='transcripts', postgresql_using='gin')
     op.drop_table('transcripts')
+    op.drop_index('unique_default_template', table_name='templates')
     op.drop_index('unique_user_template', table_name='templates')
     op.drop_index('idx_templates_user_id', table_name='templates')
     op.drop_index('idx_templates_type_default', table_name='templates')

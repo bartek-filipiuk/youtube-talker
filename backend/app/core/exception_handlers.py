@@ -59,7 +59,7 @@ async def authentication_error_handler(
         status_code=401,
         detail=str(exc) or "Authentication failed",
         error_code="AUTHENTICATION_FAILED",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -72,7 +72,7 @@ async def conversation_not_found_handler(
         status_code=404,
         detail="Conversation not found",
         error_code="CONVERSATION_NOT_FOUND",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -85,7 +85,7 @@ async def conversation_access_denied_handler(
         status_code=403,
         detail="Access denied to this conversation",
         error_code="CONVERSATION_ACCESS_DENIED",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -98,7 +98,7 @@ async def rate_limit_exceeded_handler(
         status_code=429,
         detail="Rate limit exceeded. Please try again later.",
         error_code="RATE_LIMIT_EXCEEDED",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -111,7 +111,7 @@ async def invalid_input_handler(
         status_code=400,
         detail=str(exc) or "Invalid input",
         error_code="INVALID_INPUT",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -124,7 +124,7 @@ async def transcript_not_found_handler(
         status_code=404,
         detail="Transcript not found",
         error_code="TRANSCRIPT_NOT_FOUND",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -137,7 +137,7 @@ async def transcript_already_exists_handler(
         status_code=409,
         detail="Transcript already exists for this YouTube URL",
         error_code="TRANSCRIPT_ALREADY_EXISTS",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -150,7 +150,7 @@ async def external_api_error_handler(
         status_code=503,
         detail="External service temporarily unavailable. Please try again later.",
         error_code="EXTERNAL_API_ERROR",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -186,7 +186,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         status_code=exc.status_code,
         detail=exc.detail,
         error_code=error_code,
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
 
 
@@ -205,5 +205,5 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         status_code=500,
         detail="An internal error occurred. Please try again later.",
         error_code="INTERNAL_SERVER_ERROR",
-        request_id=request.headers.get("X-Request-ID")
+        request_id=getattr(request.state, "request_id", "unknown")
     )
