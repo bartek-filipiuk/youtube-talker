@@ -186,7 +186,12 @@ class AuthService:
             raise AuthenticationError("Invalid session")
 
         # Check if expired
-        if session.expires_at < datetime.now(timezone.utc):
+        # Ensure expires_at is timezone-aware (handle old naive datetimes)
+        expires_at = session.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at < datetime.now(timezone.utc):
             raise AuthenticationError("Session expired")
 
         # Get user
