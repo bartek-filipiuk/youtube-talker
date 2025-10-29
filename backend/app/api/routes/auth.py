@@ -130,7 +130,10 @@ async def logout(
 
     # Parse Bearer token
     try:
-        scheme, token = auth_header.split()
+        parts = auth_header.split(maxsplit=1)
+        if len(parts) != 2:
+            raise ValueError("Header must have exactly 2 parts")
+        scheme, token = parts
         if scheme.lower() != "bearer":
             raise ValueError("Invalid scheme")
     except ValueError:
