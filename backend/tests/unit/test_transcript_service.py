@@ -7,6 +7,7 @@ from tenacity import RetryError
 from supadata import SupadataError
 
 from app.services.transcript_service import TranscriptService
+from app.core.errors import InvalidInputError
 
 
 class TestTranscriptService:
@@ -37,15 +38,15 @@ class TestTranscriptService:
         assert service._extract_video_id(url) == "dQw4w9WgXcQ"
 
     def test_extract_video_id_invalid_url(self):
-        """Raise ValueError for invalid URL."""
+        """Raise InvalidInputError for invalid URL."""
         service = TranscriptService()
-        with pytest.raises(ValueError, match="Invalid YouTube URL"):
+        with pytest.raises(InvalidInputError, match="Invalid YouTube URL"):
             service._extract_video_id("https://vimeo.com/123456")
 
     def test_extract_video_id_empty_url(self):
-        """Raise ValueError for empty URL."""
+        """Raise InvalidInputError for empty URL."""
         service = TranscriptService()
-        with pytest.raises(ValueError, match="Invalid YouTube URL"):
+        with pytest.raises(InvalidInputError, match="Invalid YouTube URL"):
             service._extract_video_id("")
 
     @pytest.mark.asyncio
@@ -247,9 +248,9 @@ class TestTranscriptService:
 
     @pytest.mark.asyncio
     async def test_fetch_transcript_invalid_url_format(self):
-        """Test that invalid URL raises ValueError before making API call."""
+        """Test that invalid URL raises InvalidInputError before making API call."""
         service = TranscriptService()
 
-        # Should raise ValueError without making any API calls
-        with pytest.raises(ValueError, match="Invalid YouTube URL"):
+        # Should raise InvalidInputError without making any API calls
+        with pytest.raises(InvalidInputError, match="Invalid YouTube URL"):
             await service.fetch_transcript("https://notayoutubeurl.com/video")
