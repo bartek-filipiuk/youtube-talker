@@ -3,7 +3,7 @@ Unit Tests for Conversation API Endpoints
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4, UUID
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -40,8 +40,8 @@ def mock_user():
     user.id = uuid4()
     user.email = "test@example.com"
     user.password_hash = "hashed"
-    user.created_at = datetime.utcnow()
-    user.updated_at = datetime.utcnow()
+    user.created_at = datetime.now(timezone.utc)
+    user.updated_at = datetime.now(timezone.utc)
     return user
 
 
@@ -52,8 +52,8 @@ def mock_conversation(mock_user):
     conv.id = uuid4()
     conv.user_id = mock_user.id
     conv.title = "Test Conversation"
-    conv.created_at = datetime.utcnow()
-    conv.updated_at = datetime.utcnow()
+    conv.created_at = datetime.now(timezone.utc)
+    conv.updated_at = datetime.now(timezone.utc)
     return conv
 
 
@@ -66,7 +66,7 @@ def mock_messages(mock_conversation):
     msg1.role = "user"
     msg1.content = "Hello"
     msg1.meta_data = {}
-    msg1.created_at = datetime.utcnow()
+    msg1.created_at = datetime.now(timezone.utc)
 
     msg2 = MagicMock()
     msg2.id = uuid4()
@@ -74,7 +74,7 @@ def mock_messages(mock_conversation):
     msg2.role = "assistant"
     msg2.content = "Hi there!"
     msg2.meta_data = {"intent": "chitchat"}
-    msg2.created_at = datetime.utcnow()
+    msg2.created_at = datetime.now(timezone.utc)
 
     return [msg1, msg2]
 

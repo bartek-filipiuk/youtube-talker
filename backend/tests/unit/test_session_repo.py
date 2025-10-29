@@ -2,7 +2,7 @@
 Unit Tests for SessionRepository
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,7 @@ from app.db.repositories.session_repo import SessionRepository
 async def test_create_session(db_session: AsyncSession, test_user: User):
     """Test creating a new session."""
     repo = SessionRepository(db_session)
-    expires_at = datetime.utcnow() + timedelta(days=7)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
     session = await repo.create(
         user_id=test_user.id, token_hash="test_token_hash", expires_at=expires_at
@@ -31,7 +31,7 @@ async def test_create_session(db_session: AsyncSession, test_user: User):
 async def test_get_session_by_token(db_session: AsyncSession, test_user: User):
     """Test retrieving session by token hash."""
     repo = SessionRepository(db_session)
-    expires_at = datetime.utcnow() + timedelta(days=7)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
     # Create session
     created_session = await repo.create(
@@ -59,7 +59,7 @@ async def test_get_session_by_token_not_found(db_session: AsyncSession):
 async def test_delete_session(db_session: AsyncSession, test_user: User):
     """Test deleting a session."""
     repo = SessionRepository(db_session)
-    expires_at = datetime.utcnow() + timedelta(days=7)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
     # Create session
     session = await repo.create(
@@ -81,13 +81,13 @@ async def test_delete_expired_sessions(db_session: AsyncSession, test_user: User
     repo = SessionRepository(db_session)
 
     # Create expired session
-    expired_time = datetime.utcnow() - timedelta(days=1)
+    expired_time = datetime.now(timezone.utc) - timedelta(days=1)
     await repo.create(
         user_id=test_user.id, token_hash="expired_token", expires_at=expired_time
     )
 
     # Create valid session
-    valid_time = datetime.utcnow() + timedelta(days=7)
+    valid_time = datetime.now(timezone.utc) + timedelta(days=7)
     valid_session = await repo.create(
         user_id=test_user.id, token_hash="valid_token", expires_at=valid_time
     )

@@ -7,7 +7,7 @@ Uses FastAPI TestClient to simulate API calls.
 
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

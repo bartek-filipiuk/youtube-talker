@@ -5,7 +5,7 @@ Tests authentication business logic with mocked repositories.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException
 from uuid import uuid4
@@ -47,8 +47,8 @@ class TestRegisterUser:
             id=user_id,
             email="test@example.com",
             password_hash="hashed_password",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         auth_service.user_repo.create.return_value = mock_user
 
@@ -76,8 +76,8 @@ class TestRegisterUser:
             id=uuid4(),
             email="test@example.com",
             password_hash="hash",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         auth_service.user_repo.get_by_email.return_value = existing_user
 
@@ -105,8 +105,8 @@ class TestLogin:
             id=user_id,
             email="test@example.com",
             password_hash=hashed_password,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         auth_service.user_repo.get_by_email.return_value = mock_user
 
@@ -128,7 +128,7 @@ class TestLogin:
 
         # Verify expiry is approximately 7 days from now
         expires_at = create_kwargs["expires_at"]
-        expected_expiry = datetime.utcnow() + timedelta(days=7)
+        expected_expiry = datetime.now(timezone.utc) + timedelta(days=7)
         assert abs((expires_at - expected_expiry).total_seconds()) < 5  # Within 5 seconds
 
         mock_db.commit.assert_called_once()
@@ -141,8 +141,8 @@ class TestLogin:
             id=uuid4(),
             email="test@example.com",
             password_hash=hash_password("correctpassword"),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         auth_service.user_repo.get_by_email.return_value = mock_user
 
@@ -175,8 +175,8 @@ class TestLogin:
             id=uuid4(),
             email="test@example.com",
             password_hash=hash_password("Password123"),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         auth_service.user_repo.get_by_email.return_value = mock_user
 
@@ -196,8 +196,8 @@ class TestLogout:
             id=uuid4(),
             user_id=uuid4(),
             token_hash="hashed_token",
-            expires_at=datetime.utcnow() + timedelta(days=7),
-            created_at=datetime.utcnow(),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            created_at=datetime.now(timezone.utc),
         )
         auth_service.session_repo.get_by_token.return_value = mock_session
 
@@ -235,15 +235,15 @@ class TestValidateSession:
             id=uuid4(),
             user_id=user_id,
             token_hash="hashed_token",
-            expires_at=datetime.utcnow() + timedelta(days=7),
-            created_at=datetime.utcnow(),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            created_at=datetime.now(timezone.utc),
         )
         mock_user = User(
             id=user_id,
             email="test@example.com",
             password_hash="hash",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
 
         auth_service.session_repo.get_by_token.return_value = mock_session
@@ -266,8 +266,8 @@ class TestValidateSession:
             id=uuid4(),
             user_id=uuid4(),
             token_hash="hashed_token",
-            expires_at=datetime.utcnow() - timedelta(hours=1),  # Expired 1 hour ago
-            created_at=datetime.utcnow() - timedelta(days=8),
+            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),  # Expired 1 hour ago
+            created_at=datetime.now(timezone.utc) - timedelta(days=8),
         )
         auth_service.session_repo.get_by_token.return_value = mock_session
 
@@ -300,8 +300,8 @@ class TestValidateSession:
             id=uuid4(),
             user_id=uuid4(),
             token_hash="hashed_token",
-            expires_at=datetime.utcnow() + timedelta(days=7),
-            created_at=datetime.utcnow(),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            created_at=datetime.now(timezone.utc),
         )
         auth_service.session_repo.get_by_token.return_value = mock_session
         auth_service.user_repo.get_by_id.return_value = None  # User deleted
@@ -320,8 +320,8 @@ class TestValidateSession:
             id=uuid4(),
             user_id=uuid4(),
             token_hash="hashed_token",
-            expires_at=datetime.utcnow(),  # Expires now
-            created_at=datetime.utcnow() - timedelta(days=7),
+            expires_at=datetime.now(timezone.utc),  # Expires now
+            created_at=datetime.now(timezone.utc) - timedelta(days=7),
         )
         auth_service.session_repo.get_by_token.return_value = mock_session
 

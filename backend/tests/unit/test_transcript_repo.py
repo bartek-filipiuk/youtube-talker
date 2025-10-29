@@ -2,7 +2,7 @@
 Unit Tests for TranscriptRepository
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
