@@ -26,7 +26,7 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False,
     autoflush=False,
-    autocommit=False,
+    # autocommit removed - not supported in SQLAlchemy 2.x
 )
 
 

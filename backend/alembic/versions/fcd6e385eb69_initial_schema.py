@@ -52,7 +52,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_conversations_updated_at', 'conversations', [sa.literal_column('updated_at DESC')], unique=False)
+    op.create_index('idx_conversations_updated_at', 'conversations', ['updated_at'], unique=False)
     op.create_index('idx_conversations_user_id', 'conversations', ['user_id'], unique=False)
     op.create_table('sessions',
     sa.Column('id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),

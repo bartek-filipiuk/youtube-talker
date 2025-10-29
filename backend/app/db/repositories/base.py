@@ -88,7 +88,7 @@ class BaseRepository(Generic[ModelType]):
         """
         instance = await self.get_by_id(id)
         if instance:
-            await self.session.delete(instance)
+            self.session.delete(instance)  # delete() is synchronous in SQLAlchemy 2.0
             await self.session.flush()
             return True
         return False

@@ -7,7 +7,7 @@ Database operations for User model.
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
@@ -48,10 +48,13 @@ class UserRepository(BaseRepository[User]):
 
     async def increment_transcript_count(self, user_id: UUID) -> None:
         """
-        Increment the transcript_count for a user.
+        Increment the transcript_count for a user atomically.
 
         This method is called after successfully ingesting a new transcript.
         Used for quota enforcement (e.g., max 10 videos for regular users).
+
+        Uses atomic UPDATE to prevent race conditions under concurrent loads.
+        Transaction management is left to the caller.
 
         Args:
             user_id: UUID of the user
@@ -59,10 +62,18 @@ class UserRepository(BaseRepository[User]):
         Raises:
             ValueError: If user not found
         """
-        user = await self.get_by_id(user_id)
-        if not user:
+        # Use atomic UPDATE to prevent lost updates under concurrency
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(transcript_count=User.transcript_count + 1)
+        )
+        result = await self.session.execute(stmt)
+
+        # Verify user exists (if no rows updated, user not found)
+        if result.rowcount == 0:
             raise ValueError(f"User {user_id} not found")
 
-        user.transcript_count += 1
-        await self.session.commit()
-        await self.session.refresh(user)
+        # Flush to ensure update is visible in current transaction
+        # But let caller manage commit/rollback
+        await self.session.flush()

@@ -254,9 +254,10 @@ class Chunk(Base):
     )
     user_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
+        comment="Denormalized for fast lookups. RESTRICT prevents multi-cascade path conflict with transcript FK.",
     )
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
