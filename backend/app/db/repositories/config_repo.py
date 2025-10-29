@@ -6,7 +6,8 @@ Database operations for Config model.
 
 from typing import Any, Optional, List
 
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Config
@@ -39,7 +40,10 @@ class ConfigRepository(BaseRepository[Config]):
         self, key: str, value: Any, description: Optional[str] = None
     ) -> Config:
         """
-        Set or update configuration value.
+        Set or update configuration value using PostgreSQL UPSERT.
+
+        Thread-safe atomic operation that handles concurrent updates gracefully.
+        Uses INSERT ... ON CONFLICT DO UPDATE to avoid race conditions.
 
         Args:
             key: Configuration key
@@ -49,27 +53,29 @@ class ConfigRepository(BaseRepository[Config]):
         Returns:
             Config instance
         """
-        # Check if exists
+        # Use PostgreSQL UPSERT (INSERT ... ON CONFLICT DO UPDATE)
+        # This is atomic and handles concurrent updates without race conditions
+        stmt = pg_insert(Config).values(
+            key=key,
+            value=value,
+            description=description
+        ).on_conflict_do_update(
+            index_elements=['key'],
+            set_={
+                'value': value,
+                'description': description,
+                'updated_at': func.now()
+            }
+        )
+
+        await self.session.execute(stmt)
+        await self.session.flush()
+
+        # Fetch and return the config
         result = await self.session.execute(
             select(Config).where(Config.key == key)
         )
-        config = result.scalar_one_or_none()
-
-        if config:
-            # Update existing
-            config.value = value
-            if description:
-                config.description = description
-            await self.session.flush()
-            await self.session.refresh(config)
-            return config
-        else:
-            # Create new
-            config = Config(key=key, value=value, description=description)
-            self.session.add(config)
-            await self.session.flush()
-            await self.session.refresh(config)
-            return config
+        return result.scalar_one()
 
     async def get_all(self) -> List[Config]:
         """
