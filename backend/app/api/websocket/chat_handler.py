@@ -6,7 +6,7 @@ Handles authentication, message validation, RAG integration, and message persist
 """
 
 from loguru import logger
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -172,7 +172,7 @@ async def websocket_endpoint(
                     # We defer commit until after RAG succeeds to ensure all-or-nothing persistence
                     conversation = await conversation_repo.create(
                         user_id=current_user.id,
-                        title=f"Chat {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
+                        title=f"Chat {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
                     )
                     logger.info(f"Created new conversation {conversation.id} for user {current_user.id}")
                 else:
@@ -314,7 +314,7 @@ async def websocket_endpoint(
                 )
 
                 # Update conversation timestamp
-                conversation.updated_at = datetime.utcnow()
+                conversation.updated_at = datetime.now(timezone.utc)
                 await db.commit()
 
                 logger.info(

@@ -6,7 +6,7 @@ All endpoints require authentication.
 """
 
 from loguru import logger
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -185,7 +185,7 @@ async def create_conversation(
     repo = ConversationRepository(db)
 
     # Auto-generate title if not provided
-    title = body.title or f"Chat {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
+    title = body.title or f"Chat {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
 
     conversation = await repo.create(
         user_id=current_user.id,

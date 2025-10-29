@@ -4,7 +4,7 @@ Session Repository
 Database operations for Session model.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -60,7 +60,7 @@ class SessionRepository(BaseRepository[Session]):
             Number of sessions deleted
         """
         result = await self.session.execute(
-            delete(Session).where(Session.expires_at < datetime.utcnow())
+            delete(Session).where(Session.expires_at < datetime.now(timezone.utc))
         )
         await self.session.flush()
         return result.rowcount

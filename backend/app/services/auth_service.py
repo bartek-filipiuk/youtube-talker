@@ -5,7 +5,7 @@ Business logic for user registration, login, logout, and session validation.
 Uses UserRepository and SessionRepository for database operations.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict
 from uuid import UUID
 
@@ -122,7 +122,7 @@ class AuthService:
         token_hash = hash_token(token)
 
         # Create session with 7-day expiry
-        expires_at = datetime.utcnow() + timedelta(days=7)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
         await self.session_repo.create(
             user_id=user.id, token_hash=token_hash, expires_at=expires_at
         )
@@ -186,7 +186,7 @@ class AuthService:
             raise AuthenticationError("Invalid session")
 
         # Check if expired
-        if session.expires_at < datetime.utcnow():
+        if session.expires_at < datetime.now(timezone.utc):
             raise AuthenticationError("Session expired")
 
         # Get user

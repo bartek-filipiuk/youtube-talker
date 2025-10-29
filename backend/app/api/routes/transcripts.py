@@ -9,7 +9,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError, ExternalAPIError
+from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError
 from app.db.session import get_db
 from app.db.models import User
 from app.dependencies import get_current_user
@@ -75,29 +75,15 @@ async def ingest_transcript(
     """
     service = TranscriptService()
 
-    try:
-        result = await service.ingest_transcript(
-            youtube_url=body.youtube_url,
-            user_id=user.id,
-            db_session=db,
-        )
+    result = await service.ingest_transcript(
+        youtube_url=body.youtube_url,
+        user_id=user.id,
+        db_session=db,
+    )
 
-        return TranscriptResponse(
-            id=result["transcript_id"],
-            youtube_video_id=result["youtube_video_id"],
-            chunk_count=result["chunk_count"],
-            metadata=result["metadata"],
-        )
-
-    except TranscriptAlreadyExistsError:
-        # Re-raise as-is (already the correct exception type)
-        raise
-
-    except InvalidInputError:
-        # Re-raise as-is (already the correct exception type)
-        raise
-
-    except Exception as e:
-        # External service errors or unexpected errors
-        # Let global exception handler catch and log unexpected errors
-        raise
+    return TranscriptResponse(
+        id=result["transcript_id"],
+        youtube_video_id=result["youtube_video_id"],
+        chunk_count=result["chunk_count"],
+        metadata=result["metadata"],
+    )

@@ -76,7 +76,6 @@ def upgrade() -> None:
     sa.Column('is_default', sa.Boolean(), server_default=sa.text('FALSE'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
-    sa.CheckConstraint("template_type IN ('linkedin', 'twitter', 'blog', 'email')", name='check_template_type'),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -118,7 +117,7 @@ def upgrade() -> None:
     sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), server_default=sa.text("'{}'"), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
     sa.ForeignKeyConstraint(['transcript_id'], ['transcripts.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('idx_chunks_metadata', 'chunks', ['metadata'], unique=False, postgresql_using='gin')
