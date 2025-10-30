@@ -22,6 +22,7 @@ from app.api.websocket.messages import (
     VideoLoadStatusMessage,
 )
 from app.db.models import User
+from app.db.repositories.message_repo import MessageRepository
 from app.db.repositories.transcript_repo import TranscriptRepository
 from app.db.repositories.user_repo import UserRepository
 from app.db.session import AsyncSessionLocal
@@ -60,6 +61,55 @@ video_metadata_cache: Dict[str, VideoMetadata] = {}
 
 # Pending confirmation expiration timeout (5 minutes)
 PENDING_LOAD_TTL_SECONDS = 300
+
+
+async def send_and_save_error(
+    websocket: WebSocket,
+    conversation_id: str,
+    db: AsyncSession,
+    message: str,
+    error: str,
+    video_title: Optional[str] = None,
+) -> None:
+    """
+    Send error message via WebSocket AND save to database for conversation persistence.
+
+    Args:
+        websocket: WebSocket connection
+        conversation_id: Conversation UUID
+        db: Database session
+        message: Error message text
+        error: Error code (e.g., "DUPLICATE_VIDEO")
+        video_title: Optional video title for context
+    """
+    # Send via WebSocket
+    await connection_manager.send_json(
+        websocket,
+        VideoLoadStatusMessage(
+            status="failed",
+            message=message,
+            video_title=video_title,
+            error=error,
+        ).model_dump()
+    )
+
+    # Save to database
+    try:
+        message_repo = MessageRepository(db)
+        await message_repo.create(
+            conversation_id=UUID(conversation_id),
+            role="assistant",
+            content=message,
+            meta_data={
+                "intent": "video_load_error",
+                "error": error,
+                **({"video_title": video_title} if video_title else {}),
+            }
+        )
+        await db.commit()
+    except Exception as save_error:
+        logger.error(f"Failed to save error message to database: {save_error}")
+        # Don't re-raise - WebSocket message was already sent
 
 
 async def check_user_quota(user: User, db: AsyncSession) -> tuple[bool, str]:
@@ -260,13 +310,12 @@ async def handle_video_load_intent(
     video_id = detect_youtube_url(youtube_url)
 
     if not video_id:
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message="Could not extract video ID from URL. Please check the link and try again.",
-                error="INVALID_URL",
-            ).model_dump()
+        await send_and_save_error(
+            websocket=websocket,
+            conversation_id=conversation_id,
+            db=db,
+            message="Could not extract video ID from URL. Please check the link and try again.",
+            error="INVALID_URL",
         )
         return
 
@@ -286,14 +335,13 @@ async def handle_video_load_intent(
     existing = await transcript_repo.get_by_video_id(user.id, video_id)
 
     if existing:
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message=f"You already have this video in your knowledge base (added {existing.created_at.strftime('%Y-%m-%d')}).",
-                video_title=existing.title,
-                error="DUPLICATE_VIDEO",
-            ).model_dump()
+        await send_and_save_error(
+            websocket=websocket,
+            conversation_id=conversation_id,
+            db=db,
+            message=f"You already have this video in your knowledge base (added {existing.created_at.strftime('%Y-%m-%d')}).",
+            error="DUPLICATE_VIDEO",
+            video_title=existing.title,
         )
         logger.info(f"Duplicate video detected: user={user.id}, video_id={video_id}")
         return
@@ -305,13 +353,12 @@ async def handle_video_load_intent(
 
         # Validate duration is available
         if duration_seconds == 0:
-            await connection_manager.send_json(
-                websocket,
-                VideoLoadStatusMessage(
-                    status="failed",
-                    message="Could not determine video duration. Please try again later.",
-                    error="DURATION_UNAVAILABLE",
-                ).model_dump()
+            await send_and_save_error(
+                websocket=websocket,
+                conversation_id=conversation_id,
+                db=db,
+                message="Could not determine video duration. Please try again later.",
+                error="DURATION_UNAVAILABLE",
             )
             logger.warning(f"Duration unavailable for video_id={video_id}")
             return
@@ -320,14 +367,13 @@ async def handle_video_load_intent(
         allowed, duration_message = await check_duration_limit(user, duration_seconds)
 
         if not allowed:
-            await connection_manager.send_json(
-                websocket,
-                VideoLoadStatusMessage(
-                    status="failed",
-                    message=duration_message,
-                    video_title=video_title,
-                    error="DURATION_EXCEEDED",
-                ).model_dump()
+            await send_and_save_error(
+                websocket=websocket,
+                conversation_id=conversation_id,
+                db=db,
+                message=duration_message,
+                error="DURATION_EXCEEDED",
+                video_title=video_title,
             )
             logger.warning(
                 f"Duration limit exceeded: user={user.id}, role={user.role}, "
@@ -339,25 +385,23 @@ async def handle_video_load_intent(
 
     except ValueError as e:
         # Invalid URL - already handled in Step 1, but catch anyway
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message="Invalid YouTube URL. Please check the link and try again.",
-                error="INVALID_URL",
-            ).model_dump()
+        await send_and_save_error(
+            websocket=websocket,
+            conversation_id=conversation_id,
+            db=db,
+            message="Invalid YouTube URL. Please check the link and try again.",
+            error="INVALID_URL",
         )
         logger.error(f"Invalid URL during duration check: {e}")
         return
     except Exception as e:
         # SUPADATA API error or network issue
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message="Could not verify video duration. Please try again later.",
-                error="DURATION_CHECK_FAILED",
-            ).model_dump()
+        await send_and_save_error(
+            websocket=websocket,
+            conversation_id=conversation_id,
+            db=db,
+            message="Could not verify video duration. Please try again later.",
+            error="DURATION_CHECK_FAILED",
         )
         logger.exception(f"Duration check failed for video_id={video_id}: {e}")
         return
@@ -366,13 +410,12 @@ async def handle_video_load_intent(
     allowed, quota_message = await check_user_quota(user, db)
 
     if not allowed:
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message=quota_message,
-                error="QUOTA_EXCEEDED",
-            ).model_dump()
+        await send_and_save_error(
+            websocket=websocket,
+            conversation_id=conversation_id,
+            db=db,
+            message=quota_message,
+            error="QUOTA_EXCEEDED",
         )
         logger.warning(f"Quota exceeded: user={user.id}, count={user.transcript_count}")
         return
@@ -382,7 +425,7 @@ async def handle_video_load_intent(
         conversation_id=conversation_id,
         youtube_url=youtube_url,
         video_id=video_id,
-        video_title=None,  # Will be fetched during ingestion
+        video_title=video_title,  # Now available from duration check
         user_id=user.id,
         created_at=datetime.now(timezone.utc),
     )
@@ -390,16 +433,38 @@ async def handle_video_load_intent(
     pending_loads[conversation_id] = pending_load
     logger.info(f"Pending load created: conversation={conversation_id}, video={video_id}")
 
-    # Step 5: Send confirmation request
+    # Step 5: Send confirmation request via WebSocket
+    # Use video title if available, fallback to video ID
+    display_name = video_title or video_id
+    confirmation_message = f"Load this video ({display_name}) to your knowledge base? Reply 'yes' or 'no'."
     await connection_manager.send_json(
         websocket,
         LoadVideoConfirmationMessage(
             youtube_url=youtube_url,
             video_id=video_id,
-            video_title=None,  # No preview in MVP
-            message=f"Load this video ({video_id}) to your knowledge base? Reply 'yes' or 'no'.",
+            video_title=video_title,  # Now passing actual title
+            message=confirmation_message,
         ).model_dump()
     )
+
+    # Save confirmation message to database (for conversation persistence)
+    try:
+        message_repo = MessageRepository(db)
+        await message_repo.create(
+            conversation_id=UUID(conversation_id),
+            role="assistant",
+            content=confirmation_message,
+            meta_data={
+                "intent": "video_load_confirmation",
+                "youtube_url": youtube_url,
+                "video_id": video_id,
+                "video_title": video_title,
+            }
+        )
+        await db.commit()
+    except Exception as save_error:
+        logger.error(f"Failed to save confirmation message to database: {save_error}")
+        # Don't fail the flow - confirmation was already sent via WebSocket
 
 
 async def handle_confirmation_response(
@@ -482,13 +547,12 @@ async def handle_confirmation_response(
 
     elif re.search(no_pattern, response_lower):
         # User declined - cancel load
-        await connection_manager.send_json(
-            websocket,
-            VideoLoadStatusMessage(
-                status="failed",
-                message="Video loading cancelled.",
-                error="USER_CANCELLED",
-            ).model_dump()
+        await send_and_save_error(
+            websocket=websocket,
+            conversation_id=conversation_id,
+            db=db,
+            message="Video loading cancelled.",
+            error="USER_CANCELLED",
         )
 
         # Clear pending load
@@ -580,15 +644,31 @@ async def load_video_background(
             # Extract video title from result
             video_title = result.get("metadata", {}).get("title", "Unknown")
 
-            # Send success message
+            # Send success message via WebSocket
+            success_message = "Video loaded successfully! You can now ask questions about it."
             await connection_manager.send_json(
                 websocket,
                 VideoLoadStatusMessage(
                     status="completed",
-                    message="Video loaded successfully! You can now ask questions about it.",
+                    message=success_message,
                     video_title=video_title,
                 ).model_dump()
             )
+
+            # Save success message to database (for conversation persistence)
+            message_repo = MessageRepository(db)
+            await message_repo.create(
+                conversation_id=UUID(conversation_id),
+                role="assistant",
+                content=success_message,
+                meta_data={
+                    "intent": "video_load_success",
+                    "video_title": video_title,
+                    "youtube_video_id": result["youtube_video_id"],
+                    "chunk_count": result.get("chunk_count", 0),
+                }
+            )
+            await db.commit()
 
             logger.info(
                 f"Background load completed: user={user_id}, "
@@ -603,11 +683,30 @@ async def load_video_background(
             await db.rollback()
 
             # Send generic failure message to client (don't leak internals)
+            failure_message = "Failed to load video. Please try again later or contact support if the issue persists."
             await connection_manager.send_json(
                 websocket,
                 VideoLoadStatusMessage(
                     status="failed",
-                    message="Failed to load video. Please try again later or contact support if the issue persists.",
+                    message=failure_message,
                     error="VIDEO_LOAD_FAILED",
                 ).model_dump()
             )
+
+            # Save failure message to database (for conversation persistence)
+            # Create new transaction since we rolled back above
+            try:
+                message_repo = MessageRepository(db)
+                await message_repo.create(
+                    conversation_id=UUID(conversation_id),
+                    role="assistant",
+                    content=failure_message,
+                    meta_data={
+                        "intent": "video_load_failure",
+                        "error": "VIDEO_LOAD_FAILED",
+                    }
+                )
+                await db.commit()
+            except Exception as save_error:
+                # Don't fail if message save fails - just log it
+                logger.error(f"Failed to save failure message to database: {save_error}")

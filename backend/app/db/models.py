@@ -6,6 +6,7 @@ Uses SQLAlchemy 2.0 declarative mapping style with Mapped and mapped_column.
 """
 
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID, uuid4
 
@@ -16,6 +17,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     text,
@@ -342,3 +344,64 @@ class Config(Base):
 
     def __repr__(self) -> str:
         return f"<Config(key={self.key}, value={self.value})>"
+
+
+class ModelPricing(Base):
+    """
+    Store pricing configuration for AI models and external APIs.
+
+    Supports multiple pricing models:
+    - per_token: LLM models (OpenRouter, OpenAI)
+    - per_request: API calls (SUPADATA)
+
+    Pricing is versioned using effective_from/effective_until for historical tracking.
+    """
+
+    __tablename__ = "model_pricing"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    model_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    pricing_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, comment="per_token, per_request, credit_based"
+    )
+    input_price_per_1m: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(10, 6), nullable=True, comment="For per_token models: cost per 1M input tokens"
+    )
+    output_price_per_1m: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(10, 6), nullable=True, comment="For per_token models: cost per 1M output tokens"
+    )
+    cost_per_request: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(10, 6), nullable=True, comment="For per_request models: fixed cost per API call"
+    )
+    cache_discount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(5, 4), nullable=True, comment="Multiplier for cached tokens (e.g., 0.25 for 75% discount)"
+    )
+    effective_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("NOW()")
+    )
+    effective_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("TRUE"))
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("NOW()"), onupdate=text("NOW()")
+    )
+
+    __table_args__ = (
+        Index(
+            "unique_model_pricing",
+            "provider",
+            "model_name",
+            "effective_from",
+            unique=True,
+        ),
+        Index("idx_model_pricing_lookup", "provider", "model_name", "is_active"),
+        CheckConstraint(
+            "pricing_type IN ('per_token', 'per_request', 'credit_based')",
+            name="check_pricing_type",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ModelPricing(id={self.id}, provider={self.provider}, model_name={self.model_name}, pricing_type={self.pricing_type})>"

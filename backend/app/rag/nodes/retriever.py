@@ -65,7 +65,7 @@ async def retrieve_chunks(state: GraphState) -> GraphState:
 
     # Step 1: Generate query embedding
     embedding_service = EmbeddingService()
-    embeddings = await embedding_service.generate_embeddings([user_query])
+    embeddings = await embedding_service.generate_embeddings([user_query], user_id=user_id)
     query_vector = embeddings[0]  # Extract single embedding (1536-dim)
     logger.debug(f"Generated query embedding (dim={len(query_vector)})")
 
