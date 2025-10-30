@@ -94,18 +94,22 @@ async def send_and_save_error(
     )
 
     # Save to database
-    message_repo = MessageRepository(db)
-    await message_repo.create(
-        conversation_id=UUID(conversation_id),
-        role="assistant",
-        content=message,
-        meta_data={
-            "intent": "video_load_error",
-            "error": error,
-            **({"video_title": video_title} if video_title else {}),
-        }
-    )
-    await db.commit()
+    try:
+        message_repo = MessageRepository(db)
+        await message_repo.create(
+            conversation_id=UUID(conversation_id),
+            role="assistant",
+            content=message,
+            meta_data={
+                "intent": "video_load_error",
+                "error": error,
+                **({"video_title": video_title} if video_title else {}),
+            }
+        )
+        await db.commit()
+    except Exception as save_error:
+        logger.error(f"Failed to save error message to database: {save_error}")
+        # Don't re-raise - WebSocket message was already sent
 
 
 async def check_user_quota(user: User, db: AsyncSession) -> tuple[bool, str]:
@@ -444,19 +448,23 @@ async def handle_video_load_intent(
     )
 
     # Save confirmation message to database (for conversation persistence)
-    message_repo = MessageRepository(db)
-    await message_repo.create(
-        conversation_id=UUID(conversation_id),
-        role="assistant",
-        content=confirmation_message,
-        meta_data={
-            "intent": "video_load_confirmation",
-            "youtube_url": youtube_url,
-            "video_id": video_id,
-            "video_title": video_title,  # Add title to metadata
-        }
-    )
-    await db.commit()
+    try:
+        message_repo = MessageRepository(db)
+        await message_repo.create(
+            conversation_id=UUID(conversation_id),
+            role="assistant",
+            content=confirmation_message,
+            meta_data={
+                "intent": "video_load_confirmation",
+                "youtube_url": youtube_url,
+                "video_id": video_id,
+                "video_title": video_title,
+            }
+        )
+        await db.commit()
+    except Exception as save_error:
+        logger.error(f"Failed to save confirmation message to database: {save_error}")
+        # Don't fail the flow - confirmation was already sent via WebSocket
 
 
 async def handle_confirmation_response(

@@ -6,6 +6,7 @@ Uses SQLAlchemy 2.0 declarative mapping style with Mapped and mapped_column.
 """
 
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID, uuid4
 
@@ -364,16 +365,16 @@ class ModelPricing(Base):
     pricing_type: Mapped[str] = mapped_column(
         String(20), nullable=False, comment="per_token, per_request, credit_based"
     )
-    input_price_per_1m: Mapped[Optional[float]] = mapped_column(
+    input_price_per_1m: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(10, 6), nullable=True, comment="For per_token models: cost per 1M input tokens"
     )
-    output_price_per_1m: Mapped[Optional[float]] = mapped_column(
+    output_price_per_1m: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(10, 6), nullable=True, comment="For per_token models: cost per 1M output tokens"
     )
-    cost_per_request: Mapped[Optional[float]] = mapped_column(
+    cost_per_request: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(10, 6), nullable=True, comment="For per_request models: fixed cost per API call"
     )
-    cache_discount: Mapped[Optional[float]] = mapped_column(
+    cache_discount: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(5, 4), nullable=True, comment="Multiplier for cached tokens (e.g., 0.25 for 75% discount)"
     )
     effective_from: Mapped[datetime] = mapped_column(

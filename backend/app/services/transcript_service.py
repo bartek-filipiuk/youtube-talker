@@ -249,7 +249,10 @@ class TranscriptService:
             logger.info("Step 5/7: Generating embeddings for chunks")
             embedding_service = EmbeddingService()
             chunk_texts = [chunk["text"] for chunk in chunks]
-            embeddings = await embedding_service.generate_embeddings(chunk_texts)
+            embeddings = await embedding_service.generate_embeddings(
+                chunk_texts,
+                user_id=user_id,
+            )
             logger.info(f"✓ Generated {len(embeddings)} embeddings")
 
             # Step 6: Save chunks to PostgreSQL
