@@ -48,6 +48,7 @@ async def classify_intent(state: GraphState) -> Dict[str, Any]:
         # updated_state["intent"] == "linkedin"
     """
     user_query = state.get("user_query", "")
+    user_id = state.get("user_id")
     conversation_history = state.get("conversation_history", [])
 
     logger.info(f"Classifying intent for query: {user_query[:50]}...")
@@ -59,11 +60,12 @@ async def classify_intent(state: GraphState) -> Dict[str, Any]:
         conversation_history=conversation_history
     )
 
-    # Call LLM for structured output
+    # Call LLM for structured output with user_id for LangSmith tracking
     llm_client = LLMClient()
     classification = await llm_client.ainvoke_gemini_structured(
         prompt=prompt,
         schema=IntentClassification,
+        user_id=user_id,  # Pass user_id for cost tracking
         temperature=0.3  # Low temperature for deterministic classification
     )
 

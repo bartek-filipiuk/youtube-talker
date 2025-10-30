@@ -57,6 +57,7 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
     # Default to "chitchat" if intent not set by router (defensive fallback)
     intent = state.get("intent", "chitchat")
     user_query = state.get("user_query", "")
+    user_id = state.get("user_id")
     conversation_history = state.get("conversation_history", [])
     graded_chunks = state.get("graded_chunks", [])
 
@@ -74,6 +75,7 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
         )
         response = await llm_client.ainvoke_claude(
             prompt=prompt,
+            user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=500,  # Shorter for chitchat
             temperature=0.8  # More creative for conversation
         )
@@ -95,6 +97,7 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
         )
         response = await llm_client.ainvoke_claude(
             prompt=prompt,
+            user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=2000,
             temperature=0.7  # Balanced for factual Q&A
         )
@@ -122,6 +125,7 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
         )
         response = await llm_client.ainvoke_claude(
             prompt=prompt,
+            user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=2000,
             temperature=0.75  # Slightly creative for engaging content
         )
@@ -143,6 +147,7 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
         )
         response = await llm_client.ainvoke_claude(
             prompt=prompt,
+            user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=500,
             temperature=0.8
         )

@@ -56,6 +56,7 @@ async def grade_chunks(state: GraphState) -> GraphState:
         - LLM error: Logs error, skips chunk, continues with others
     """
     user_query = state.get("user_query")
+    user_id = state.get("user_id")
     retrieved_chunks = state.get("retrieved_chunks", [])
 
     if not user_query:
@@ -94,10 +95,11 @@ async def grade_chunks(state: GraphState) -> GraphState:
                 },
             )
 
-            # Call Gemini for structured output
+            # Call Gemini for structured output with user_id for cost tracking
             grade: RelevanceGrade = await llm_client.ainvoke_gemini_structured(
                 prompt=prompt,
                 schema=RelevanceGrade,
+                user_id=user_id,  # Pass user_id for cost tracking
             )
 
             # Keep only relevant chunks

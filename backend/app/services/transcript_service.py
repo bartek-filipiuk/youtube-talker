@@ -1,10 +1,11 @@
-"""Transcript service for fetching YouTube transcripts via SUPADATA SDK."""
+"""Transcript service for fetching YouTube transcripts via SUPADATA SDK with LangSmith cost tracking."""
 
 import asyncio
+from datetime import datetime, timedelta
 from loguru import logger
 import re
 import uuid
-from typing import Dict
+from typing import Dict, Optional
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -23,23 +24,46 @@ from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
 from app.services.config_service import ConfigService
 
+# Import LangSmith for cost tracking
+try:
+    from langsmith import Client as LangSmithClient
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    LANGSMITH_AVAILABLE = False
+    logger.warning("LangSmith not available - SUPADATA cost tracking disabled")
+
 
 
 class TranscriptService:
-    """SUPADATA SDK client for fetching YouTube transcripts and metadata."""
+    """SUPADATA SDK client for fetching YouTube transcripts and metadata with LangSmith cost tracking."""
 
     def __init__(self):
-        """Initialize with SUPADATA SDK client."""
+        """Initialize with SUPADATA SDK client and LangSmith tracking."""
         self.client = Supadata(api_key=settings.SUPADATA_API_KEY)
+
+        # Initialize LangSmith client for cost tracking
+        if LANGSMITH_AVAILABLE and settings.LANGSMITH_TRACING:
+            try:
+                self.langsmith = LangSmithClient()
+                logger.debug("LangSmith client initialized for SUPADATA cost tracking")
+            except Exception as e:
+                logger.warning(f"Failed to initialize LangSmith client: {e}")
+                self.langsmith = None
+        else:
+            self.langsmith = None
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type(SupadataError),
     )
-    async def fetch_transcript(self, youtube_url: str) -> Dict:
+    async def fetch_transcript(
+        self,
+        youtube_url: str,
+        user_id: Optional[str] = None
+    ) -> Dict:
         """
-        Fetch transcript and metadata from SUPADATA SDK with retry logic.
+        Fetch transcript and metadata from SUPADATA SDK with retry logic and LangSmith cost tracking.
 
         Makes 2 API calls:
             1. supadata.youtube.video() - Get video metadata
@@ -47,6 +71,7 @@ class TranscriptService:
 
         Args:
             youtube_url: YouTube URL (youtube.com/watch?v=ID or youtu.be/ID)
+            user_id: Optional user ID for cost tracking in LangSmith
 
         Returns:
             {
@@ -76,7 +101,14 @@ class TranscriptService:
             - Max attempts: 3
             - Wait: Exponential backoff (2s, 4s, 8s)
             - Retry on: SupadataError
+
+        LangSmith Tracking:
+            - Tracks fixed $0.01 cost per successful API call
+            - Best-effort tracking (errors don't break flow)
         """
+        # Track timing for cost tracking
+        start_time = datetime.now()
+
         video_id = self._extract_video_id(youtube_url)
 
         # Call 1: Fetch video metadata (run in thread pool to avoid blocking event loop)
@@ -91,6 +123,15 @@ class TranscriptService:
         channel = video.channel
         channel_id = channel["id"] if isinstance(channel, dict) else getattr(channel, "id", None)
         channel_name = channel["name"] if isinstance(channel, dict) else getattr(channel, "name", "Unknown")
+
+        # Track cost in LangSmith (best-effort)
+        if self.langsmith and user_id:
+            duration = (datetime.now() - start_time).total_seconds()
+            self._track_supadata_cost(
+                user_id=user_id,
+                video_id=video_id,
+                duration=duration,
+            )
 
         return {
             "youtube_video_id": getattr(video, "id", video_id),
@@ -154,9 +195,9 @@ class TranscriptService:
         logger.info(f"Starting ingestion for user_id={user_id}, url={youtube_url}")
 
         try:
-            # Step 1: Fetch transcript from SUPADATA
+            # Step 1: Fetch transcript from SUPADATA with cost tracking
             logger.info("Step 1/7: Fetching transcript from SUPADATA")
-            transcript_data = await self.fetch_transcript(youtube_url)
+            transcript_data = await self.fetch_transcript(youtube_url, user_id=user_id)
             youtube_video_id = transcript_data["youtube_video_id"]
             transcript_text = transcript_data["transcript_text"]
             metadata = transcript_data["metadata"]
@@ -306,3 +347,54 @@ class TranscriptService:
                 return match.group(1)
 
         raise InvalidInputError(f"Invalid YouTube URL format: {url}")
+
+    def _track_supadata_cost(self, user_id: str, video_id: str, duration: float):
+        """
+        Create LangSmith trace for SUPADATA API call with fixed $0.02 cost.
+
+        For fixed-cost APIs, we simulate token usage to achieve the desired cost:
+        - SUPADATA makes 2 API calls per video: video metadata + transcript
+        - Set input price to $0.01 per 1M tokens in LangSmith UI
+        - Report 2,000,000 tokens per video load
+        - Result: 2M tokens * $0.01/1M = $0.02 per video
+
+        Args:
+            user_id: User ID for cost attribution
+            video_id: YouTube video ID that was fetched
+            duration: Duration of API call in seconds
+
+        Note:
+            This is best-effort tracking - errors are logged but don't break the flow.
+        """
+        try:
+            run_start = datetime.now() - timedelta(seconds=duration)
+
+            # For fixed $0.02 cost: 2 API calls (metadata + transcript)
+            # usage_metadata must be in outputs dict for LangSmith to calculate costs
+            self.langsmith.create_run(
+                name="SUPADATA: Fetch Transcript",
+                run_type="llm",  # Use "llm" type for cost tracking
+                inputs={"video_id": video_id, "operation": "fetch_transcript"},
+                outputs={
+                    "status": "success",
+                    "video_id": video_id,
+                    "usage_metadata": {
+                        "input_tokens": 2000000,  # 2M tokens * $0.01/1M = $0.02
+                        "output_tokens": 0,
+                        "total_tokens": 2000000,
+                    }
+                },
+                start_time=run_start,
+                end_time=datetime.now(),
+                extra={
+                    "metadata": {
+                        "user_id": user_id,
+                        "ls_provider": "supadata",
+                        "ls_model_name": "fetch_transcript",
+                    }
+                },
+                tags=["supadata", "transcription", f"user:{user_id}"],
+            )
+            logger.debug(f"Tracked SUPADATA cost ($0.02) for user {user_id}, video {video_id}")
+        except Exception as e:
+            logger.warning(f"Failed to track SUPADATA cost in LangSmith: {e}")

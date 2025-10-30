@@ -5,6 +5,7 @@ Main WebSocket endpoint for real-time chat.
 Handles authentication, message validation, RAG integration, and message persistence (PR #16).
 """
 
+import re
 from loguru import logger
 from datetime import datetime, timezone
 from typing import Optional
@@ -152,20 +153,6 @@ async def websocket_endpoint(
                 conversation: Optional[Conversation] = None
                 conversation_id_str = message.conversation_id
 
-                # Step 2a: Check if this is a confirmation response (yes/no)
-                # Must happen after we have conversation_id but before we process as normal message
-                if conversation_id_str and conversation_id_str != "new":
-                    is_confirmation = await handle_confirmation_response(
-                        response=message.content,
-                        conversation_id=conversation_id_str,
-                        user_id=current_user.id,
-                        db=db,
-                        websocket=websocket,
-                    )
-                    if is_confirmation:
-                        # Confirmation was handled - skip normal message processing
-                        continue
-
                 if conversation_id_str == "new" or not conversation_id_str:
                     # Auto-create new conversation
                     # Note: Repository already flushes and refreshes, so conversation.id is available
@@ -209,6 +196,49 @@ async def websocket_endpoint(
                                 code="VALIDATION_ERROR"
                             ).model_dump()
                         )
+                        continue
+
+                # Step 2b: Check if this is a confirmation response (yes/no)
+                # CRITICAL: We must save user's message BEFORE triggering background task
+                # Otherwise background task may save success message before user's "yes"
+                if conversation_id_str and conversation_id_str != "new":
+                    # First, just check if this matches a confirmation pattern (don't trigger yet)
+                    from app.api.websocket.video_loader import pending_loads
+
+                    pending = pending_loads.get(conversation_id_str)
+                    is_confirmation = False
+
+                    if pending and pending.user_id == current_user.id:
+                        response_lower = message.content.strip().lower()
+                        yes_pattern = r'\b(yes|y|yeah|sure|ok(ay)?|yep|yup|load\s+it)\b'
+                        no_pattern = r'\b(no|n|nope|cancel|don\'?t|stop)\b'
+
+                        if re.search(yes_pattern, response_lower) or re.search(no_pattern, response_lower):
+                            is_confirmation = True
+
+                    if is_confirmation:
+                        # Save user's confirmation message FIRST (before triggering background task)
+                        await message_repo.create(
+                            conversation_id=conversation.id,
+                            role="user",
+                            content=message.content,
+                            meta_data={"intent": "video_load_confirmation"}
+                        )
+
+                        # Commit BEFORE triggering background task
+                        conversation.updated_at = datetime.now(timezone.utc)
+                        await db.commit()
+
+                        # NOW trigger the confirmation handler (which starts background task)
+                        await handle_confirmation_response(
+                            response=message.content,
+                            conversation_id=conversation_id_str,
+                            user_id=current_user.id,
+                            db=db,
+                            websocket=websocket,
+                        )
+
+                        # Confirmation was handled - skip normal message processing
                         continue
 
                 # Step 3: Load config values from database (via ConfigService)
@@ -261,6 +291,14 @@ async def websocket_endpoint(
                             youtube_url = word.strip()
                             break
 
+                    # Save user's video load request to database (for conversation persistence)
+                    await message_repo.create(
+                        conversation_id=conversation.id,
+                        role="user",
+                        content=message.content,
+                        meta_data={"intent": "video_load", "youtube_url": youtube_url}
+                    )
+
                     await handle_video_load_intent(
                         youtube_url=youtube_url,
                         user=current_user,
@@ -268,8 +306,12 @@ async def websocket_endpoint(
                         db=db,
                         websocket=websocket,
                     )
+
+                    # Commit user message and conversation timestamp
+                    conversation.updated_at = datetime.now(timezone.utc)
+                    await db.commit()
+
                     # Don't send normal response - video_loader handles WebSocket messages
-                    # Don't save to database - this isn't a normal chat message
                     continue
 
                 # Step 8: Send status update - generating
