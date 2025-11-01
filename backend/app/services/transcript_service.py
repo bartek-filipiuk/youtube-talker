@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 import re
 import uuid
+from uuid import UUID
 from typing import Dict, Optional
 from tenacity import (
     retry,
@@ -19,6 +20,7 @@ from app.config import settings
 from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError
 from app.db.repositories.transcript_repo import TranscriptRepository
 from app.db.repositories.chunk_repo import ChunkRepository
+from app.db.repositories.user_repo import UserRepository
 from app.services.chunking_service import ChunkingService
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
@@ -401,3 +403,97 @@ class TranscriptService:
             logger.debug(f"Tracked SUPADATA cost ($0.02) for user {user_id}, video {video_id}")
         except Exception as e:
             logger.warning(f"Failed to track SUPADATA cost in LangSmith: {e}")
+
+    async def delete_transcript(
+        self,
+        transcript_id: str,
+        user_id: str,
+        db_session: AsyncSession,
+    ) -> None:
+        """
+        Delete transcript and all associated data.
+
+        Steps:
+            1. Verify transcript exists and user owns it
+            2. Get all chunk IDs for this transcript
+            3. Delete vectors from Qdrant (best-effort)
+            4. Delete transcript from PostgreSQL (cascades to chunks)
+            5. Decrement user's transcript_count
+
+        Args:
+            transcript_id: UUID of transcript to delete
+            user_id: User ID who owns this transcript
+            db_session: Active database session
+
+        Raises:
+            ValueError: If transcript not found or user doesn't own it
+            Exception: If deletion fails
+
+        Transaction Strategy:
+            - Single try-except block
+            - Rollback PostgreSQL if failure occurs
+            - Qdrant deletion is best-effort (log error, don't raise)
+        """
+        logger.info(f"Starting deletion for transcript_id={transcript_id}, user_id={user_id}")
+
+        try:
+            # Step 1: Verify transcript exists and user owns it
+            transcript_repo = TranscriptRepository(db_session)
+            transcript = await transcript_repo.get_by_id(transcript_id)
+
+            if not transcript:
+                raise ValueError(f"Transcript {transcript_id} not found")
+
+            if str(transcript.user_id) != str(user_id):
+                raise ValueError(
+                    f"User {user_id} does not own transcript {transcript_id}"
+                )
+
+            youtube_video_id = transcript.youtube_video_id
+            logger.info(f"✓ Verified ownership for video_id={youtube_video_id}")
+
+            # Step 2: Get all chunk IDs for Qdrant deletion
+            chunk_repo = ChunkRepository(db_session)
+            chunks = await chunk_repo.list_by_transcript(transcript_id)
+            chunk_ids = [str(chunk.id) for chunk in chunks]
+            logger.info(f"✓ Found {len(chunk_ids)} chunks to delete")
+
+            # Step 3: Delete vectors from Qdrant (best-effort)
+            if chunk_ids:
+                try:
+                    qdrant_service = QdrantService()
+                    await qdrant_service.delete_chunks(chunk_ids)
+                    logger.info(f"✓ Deleted {len(chunk_ids)} vectors from Qdrant")
+                except Exception as e:
+                    # Qdrant is best-effort - log error but continue
+                    logger.exception(
+                        f"⚠ Qdrant deletion failed (continuing with PostgreSQL cleanup): {e}"
+                    )
+
+            # Step 4: Delete transcript from PostgreSQL (cascades to chunks)
+            deleted = await transcript_repo.delete(transcript_id)
+            if not deleted:
+                raise ValueError(f"Transcript {transcript_id} not found")
+            logger.info("✓ Deleted transcript from PostgreSQL")
+
+            # Step 5: Decrement user's transcript_count
+            user_repo = UserRepository(db_session)
+            await user_repo.decrement_transcript_count(UUID(user_id))
+            logger.info(f"✓ Decremented transcript_count for user {user_id}")
+
+            # Commit transaction
+            await db_session.commit()
+            logger.info(
+                f"✓✓✓ Deletion complete for transcript_id={transcript_id}"
+            )
+
+        except ValueError as e:
+            # Validation error (not found, not owned) - don't rollback
+            await db_session.rollback()
+            logger.warning(f"Validation error during deletion: {e}")
+            raise
+        except Exception as e:
+            # Unexpected error - rollback everything
+            await db_session.rollback()
+            logger.exception(f"✗ Deletion failed, rolled back: {e}")
+            raise

@@ -142,7 +142,7 @@ async def check_user_quota(user: User, db: AsyncSession) -> tuple[bool, str]:
     if user.transcript_count >= 10:
         return False, (
             "You've reached your video limit (10 videos). "
-            "Delete some videos to add more, or contact support for an upgrade."
+            "Go to 'My Videos' to delete some, or contact support for an upgrade."
         )
 
     return True, ""
