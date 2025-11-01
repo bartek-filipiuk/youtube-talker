@@ -6,7 +6,7 @@ Provides REST endpoints for transcript ingestion and management.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -168,7 +168,7 @@ async def ingest_transcript(
     )
 
 
-@router.delete("/{transcript_id}", status_code=204)
+@router.delete("/{transcript_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("20/minute")
 async def delete_transcript(
     request: Request,
@@ -177,10 +177,14 @@ async def delete_transcript(
     user: User = Depends(get_current_user),
 ) -> None:
     """
-    Delete a transcript and its associated chunks.
+    Delete a transcript and all associated data.
 
-    Verifies transcript ownership before deletion. Cascading deletes
-    remove all associated chunks from PostgreSQL automatically.
+    Full deletion pipeline:
+        1. Verify transcript exists and user owns it
+        2. Get all chunk IDs for this transcript
+        3. Delete vectors from Qdrant (best-effort)
+        4. Delete transcript from PostgreSQL (cascades to chunks)
+        5. Decrement user's transcript_count
 
     Rate limit: 20 requests per minute per IP.
 
@@ -191,28 +195,42 @@ async def delete_transcript(
         user: Current authenticated user
 
     Returns:
-        204 No Content on success
+        None (204 No Content on success)
 
     Raises:
         AuthenticationError: User not authenticated (401)
-        HTTPException: Transcript not found or not owned by user (404)
+        HTTPException: Transcript not found or access denied (404/403)
         RateLimitExceededError: Rate limit exceeded (429)
+        Exception: Unexpected server errors handled by global handler (500)
 
     Example:
         >>> DELETE /api/transcripts/550e8400-e29b-41d4-a716-446655440000
         >>> Headers: {"Authorization": "Bearer <token>"}
         >>> Response: 204 No Content
     """
-    repo = TranscriptRepository(db)
+    service = TranscriptService()
 
-    # Delete transcript with ownership verification
-    deleted = await repo.delete_by_user(transcript_id, user.id)
-
-    if not deleted:
-        raise HTTPException(
-            status_code=404,
-            detail="Transcript not found or you do not have permission to delete it",
+    try:
+        await service.delete_transcript(
+            transcript_id=str(transcript_id),
+            user_id=str(user.id),
+            db_session=db,
         )
-
-    # Commit the transaction
-    await db.commit()
+    except ValueError as e:
+        # Transcript not found or user doesn't own it
+        error_msg = str(e)
+        if "not found" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Transcript {transcript_id} not found",
+            ) from e
+        elif "does not own" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to delete this transcript",
+            ) from e
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_msg,
+            ) from e

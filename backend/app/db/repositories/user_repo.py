@@ -7,7 +7,7 @@ Database operations for User model.
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
@@ -67,6 +67,41 @@ class UserRepository(BaseRepository[User]):
             update(User)
             .where(User.id == user_id)
             .values(transcript_count=User.transcript_count + 1)
+        )
+        result = await self.session.execute(stmt)
+
+        # Verify user exists (if no rows updated, user not found)
+        if result.rowcount == 0:
+            raise ValueError(f"User {user_id} not found")
+
+        # Flush to ensure update is visible in current transaction
+        # But let caller manage commit/rollback
+        await self.session.flush()
+
+    async def decrement_transcript_count(self, user_id: UUID) -> None:
+        """
+        Decrement the transcript_count for a user atomically.
+
+        This method is called after successfully deleting a transcript.
+        Ensures count never goes below 0.
+
+        Uses atomic UPDATE to prevent race conditions under concurrent deletions.
+        Transaction management is left to the caller.
+
+        Args:
+            user_id: UUID of the user
+
+        Raises:
+            ValueError: If user not found
+        """
+        # Use func.greatest to prevent negative counts (atomic operation)
+        # If count is 0, keep it at 0. Otherwise decrement.
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(
+                transcript_count=func.greatest(User.transcript_count - 1, 0)
+            )
         )
         result = await self.session.execute(stmt)
 
