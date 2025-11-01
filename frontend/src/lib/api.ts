@@ -213,3 +213,62 @@ export async function deleteConversation(token: string, id: string): Promise<voi
     throw new Error(error.detail || 'Failed to delete conversation');
   }
 }
+
+// ============================================================================
+// Transcript/Video Management
+// ============================================================================
+
+export interface Video {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+export interface VideoListResponse {
+  videos: Video[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Get paginated list of user's videos
+ */
+export async function getVideos(
+  token: string,
+  limit: number = 10,
+  offset: number = 0
+): Promise<VideoListResponse> {
+  const url = `${API_BASE}/transcripts?limit=${limit}&offset=${offset}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to fetch videos');
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a transcript/video
+ */
+export async function deleteTranscript(token: string, transcriptId: string): Promise<void> {
+  const url = `${API_BASE}/transcripts/${transcriptId}`;
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to delete transcript');
+  }
+}
