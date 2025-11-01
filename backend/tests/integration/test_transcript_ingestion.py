@@ -230,7 +230,7 @@ class TestTranscriptIngestionService:
         from app.db.repositories.transcript_repo import TranscriptRepository
 
         transcript_repo = TranscriptRepository(db_session)
-        transcripts = await transcript_repo.list_by_user(test_user.id)
+        transcripts, _ = await transcript_repo.list_by_user(test_user.id)
         assert len(transcripts) == 0
 
 

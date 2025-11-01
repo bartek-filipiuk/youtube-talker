@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import ChatInput from '../components/ChatInput.astro';
 import ConversationList from '../components/ConversationList.astro';
+import VideoList from '../components/VideoList.astro';
 
 // Get conversation ID from URL (for highlighting active conversation)
 const urlParams = new URLSearchParams(Astro.url.search);
@@ -11,8 +12,14 @@ const activeConversationId = urlParams.get('id');
 <Layout title="Chat">
   <div class="flex h-screen bg-gray-50">
     <!-- Conversation Sidebar - Hidden on mobile, visible on tablet+ -->
-    <aside class="hidden md:block w-80 flex-shrink-0">
-      <ConversationList activeId={activeConversationId} />
+    <aside class="hidden md:block w-80 flex-shrink-0 flex flex-col">
+      <!-- Video List at top -->
+      <VideoList />
+
+      <!-- Conversation List below (scrollable) -->
+      <div class="flex-1 overflow-hidden">
+        <ConversationList activeId={activeConversationId} />
+      </div>
     </aside>
 
     <!-- Main Chat Area - Full width on mobile, flexible on tablet+ -->

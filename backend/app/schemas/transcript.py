@@ -1,7 +1,8 @@
 """Pydantic schemas for transcript API endpoints."""
 
 import re
-from typing import Dict, Any
+from datetime import datetime
+from typing import Dict, Any, List
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -60,5 +61,52 @@ class TranscriptResponse(BaseModel):
                     "duration": 213,
                     "language": "en",
                 },
+            }
+        }
+
+
+class VideoListItem(BaseModel):
+    """Lightweight schema for video list display."""
+
+    id: str = Field(..., description="Transcript database ID (UUID)")
+    title: str = Field(..., description="Video title from metadata")
+    created_at: datetime = Field(..., description="Transcript creation timestamp")
+
+    class Config:
+        """Pydantic model configuration."""
+
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "title": "Rick Astley - Never Gonna Give You Up",
+                "created_at": "2025-11-01T10:30:00Z",
+            }
+        }
+
+
+class VideoListResponse(BaseModel):
+    """Paginated video list response."""
+
+    videos: List[VideoListItem] = Field(..., description="List of videos")
+    total: int = Field(..., description="Total number of videos for user")
+    limit: int = Field(..., description="Number of items per page")
+    offset: int = Field(..., description="Current offset")
+
+    class Config:
+        """Pydantic model configuration."""
+
+        json_schema_extra = {
+            "example": {
+                "videos": [
+                    {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "title": "Rick Astley - Never Gonna Give You Up",
+                        "created_at": "2025-11-01T10:30:00Z",
+                    }
+                ],
+                "total": 15,
+                "limit": 10,
+                "offset": 0,
             }
         }

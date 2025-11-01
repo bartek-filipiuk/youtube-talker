@@ -55,8 +55,8 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
         async with AsyncSessionLocal() as session:
             transcript_repo = TranscriptRepository(session)
 
-            # Query user's transcripts
-            transcripts = await transcript_repo.list_by_user(user_id)
+            # Query user's transcripts (returns tuple of transcripts list and total count)
+            transcripts, total = await transcript_repo.list_by_user(user_id)
 
             logger.info(f"Found {len(transcripts)} transcript(s) for user {user_id}")
 

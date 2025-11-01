@@ -6,7 +6,7 @@ Provides REST endpoints for transcript ingestion and management.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,8 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError
 from app.db.session import get_db
 from app.db.models import User
+from app.db.repositories.transcript_repo import TranscriptRepository
 from app.dependencies import get_current_user
-from app.schemas.transcript import TranscriptIngestRequest, TranscriptResponse
+from app.schemas.transcript import (
+    TranscriptIngestRequest,
+    TranscriptResponse,
+    VideoListItem,
+    VideoListResponse,
+)
 from app.services.transcript_service import TranscriptService
 
 # Rate limiter configuration
@@ -23,6 +29,77 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Create router
 router = APIRouter(prefix="/api/transcripts", tags=["transcripts"])
+
+
+@router.get("/", response_model=VideoListResponse)
+@limiter.limit("30/minute")
+async def list_transcripts(
+    request: Request,
+    limit: int = Query(default=10, ge=1, le=50, description="Number of transcripts per page"),
+    offset: int = Query(default=0, ge=0, description="Number of transcripts to skip"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> VideoListResponse:
+    """
+    Get paginated list of user's transcripts.
+
+    Returns minimal transcript data (id, title, created_at) suitable for list display.
+    Transcripts are ordered by creation time descending (newest first).
+
+    Rate limit: 30 requests per minute per IP.
+
+    Args:
+        request: FastAPI request (for rate limiting)
+        limit: Maximum number of transcripts to return (1-50, default 10)
+        offset: Number of transcripts to skip for pagination (default 0)
+        db: Database session
+        user: Current authenticated user
+
+    Returns:
+        VideoListResponse with:
+        - videos: List of VideoListItem (id, title, created_at)
+        - total: Total count of user's transcripts
+        - limit: Applied limit
+        - offset: Applied offset
+
+    Raises:
+        AuthenticationError: User not authenticated (401)
+        RateLimitExceededError: Rate limit exceeded (429)
+
+    Example:
+        >>> GET /api/transcripts?limit=10&offset=0
+        >>> Headers: {"Authorization": "Bearer <token>"}
+        >>> Response: {
+        >>>   "videos": [
+        >>>     {
+        >>>       "id": "550e8400-e29b-41d4-a716-446655440000",
+        >>>       "title": "Video Title",
+        >>>       "created_at": "2025-11-01T10:30:00Z"
+        >>>     }
+        >>>   ],
+        >>>   "total": 25,
+        >>>   "limit": 10,
+        >>>   "offset": 0
+        >>> }
+    """
+    repo = TranscriptRepository(db)
+
+    # Get paginated transcripts
+    transcripts, total = await repo.list_by_user(
+        user_id=user.id, limit=limit, offset=offset
+    )
+
+    # Convert to response items
+    videos = [
+        VideoListItem(
+            id=str(transcript.id),
+            title=transcript.title or "Untitled Video",
+            created_at=transcript.created_at,
+        )
+        for transcript in transcripts
+    ]
+
+    return VideoListResponse(videos=videos, total=total, limit=limit, offset=offset)
 
 
 @router.post("/ingest", response_model=TranscriptResponse, status_code=201)
