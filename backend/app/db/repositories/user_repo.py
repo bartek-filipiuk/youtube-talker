@@ -7,7 +7,7 @@ Database operations for User model.
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
@@ -94,13 +94,13 @@ class UserRepository(BaseRepository[User]):
         Raises:
             ValueError: If user not found
         """
-        # Use CASE to prevent negative counts (atomic operation)
+        # Use func.greatest to prevent negative counts (atomic operation)
         # If count is 0, keep it at 0. Otherwise decrement.
         stmt = (
             update(User)
             .where(User.id == user_id)
             .values(
-                transcript_count=User.transcript_count - 1
+                transcript_count=func.greatest(User.transcript_count - 1, 0)
             )
         )
         result = await self.session.execute(stmt)

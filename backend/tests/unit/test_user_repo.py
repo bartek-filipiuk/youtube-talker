@@ -143,16 +143,16 @@ async def test_decrement_transcript_count(db_session: AsyncSession, test_user: U
 
 @pytest.mark.asyncio
 async def test_decrement_transcript_count_at_zero(db_session: AsyncSession, test_user: User):
-    """Test decrementing transcript count when already at 0 goes to -1 (no constraint)."""
+    """Test decrementing transcript count when already at 0 stays at 0 (clamped)."""
     repo = UserRepository(db_session)
 
     # Initial count should be 0
     assert test_user.transcript_count == 0
 
-    # Decrement from 0 should go to -1 (there's no constraint preventing negative)
+    # Decrement from 0 should stay at 0 (SQL clamps at zero using func.greatest)
     await repo.decrement_transcript_count(test_user.id)
     await db_session.refresh(test_user)
-    assert test_user.transcript_count == -1
+    assert test_user.transcript_count == 0
 
 
 @pytest.mark.asyncio

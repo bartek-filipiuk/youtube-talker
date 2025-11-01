@@ -471,8 +471,10 @@ class TranscriptService:
                     )
 
             # Step 4: Delete transcript from PostgreSQL (cascades to chunks)
-            await transcript_repo.delete(transcript_id)
-            logger.info(f"✓ Deleted transcript from PostgreSQL")
+            deleted = await transcript_repo.delete(transcript_id)
+            if not deleted:
+                raise ValueError(f"Transcript {transcript_id} not found")
+            logger.info("✓ Deleted transcript from PostgreSQL")
 
             # Step 5: Decrement user's transcript_count
             user_repo = UserRepository(db_session)
