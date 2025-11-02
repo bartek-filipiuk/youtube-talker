@@ -5,18 +5,18 @@ Performs semantic search to find videos matching a subject.
 Uses Qdrant for chunk retrieval and PostgreSQL for video metadata.
 """
 
-from typing import Dict, Any
 from collections import defaultdict
+from typing import Any, Dict
 from uuid import UUID
 
 from loguru import logger
 from sqlalchemy import select
 
+from app.db.models import Transcript
+from app.db.session import AsyncSessionLocal
 from app.rag.utils.state import GraphState
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
-from app.db.session import AsyncSessionLocal
-from app.db.models import Transcript
 
 
 async def search_videos_by_subject(state: GraphState) -> Dict[str, Any]:
@@ -55,7 +55,6 @@ async def search_videos_by_subject(state: GraphState) -> Dict[str, Any]:
     """
     subject = state.get("subject", "")
     user_id_str = state.get("user_id", "")
-    user_query = state.get("user_query", "")
 
     logger.info(f"Searching videos for subject: '{subject}' (user_id={user_id_str})")
 
@@ -200,7 +199,7 @@ async def search_videos_by_subject(state: GraphState) -> Dict[str, Any]:
             }
         }
 
-    except ValueError as e:
+    except ValueError:
         logger.error(f"Invalid user_id format: {user_id_str}")
         return {
             **state,
