@@ -40,12 +40,12 @@ class IntentClassification(BaseModel):
     """
     Schema for intent classification (Router Node).
 
-    Used with Gemini 2.5 Flash to classify user intent into one of five categories.
+    Used with Gemini 2.5 Flash to classify user intent into one of six categories.
     Determines which LangGraph flow to execute.
     """
 
-    intent: Literal["chitchat", "qa", "linkedin", "metadata", "video_load"] = Field(
-        description="Classified user intent: chitchat (casual), qa (question-answering), linkedin (post generation), metadata (system info), video_load (YouTube URL detected)"
+    intent: Literal["chitchat", "qa", "linkedin", "metadata", "metadata_search", "video_load"] = Field(
+        description="Classified user intent: chitchat (casual), qa (question-answering), linkedin (post generation), metadata (system info/list all videos), metadata_search (find videos by subject), video_load (YouTube URL detected)"
     )
     confidence: float = Field(
         ge=0.0,
@@ -63,6 +63,40 @@ class IntentClassification(BaseModel):
                 "intent": "qa",
                 "confidence": 0.95,
                 "reasoning": "User is asking a specific factual question about FastAPI that requires retrieving information from the knowledge base."
+            }
+        }
+    )
+
+
+class SubjectExtraction(BaseModel):
+    """
+    Schema for extracting subject/topic from user query (Subject Extractor Node).
+
+    Used with Gemini 2.5 Flash to extract the main subject/topic when user
+    wants to filter videos by subject (e.g., "show videos about Claude Code").
+    """
+
+    subject: str = Field(
+        min_length=1,
+        max_length=200,
+        description="The extracted subject/topic from the user's query"
+    )
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Confidence score for the extraction (0.0 to 1.0)"
+    )
+    reasoning: str = Field(
+        max_length=300,
+        description="Brief explanation of why this subject was extracted"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "subject": "Claude Code",
+                "confidence": 0.95,
+                "reasoning": "User explicitly asked to 'show videos about Claude Code', making the subject clear and unambiguous."
             }
         }
     )

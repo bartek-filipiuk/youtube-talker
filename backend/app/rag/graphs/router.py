@@ -14,6 +14,7 @@ from app.rag.graphs.flows.chitchat_flow import compiled_chitchat_flow
 from app.rag.graphs.flows.qa_flow import compiled_qa_flow
 from app.rag.graphs.flows.linkedin_flow import compiled_linkedin_flow
 from app.rag.graphs.flows.metadata_flow import compiled_metadata_flow
+from app.rag.graphs.flows.metadata_search_flow import compiled_metadata_search_flow
 from app.rag.graphs.flows.video_load_flow import compiled_video_load_flow
 
 
@@ -29,7 +30,7 @@ async def run_graph(
 
     Orchestrates the complete flow:
     1. Classify user intent (router node)
-    2. Route to appropriate flow (chitchat, qa, linkedin, metadata, or video_load)
+    2. Route to appropriate flow (chitchat, qa, linkedin, metadata, metadata_search, or video_load)
     3. Return final state with response
 
     Args:
@@ -43,7 +44,7 @@ async def run_graph(
             - user_query: Original query
             - user_id: User identifier
             - conversation_history: Conversation context
-            - intent: Classified intent ("chitchat", "qa", "linkedin", "metadata", or "video_load")
+            - intent: Classified intent ("chitchat", "qa", "linkedin", "metadata", "metadata_search", or "video_load")
             - response: Generated response (HTML formatted)
             - metadata: Response metadata including:
                 - intent_confidence: Router confidence score
@@ -95,6 +96,8 @@ async def run_graph(
         result = await compiled_linkedin_flow.ainvoke(state)
     elif intent == "metadata":
         result = await compiled_metadata_flow.ainvoke(state)
+    elif intent == "metadata_search":
+        result = await compiled_metadata_search_flow.ainvoke(state)
     elif intent == "video_load":
         result = await compiled_video_load_flow.ainvoke(state)
     else:
