@@ -17,7 +17,8 @@ class GraphState(TypedDict, total=False):
         user_id: UUID of the user making the request (for data isolation)
         conversation_history: Last N messages for context (list of dicts with role, content)
         config: Runtime configuration values (loaded from database via ConfigService)
-        intent: Classified intent ("chitchat" | "qa" | "linkedin")
+        intent: Classified intent ("chitchat" | "qa" | "linkedin" | "metadata" | "metadata_search")
+        subject: Extracted subject/topic for video filtering (metadata_search flow)
         retrieved_chunks: Raw chunks from Qdrant search (before grading)
         graded_chunks: Filtered chunks after relevance grading
         response: Final generated response text
@@ -37,6 +38,7 @@ class GraphState(TypedDict, total=False):
 
     # Intermediate fields (set during graph execution)
     intent: Optional[str]
+    subject: Optional[str]  # Extracted subject for metadata_search flow
     retrieved_chunks: Optional[List[Dict]]
     graded_chunks: Optional[List[Dict]]
 

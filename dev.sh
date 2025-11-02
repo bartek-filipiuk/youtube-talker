@@ -192,7 +192,7 @@ sleep 5
 
 # Check if frontend is running
 if ps -p $FRONTEND_PID > /dev/null; then
-    print_status "Frontend server started at http://localhost:4321"
+    print_status "Frontend server started at http://localhost:4323"
 else
     print_error "Frontend failed to start. Check logs: tail -f /tmp/youtube-talker-frontend.log"
     exit 1
@@ -205,7 +205,7 @@ echo -e "${GREEN}  🎉 All services are running!${NC}"
 echo -e "${GREEN}========================================${NC}\n"
 
 echo -e "${BLUE}📍 Access Points:${NC}"
-echo -e "  ${GREEN}Frontend:${NC}      http://localhost:4321"
+echo -e "  ${GREEN}Frontend:${NC}      http://localhost:4323"
 echo -e "  ${GREEN}Backend API:${NC}   http://localhost:8000"
 echo -e "  ${GREEN}API Docs:${NC}      http://localhost:8000/docs"
 echo -e "  ${GREEN}Qdrant:${NC}        http://localhost:6335/dashboard"

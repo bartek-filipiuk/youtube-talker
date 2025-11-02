@@ -56,9 +56,10 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
             transcript_repo = TranscriptRepository(session)
 
             # Query user's transcripts (returns tuple of transcripts list and total count)
-            transcripts, total = await transcript_repo.list_by_user(user_id)
+            # Limit to 20 latest videos
+            transcripts, total = await transcript_repo.list_by_user(user_id, limit=20)
 
-            logger.info(f"Found {len(transcripts)} transcript(s) for user {user_id}")
+            logger.info(f"Found {len(transcripts)} transcript(s) for user {user_id} (total: {total})")
 
             # Format response
             if not transcripts:
@@ -91,9 +92,20 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
 
                 videos_html = "\n".join(video_items)
 
+                # Show count message based on whether we're showing all or limited
+                if total > len(transcripts):
+                    count_msg = (
+                        f"<p>Showing your <strong>{len(transcripts)} latest videos</strong> "
+                        f"(you have {total} videos total in your knowledge base):</p>"
+                    )
+                else:
+                    count_msg = (
+                        f"<p>You have <strong>{len(transcripts)} video(s)</strong> "
+                        f"loaded in your knowledge base:</p>"
+                    )
+
                 response = (
-                    f"<p>You have <strong>{len(transcripts)} video(s)</strong> "
-                    f"loaded in your knowledge base:</p>"
+                    f"{count_msg}"
                     f"<ol>{videos_html}</ol>"
                     f"<p>You can ask me questions about any of these videos!</p>"
                 )
