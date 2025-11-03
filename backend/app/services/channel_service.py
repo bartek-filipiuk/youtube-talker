@@ -399,7 +399,7 @@ class ChannelService:
                 {
                     "id": str(uuid.uuid4()),
                     "transcript_id": transcript_id,
-                    "user_id": str(admin_user_id),
+                    "user_id": None,  # Channel chunks have no user_id (constraint enforcement)
                     "chunk_index": chunk["index"],
                     "chunk_text": chunk["text"],
                     "token_count": chunk["token_count"],
