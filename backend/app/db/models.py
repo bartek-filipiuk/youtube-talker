@@ -157,7 +157,9 @@ class Message(Base):
     """
     Store complete chat history (user + assistant messages).
 
-    Messages belong to conversations and include metadata for RAG sources.
+    Messages can belong to either personal conversations OR channel conversations,
+    enforced by CHECK constraint ensuring exactly one is set.
+    Includes metadata for RAG sources.
     """
 
     __tablename__ = "messages"
@@ -165,10 +167,16 @@ class Message(Base):
     id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    conversation_id: Mapped[UUID] = mapped_column(
+    conversation_id: Mapped[Optional[UUID]] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("conversations.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+        index=True,
+    )
+    channel_conversation_id: Mapped[Optional[UUID]] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("channel_conversations.id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
     role: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -179,17 +187,27 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"), index=True)
 
     # Relationships
-    conversation: Mapped["Conversation"] = relationship("Conversation", back_populates="messages")
+    conversation: Mapped[Optional["Conversation"]] = relationship("Conversation", back_populates="messages")
+    channel_conversation: Mapped[Optional["ChannelConversation"]] = relationship(
+        "ChannelConversation", back_populates="messages"
+    )
 
     __table_args__ = (
         CheckConstraint(
             "role IN ('user', 'assistant', 'system')",
             name="check_role",
         ),
+        CheckConstraint(
+            "(conversation_id IS NOT NULL AND channel_conversation_id IS NULL) OR "
+            "(conversation_id IS NULL AND channel_conversation_id IS NOT NULL)",
+            name="check_message_conversation_type",
+        ),
     )
 
     def __repr__(self) -> str:
-        return f"<Message(id={self.id}, conversation_id={self.conversation_id}, role={self.role})>"
+        conv_id = self.conversation_id or self.channel_conversation_id
+        conv_type = "personal" if self.conversation_id else "channel"
+        return f"<Message(id={self.id}, {conv_type}_conversation_id={conv_id}, role={self.role})>"
 
 
 # Add GIN index on metadata JSONB column
@@ -243,8 +261,9 @@ class Chunk(Base):
     """
     Store chunked transcript segments for RAG retrieval.
 
+    Chunks can belong to either a user OR a channel, enforced by CHECK constraint.
     Chunks are created from transcripts and stored with embeddings in Qdrant.
-    user_id is denormalized for faster lookups.
+    user_id/channel_id is denormalized for faster lookups.
     """
 
     __tablename__ = "chunks"
@@ -255,12 +274,19 @@ class Chunk(Base):
     transcript_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("transcripts.id", ondelete="CASCADE"), nullable=False
     )
-    user_id: Mapped[UUID] = mapped_column(
+    user_id: Mapped[Optional[UUID]] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
         comment="Denormalized for fast lookups. RESTRICT prevents multi-cascade path conflict with transcript FK.",
+    )
+    channel_id: Mapped[Optional[UUID]] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("channels.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="Denormalized for fast channel chunk lookups.",
     )
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -272,16 +298,24 @@ class Chunk(Base):
 
     # Relationships
     transcript: Mapped["Transcript"] = relationship("Transcript", back_populates="chunks")
-    user: Mapped["User"] = relationship("User", back_populates="chunks")
+    user: Mapped[Optional["User"]] = relationship("User", back_populates="chunks")
+    channel: Mapped[Optional["Channel"]] = relationship("Channel", back_populates="chunks")
 
     __table_args__ = (
         Index("unique_chunk_index", "transcript_id", "chunk_index", unique=True),
         Index("idx_chunks_transcript_id", "transcript_id"),
         Index("idx_chunks_metadata", "metadata", postgresql_using="gin"),
+        CheckConstraint(
+            "(user_id IS NOT NULL AND channel_id IS NULL) OR "
+            "(user_id IS NULL AND channel_id IS NOT NULL)",
+            name="check_chunk_ownership",
+        ),
     )
 
     def __repr__(self) -> str:
-        return f"<Chunk(id={self.id}, transcript_id={self.transcript_id}, chunk_index={self.chunk_index})>"
+        owner_id = self.user_id or self.channel_id
+        owner_type = "user" if self.user_id else "channel"
+        return f"<Chunk(id={self.id}, {owner_type}_id={owner_id}, transcript_id={self.transcript_id}, chunk_index={self.chunk_index})>"
 
 
 class Template(Base):
@@ -405,3 +439,121 @@ class ModelPricing(Base):
 
     def __repr__(self) -> str:
         return f"<ModelPricing(id={self.id}, provider={self.provider}, model_name={self.model_name}, pricing_type={self.pricing_type})>"
+
+
+class Channel(Base):
+    """
+    Admin-managed content channels for curated YouTube video collections.
+
+    Each channel has a unique name (URL slug), dedicated Qdrant collection,
+    and can contain unlimited videos. Supports soft delete via is_active flag.
+    """
+
+    __tablename__ = "channels"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name: Mapped[str] = mapped_column(
+        String(100), nullable=False, unique=True, index=True, comment="Immutable URL slug"
+    )
+    display_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    qdrant_collection_name: Mapped[str] = mapped_column(
+        String(100), nullable=False, index=True, comment="Sanitized collection name for Qdrant"
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("TRUE"), index=True)
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+
+    # Relationships
+    videos: Mapped[List["ChannelVideo"]] = relationship(
+        "ChannelVideo", back_populates="channel", cascade="all, delete-orphan"
+    )
+    conversations: Mapped[List["ChannelConversation"]] = relationship(
+        "ChannelConversation", back_populates="channel", cascade="all, delete-orphan"
+    )
+    chunks: Mapped[List["Chunk"]] = relationship(
+        "Chunk", back_populates="channel", cascade="all, delete-orphan"
+    )
+    creator: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])
+
+    def __repr__(self) -> str:
+        return f"<Channel(id={self.id}, name={self.name}, is_active={self.is_active})>"
+
+
+class ChannelVideo(Base):
+    """
+    Association table linking channels to transcripts (videos).
+
+    Tracks which videos are loaded into which channels, who added them, and when.
+    Prevents duplicate videos per channel via unique constraint.
+    """
+
+    __tablename__ = "channel_videos"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    channel_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("channels.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    transcript_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("transcripts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    added_by: Mapped[Optional[UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+
+    # Relationships
+    channel: Mapped["Channel"] = relationship("Channel", back_populates="videos")
+    transcript: Mapped["Transcript"] = relationship("Transcript")
+    adder: Mapped[Optional["User"]] = relationship("User", foreign_keys=[added_by])
+
+    __table_args__ = (Index("uq_channel_video", "channel_id", "transcript_id", unique=True),)
+
+    def __repr__(self) -> str:
+        return f"<ChannelVideo(id={self.id}, channel_id={self.channel_id}, transcript_id={self.transcript_id})>"
+
+
+class ChannelConversation(Base):
+    """
+    Per-user conversation threads within channels.
+
+    Each user has their own separate conversation history per channel.
+    Prevents duplicate conversations via unique constraint on (channel_id, user_id).
+    """
+
+    __tablename__ = "channel_conversations"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    channel_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("channels.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+
+    # Relationships
+    channel: Mapped["Channel"] = relationship("Channel", back_populates="conversations")
+    user: Mapped["User"] = relationship("User")
+    messages: Mapped[List["Message"]] = relationship(
+        "Message", back_populates="channel_conversation", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("uq_channel_user", "channel_id", "user_id", unique=True),
+        Index("idx_channel_conversations_channel_user", "channel_id", "user_id"),
+        Index("idx_channel_conversations_updated_at", "updated_at", postgresql_ops={"updated_at": "DESC"}),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ChannelConversation(id={self.id}, channel_id={self.channel_id}, user_id={self.user_id})>"
