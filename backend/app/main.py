@@ -19,6 +19,7 @@ from loguru import logger
 
 from app.core.middleware import setup_middleware
 from app.api.routes import auth, transcripts, health, conversations
+from app.api.routes.admin import channels_router
 from app.api.websocket.chat_handler import websocket_endpoint
 
 # Import custom exceptions and handlers
@@ -31,6 +32,10 @@ from app.core.errors import (
     TranscriptNotFoundError,
     TranscriptAlreadyExistsError,
     ExternalAPIError,
+    ChannelAlreadyExistsError,
+    ChannelNotFoundError,
+    VideoAlreadyInChannelError,
+    VideoNotInChannelError,
 )
 from app.core.exception_handlers import (
     authentication_error_handler,
@@ -85,6 +90,7 @@ app.include_router(auth.router)
 app.include_router(transcripts.router)
 app.include_router(health.router)
 app.include_router(conversations.router)
+app.include_router(channels_router)  # Admin routes
 
 # WebSocket endpoint
 app.websocket("/api/ws/chat")(websocket_endpoint)
