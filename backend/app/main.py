@@ -18,7 +18,7 @@ import app.core.logging  # noqa: F401
 from loguru import logger
 
 from app.core.middleware import setup_middleware
-from app.api.routes import auth, transcripts, health, conversations
+from app.api.routes import auth, transcripts, health, conversations, channels, channel_conversations
 from app.api.routes.admin import channels_router
 from app.api.websocket.chat_handler import websocket_endpoint
 
@@ -91,6 +91,8 @@ app.include_router(transcripts.router)
 app.include_router(health.router)
 app.include_router(conversations.router)
 app.include_router(channels_router)  # Admin routes
+app.include_router(channels.router)  # Public channel discovery
+app.include_router(channel_conversations.router)  # Channel conversations
 
 # WebSocket endpoint
 app.websocket("/api/ws/chat")(websocket_endpoint)
