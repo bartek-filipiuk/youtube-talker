@@ -117,7 +117,7 @@ if (!name) {
   </div>
 </Layout>
 
-<script define:vars={{ channelName: name }}>
+<script>
   import { requireAuth } from '../../../lib/auth';
   import { WebSocketClient } from '../../../lib/websocket';
   import {
@@ -136,6 +136,10 @@ if (!name) {
     setMessages,
   } from '../../../stores/chat';
   import { renderMarkdown } from '../../../lib/markdown';
+
+  // Get channel name from URL
+  const pathParts = window.location.pathname.split('/');
+  const channelName = pathParts[pathParts.length - 2]; // /channels/[name]/chat
 
   // Ensure user is authenticated
   const auth = await requireAuth();
