@@ -141,11 +141,12 @@ alembic downgrade -1
 
 ---
 
-## PR #2: Admin API Endpoints 🔄 PLANNED
+## PR #2: Admin API Endpoints ✅ MERGED
 
 **Branch:** `feature/channels-pr2-admin-api`
 **Target:** `channels`
-**Status:** 🔄 Planning complete - Ready to implement
+**PR:** [#47](https://github.com/bartek-filipiuk/youtube-talker/pull/47)
+**Status:** ✅ Merged to channels branch
 **Plan Document:** [PR2_ADMIN_API_PLAN.md](./PR2_ADMIN_API_PLAN.md)
 
 ### Scope
@@ -172,6 +173,61 @@ alembic downgrade -1
 - Rate limiting (5-60 req/min depending on endpoint)
 
 See [PR2_ADMIN_API_PLAN.md](./PR2_ADMIN_API_PLAN.md) for full implementation details.
+
+---
+
+## PR #3: Channel API Endpoints 📋 PLANNED
+
+**Branch:** `feature/channels-pr3-public-api`
+**Target:** `channels`
+**Status:** 📋 Planning complete - Ready to implement
+**Plan Document:** [PR3_PUBLIC_API_PLAN.md](./PR3_PUBLIC_API_PLAN.md)
+
+### Scope
+- **All endpoints require authentication** - Consistent security model
+- Channel discovery for authenticated users
+- Channel conversation management (authenticated)
+- 8 user-facing endpoints (all auth-required)
+- User-safe Pydantic schemas (hide admin fields)
+- Service layer extensions
+- Repository extension (MessageRepository)
+- Unit + integration tests (80%+ coverage, reduced schema tests)
+
+### Key Features
+- **All Endpoints Authenticated** - Simpler security model, better tracking
+- **Channel Discovery** - List channels, get by ID/name, list videos (auth required)
+- **Conversation Management** - Create, read, delete channel conversations
+- **Ownership Verification** - Users can only access their own conversations
+- **Rate Limiting** - 20-60 req/min depending on endpoint
+- **Pagination** - All list endpoints support limit/offset
+
+### Channel Discovery Endpoints (All Auth Required)
+1. GET /api/channels - List active channels (60/min)
+2. GET /api/channels/{id} - Get channel details (60/min)
+3. GET /api/channels/by-name/{name} - Get channel by name (60/min)
+4. GET /api/channels/{id}/videos - List videos in channel (60/min)
+
+### Conversation Management Endpoints (Auth Required)
+5. POST /api/channels/{id}/conversations - Get/create conversation (20/min)
+6. GET /api/channels/conversations - List user's conversations (60/min)
+7. GET /api/channels/conversations/{id} - Get detail with messages (60/min)
+8. DELETE /api/channels/conversations/{id} - Delete conversation (20/min)
+
+### Architecture
+- Consistent with existing conversation patterns
+- All endpoints use `get_current_user` dependency (like personal conversations)
+- Service layer orchestrates repos + external services
+- User-safe schemas hide admin fields (created_by, qdrant_collection_name)
+- Per-user channel conversations (isolated, private)
+- Soft-deleted channels return 404 (not visible to authenticated users)
+
+### Testing Strategy (Reduced)
+- **Unit Tests:** Schemas (6-8), Service (15-20), Repo (2-3)
+- **Integration Tests:** Channel API (8-10), Conversation API (10-12), E2E (2-3)
+- **Total:** ~48-57 tests (reduced from 55-65)
+- **Coverage Target:** 80%+ overall, 100% schemas
+
+See [PR3_PUBLIC_API_PLAN.md](./PR3_PUBLIC_API_PLAN.md) for full implementation details.
 
 ---
 
