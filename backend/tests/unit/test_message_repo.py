@@ -108,3 +108,90 @@ async def test_messages_cascade_delete_with_conversation(
     # Verify message is also deleted
     deleted_message = await repo.get_by_id(message.id)
     assert deleted_message is None
+
+
+@pytest.mark.asyncio
+async def test_list_by_channel_conversation(db_session: AsyncSession, test_user):
+    """Test listing messages for a channel conversation."""
+    from app.db.repositories.channel_conversation_repo import ChannelConversationRepository
+    from app.db.repositories.channel_repo import ChannelRepository
+    from app.db.models import Message
+
+    # Create channel
+    channel_repo = ChannelRepository(db_session)
+    channel = await channel_repo.create(
+        name="python-tutorials",
+        display_title="Python Tutorials",
+        description="Learn Python",
+        created_by=test_user.id,
+        qdrant_collection_name="channel_python_tutorials",
+    )
+    await db_session.flush()
+
+    # Create channel conversation
+    channel_conv_repo = ChannelConversationRepository(db_session)
+    channel_conv = await channel_conv_repo.get_or_create(
+        channel_id=channel.id,
+        user_id=test_user.id,
+    )
+    await db_session.flush()
+
+    # Create messages for channel conversation
+    msg1 = Message(
+        channel_conversation_id=channel_conv.id,
+        role="user",
+        content="What is Python?",
+        meta_data={},
+    )
+    msg2 = Message(
+        channel_conversation_id=channel_conv.id,
+        role="assistant",
+        content="Python is a programming language.",
+        meta_data={},
+    )
+    db_session.add(msg1)
+    db_session.add(msg2)
+    await db_session.flush()
+
+    # List messages
+    repo = MessageRepository(db_session)
+    messages = await repo.list_by_channel_conversation(channel_conv.id)
+
+    assert len(messages) == 2
+    # Should be ordered by created_at ASC (oldest first)
+    assert messages[0].content == "What is Python?"
+    assert messages[1].content == "Python is a programming language."
+    assert messages[0].channel_conversation_id == channel_conv.id
+    assert messages[1].channel_conversation_id == channel_conv.id
+
+
+@pytest.mark.asyncio
+async def test_list_by_channel_conversation_empty(db_session: AsyncSession, test_user):
+    """Test listing messages for an empty channel conversation."""
+    from app.db.repositories.channel_conversation_repo import ChannelConversationRepository
+    from app.db.repositories.channel_repo import ChannelRepository
+
+    # Create channel
+    channel_repo = ChannelRepository(db_session)
+    channel = await channel_repo.create(
+        name="empty-channel",
+        display_title="Empty Channel",
+        description="No videos",
+        created_by=test_user.id,
+        qdrant_collection_name="channel_empty_channel",
+    )
+    await db_session.flush()
+
+    # Create channel conversation without messages
+    channel_conv_repo = ChannelConversationRepository(db_session)
+    channel_conv = await channel_conv_repo.get_or_create(
+        channel_id=channel.id,
+        user_id=test_user.id,
+    )
+    await db_session.flush()
+
+    # List messages (should be empty)
+    repo = MessageRepository(db_session)
+    messages = await repo.list_by_channel_conversation(channel_conv.id)
+
+    assert len(messages) == 0

@@ -547,3 +547,187 @@ class ChannelService:
             await self.db.rollback()
             logger.exception(f"✗ Failed to remove video from channel: {e}")
             raise
+
+    # ===== Public User-Facing Methods =====
+
+    async def list_public_channels(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Tuple[List[Channel], int]:
+        """
+        List active channels for authenticated user discovery.
+
+        Returns only non-deleted channels with pagination support.
+
+        Args:
+            limit: Maximum number of channels to return (default: 50)
+            offset: Number of channels to skip (default: 0)
+
+        Returns:
+            Tuple[List[Channel], int]: (channels, total_count)
+        """
+        return await self.channel_repo.list_active(limit=limit, offset=offset)
+
+    async def get_public_channel(self, channel_id: UUID) -> Channel:
+        """
+        Get channel by ID for authenticated user viewing.
+
+        Returns 404 if channel not found or soft-deleted.
+
+        Args:
+            channel_id: UUID of channel
+
+        Returns:
+            Channel: Channel instance
+
+        Raises:
+            ChannelNotFoundError: Channel not found or deleted
+        """
+        channel = await self.channel_repo.get_by_id(channel_id)
+        if not channel or channel.deleted_at is not None:
+            raise ChannelNotFoundError(f"Channel {channel_id} not found")
+        return channel
+
+    async def get_public_channel_by_name(self, name: str) -> Channel:
+        """
+        Get channel by URL-safe name for authenticated user viewing.
+
+        Returns 404 if channel not found or soft-deleted.
+
+        Args:
+            name: URL-safe channel name
+
+        Returns:
+            Channel: Channel instance
+
+        Raises:
+            ChannelNotFoundError: Channel not found or deleted
+        """
+        channel = await self.channel_repo.get_by_name(name)
+        if not channel or channel.deleted_at is not None:
+            raise ChannelNotFoundError(f"Channel '{name}' not found")
+        return channel
+
+    async def get_or_create_channel_conversation(
+        self,
+        channel_id: UUID,
+        user_id: UUID,
+    ) -> ChannelConversation:
+        """
+        Get or create user's conversation with a channel.
+
+        Verifies channel exists and is active before creating conversation.
+        This is idempotent - always returns a conversation.
+
+        Args:
+            channel_id: Target channel UUID
+            user_id: Authenticated user UUID
+
+        Returns:
+            ChannelConversation: User's conversation with the channel
+
+        Raises:
+            ChannelNotFoundError: Channel not found or deleted
+        """
+        # Verify channel exists and is active
+        await self.get_public_channel(channel_id)
+
+        # Get or create conversation
+        conversation = await self.channel_conversation_repo.get_or_create(
+            channel_id=channel_id,
+            user_id=user_id,
+        )
+        await self.db.flush()
+        logger.info(f"Got/created conversation {conversation.id} for user {user_id} and channel {channel_id}")
+        return conversation
+
+    async def list_user_channel_conversations(
+        self,
+        user_id: UUID,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Tuple[List[ChannelConversation], int]:
+        """
+        List authenticated user's channel conversations with pagination.
+
+        Returns conversations ordered by updated_at DESC (most recent first).
+
+        Args:
+            user_id: Authenticated user UUID
+            limit: Maximum number of conversations to return (default: 50)
+            offset: Number of conversations to skip (default: 0)
+
+        Returns:
+            Tuple[List[ChannelConversation], int]: (conversations, total_count)
+        """
+        return await self.channel_conversation_repo.list_by_user(
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+        )
+
+    async def get_channel_conversation(
+        self,
+        conversation_id: UUID,
+        user_id: UUID,
+    ) -> ChannelConversation:
+        """
+        Get channel conversation by ID with ownership verification.
+
+        Verifies the authenticated user owns this conversation.
+
+        Args:
+            conversation_id: UUID of channel conversation
+            user_id: Authenticated user UUID
+
+        Returns:
+            ChannelConversation: Channel conversation instance
+
+        Raises:
+            ConversationNotFoundError: Conversation not found
+            ConversationAccessDeniedError: User doesn't own conversation
+        """
+        from app.core.errors import ConversationAccessDeniedError, ConversationNotFoundError
+
+        conversation = await self.channel_conversation_repo.get_by_id(conversation_id)
+
+        if not conversation:
+            raise ConversationNotFoundError(f"Conversation {conversation_id} not found")
+
+        if conversation.user_id != user_id:
+            logger.warning(
+                f"User {user_id} attempted to access conversation {conversation_id} "
+                f"owned by user {conversation.user_id}"
+            )
+            raise ConversationAccessDeniedError(
+                f"User {user_id} does not own conversation {conversation_id}"
+            )
+
+        return conversation
+
+    async def delete_channel_conversation(
+        self,
+        conversation_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        """
+        Delete channel conversation with ownership verification.
+
+        Verifies user owns the conversation before deletion.
+        Cascade deletes all messages via database constraint.
+
+        Args:
+            conversation_id: UUID of conversation to delete
+            user_id: Authenticated user UUID
+
+        Raises:
+            ConversationNotFoundError: Conversation not found
+            ConversationAccessDeniedError: User doesn't own conversation
+        """
+        # Verify ownership
+        await self.get_channel_conversation(conversation_id, user_id)
+
+        # Delete conversation (messages cascade via DB constraint)
+        await self.channel_conversation_repo.delete(conversation_id)
+        logger.info(f"Deleted channel conversation {conversation_id} for user {user_id}")

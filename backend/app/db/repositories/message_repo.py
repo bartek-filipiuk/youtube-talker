@@ -90,3 +90,22 @@ class MessageRepository(BaseRepository[Message]):
             {"role": msg.role, "content": msg.content}
             for msg in reversed(messages)
         ]
+
+    async def list_by_channel_conversation(
+        self, channel_conversation_id: UUID
+    ) -> List[Message]:
+        """
+        List all messages for a channel conversation in chronological order.
+
+        Args:
+            channel_conversation_id: UUID of channel conversation
+
+        Returns:
+            List of Message instances ordered by created_at ASC
+        """
+        result = await self.session.execute(
+            select(Message)
+            .where(Message.channel_conversation_id == channel_conversation_id)
+            .order_by(Message.created_at.asc())
+        )
+        return list(result.scalars().all())
