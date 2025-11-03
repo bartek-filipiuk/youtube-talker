@@ -1,0 +1,134 @@
+---
+/**
+ * Admin Dashboard Page
+ *
+ * Main landing page for admin panel with:
+ * - Welcome message
+ * - Quick stats (channels, videos)
+ * - Navigation to key admin areas
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../lib/admin-auth';
+import { getAdminStats } from '../../lib/admin-api';
+
+// Auth check
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+// Fetch stats from backend
+let stats = {
+  total_channels: 0,
+  active_channels: 0,
+  total_videos: 0,
+};
+
+try {
+  stats = await getAdminStats(auth.token);
+} catch (error) {
+  console.error('Failed to fetch admin stats:', error);
+}
+---
+
+<AdminLayout title="Dashboard" auth={auth}>
+  <div class="space-y-8">
+    <!-- Welcome Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h1 class="text-2xl font-bold text-gray-900 mb-2">
+        Welcome to Admin Panel
+      </h1>
+      <p class="text-gray-600">
+        Manage channels, videos, and system configuration from here.
+      </p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Total Channels -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Channels</p>
+            <p class="text-3xl font-bold text-gray-900 mt-2">
+              {stats.total_channels}
+            </p>
+          </div>
+          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <span class="text-2xl">📺</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Channels -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Active Channels</p>
+            <p class="text-3xl font-bold text-green-600 mt-2">
+              {stats.active_channels}
+            </p>
+          </div>
+          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <span class="text-2xl">✅</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Videos -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Videos</p>
+            <p class="text-3xl font-bold text-gray-900 mt-2">
+              {stats.total_videos}
+            </p>
+          </div>
+          <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+            <span class="text-2xl">🎬</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Manage Channels -->
+        <a
+          href="/admin/channels"
+          class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition"
+        >
+          <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+            <span class="text-xl">📺</span>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Manage Channels</h3>
+            <p class="text-sm text-gray-600">View, create, edit, and delete channels</p>
+          </div>
+        </a>
+
+        <!-- Create New Channel -->
+        <a
+          href="/admin/channels/new"
+          class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition"
+        >
+          <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+            <span class="text-xl">➕</span>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Create New Channel</h3>
+            <p class="text-sm text-gray-600">Add a new channel to the system</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="bg-gray-100 rounded-lg p-4 text-sm text-gray-600">
+      <p>
+        <strong>Note:</strong> You're logged in as <code class="bg-gray-200 px-2 py-1 rounded">{auth.user.email}</code>
+      </p>
+    </div>
+  </div>
+</AdminLayout>

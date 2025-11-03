@@ -98,6 +98,11 @@ class UserResponse(BaseModel):
         description="User email address",
         examples=["user@example.com"],
     )
+    role: str = Field(
+        ...,
+        description="User role (user or admin)",
+        examples=["user", "admin"],
+    )
     created_at: datetime = Field(
         ...,
         description="Account creation timestamp",
