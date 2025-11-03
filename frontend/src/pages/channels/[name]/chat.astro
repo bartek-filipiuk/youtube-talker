@@ -149,6 +149,9 @@ if (!name) {
 
   const { token } = auth;
 
+  // WebSocket configuration
+  const WS_URL = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:8000/api/ws/chat';
+
   // DOM elements
   const loadingState = document.getElementById('loadingState')!;
   const errorState = document.getElementById('errorState')!;
@@ -338,35 +341,41 @@ if (!name) {
         </div>
       `;
 
-      // 7. Connect WebSocket with channel_id
-      ws = new WebSocketClient(token);
-      await ws.connect(null, channel.id); // transcript_id=null, channel_id=channel.id
+      // 7. Connect WebSocket
+      ws = new WebSocketClient(WS_URL, token);
+      ws.connect();
 
       // Handle incoming messages
-      ws.on('message', (data) => {
-        if (data.type === 'chunk') {
-          if (data.is_first_chunk) {
-            startStreaming();
-            typingIndicator.classList.remove('hidden');
-          }
-          appendToStream(data.content);
-        } else if (data.type === 'end') {
-          finalizeStreaming();
-          typingIndicator.classList.add('hidden');
+      ws.onMessage((data) => {
+        console.log('WebSocket message:', data);
 
-          // Render the completed message
-          const messages = $messages.get();
-          const lastMessage = messages[messages.length - 1];
-          if (lastMessage) {
-            renderMessage(lastMessage);
+        if (data.type === 'status') {
+          // Show status message in typing indicator
+          if (data.message && !data.message.startsWith('Connected as')) {
+            typingIndicator.classList.remove('hidden');
+            const statusText = typingIndicator.querySelector('span') as HTMLSpanElement;
+            if (statusText) {
+              statusText.textContent = data.message;
+            }
+          }
+        } else if (data.type === 'message') {
+          // Backend sends complete message at once
+          typingIndicator.classList.add('hidden');
+          if (data.content) {
+            startStreaming();
+            appendToStream(data.content);
+            finalizeStreaming();
+
+            // Render the message
+            renderMessage({ role: 'assistant', content: data.content });
           }
         } else if (data.type === 'error') {
-          showChatError(data.message || 'An error occurred');
           typingIndicator.classList.add('hidden');
+          showChatError(data.message || 'An error occurred');
         }
       });
 
-      ws.on('error', (error) => {
+      ws.onError((error) => {
         console.error('WebSocket error:', error);
         showChatError('Connection error. Please refresh the page.');
       });
@@ -390,24 +399,28 @@ if (!name) {
       e.preventDefault();
 
       const message = chatInputTextarea.value.trim();
-      if (!message || !ws) return;
+      if (!message || !ws || !conversationId) return;
 
       // Add user message to UI
-      addMessage({ role: 'user', content: message });
       renderMessage({ role: 'user', content: message });
 
       // Clear input
       chatInputTextarea.value = '';
 
+      // Show typing indicator
+      typingIndicator.classList.remove('hidden');
+
       // Send via WebSocket
-      try {
-        await ws.send(message);
-      } catch (error) {
-        console.error('Failed to send message:', error);
-        showChatError('Failed to send message. Please try again.');
-      }
+      ws.sendMessage(message, conversationId);
     });
   }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if (ws) {
+      ws.disconnect();
+    }
+  });
 
   // Initialize chat
   initializeChat();

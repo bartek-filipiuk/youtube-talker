@@ -585,7 +585,7 @@ class ChannelService:
             ChannelNotFoundError: Channel not found or deleted
         """
         channel = await self.channel_repo.get_by_id(channel_id)
-        if not channel or channel.deleted_at is not None:
+        if not channel or not channel.is_active:
             raise ChannelNotFoundError(f"Channel {channel_id} not found")
         return channel
 
@@ -605,7 +605,7 @@ class ChannelService:
             ChannelNotFoundError: Channel not found or deleted
         """
         channel = await self.channel_repo.get_by_name(name)
-        if not channel or channel.deleted_at is not None:
+        if not channel or not channel.is_active:
             raise ChannelNotFoundError(f"Channel '{name}' not found")
         return channel
 
