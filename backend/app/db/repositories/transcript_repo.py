@@ -134,3 +134,26 @@ class TranscriptRepository(BaseRepository[Transcript]):
         await self.session.delete(transcript)
         await self.session.flush()
         return True
+
+    async def get_by_youtube_video_id(
+        self,
+        youtube_video_id: str,
+    ) -> Optional[Transcript]:
+        """
+        Get transcript by YouTube video ID (first match, any user).
+
+        Used for channel video management to check if a transcript
+        already exists in the system.
+
+        Args:
+            youtube_video_id: YouTube video ID
+
+        Returns:
+            Transcript instance or None if not found
+        """
+        result = await self.session.execute(
+            select(Transcript)
+            .where(Transcript.youtube_video_id == youtube_video_id)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()

@@ -44,3 +44,23 @@ class TranscriptAlreadyExistsError(Exception):
 class ExternalAPIError(Exception):
     """Raised when external API call fails (LLM, embeddings, YouTube, etc.)."""
     pass
+
+
+class ChannelAlreadyExistsError(Exception):
+    """Raised when attempting to create a channel with duplicate name."""
+    pass
+
+
+class ChannelNotFoundError(Exception):
+    """Raised when channel doesn't exist in database."""
+    pass
+
+
+class VideoAlreadyInChannelError(Exception):
+    """Raised when attempting to add a video that's already in the channel."""
+    pass
+
+
+class VideoNotInChannelError(Exception):
+    """Raised when attempting to remove a video that's not in the channel."""
+    pass

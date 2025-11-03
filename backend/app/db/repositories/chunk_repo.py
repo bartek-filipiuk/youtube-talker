@@ -84,3 +84,53 @@ class ChunkRepository(BaseRepository[Chunk]):
         )
         await self.session.flush()
         return result.rowcount
+
+    async def list_by_transcript_and_channel(
+        self,
+        transcript_id: UUID,
+        channel_id: UUID,
+    ) -> List[Chunk]:
+        """
+        Get all chunks for a transcript in a specific channel.
+
+        Args:
+            transcript_id: Transcript's UUID
+            channel_id: Channel's UUID
+
+        Returns:
+            List of Chunk instances ordered by chunk_index
+        """
+        result = await self.session.execute(
+            select(Chunk)
+            .where(
+                Chunk.transcript_id == transcript_id,
+                Chunk.channel_id == channel_id,
+            )
+            .order_by(Chunk.chunk_index.asc())
+        )
+        return list(result.scalars().all())
+
+    async def delete_by_channel(
+        self,
+        transcript_id: UUID,
+        channel_id: UUID,
+    ) -> int:
+        """
+        Delete chunks for a transcript in a specific channel.
+
+        Args:
+            transcript_id: Transcript's UUID
+            channel_id: Channel's UUID
+
+        Returns:
+            Number of chunks deleted
+        """
+        result = await self.session.execute(
+            delete(Chunk)
+            .where(
+                Chunk.transcript_id == transcript_id,
+                Chunk.channel_id == channel_id,
+            )
+        )
+        await self.session.flush()
+        return result.rowcount
