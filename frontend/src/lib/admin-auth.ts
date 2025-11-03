@@ -11,7 +11,7 @@ import { API_BASE } from './api';
 export interface AdminUser {
   id: string;
   email: string;
-  is_admin: boolean;
+  role: string;
 }
 
 export interface AdminAuthResult {
@@ -73,7 +73,7 @@ export async function requireAdmin(Astro: AstroGlobal): Promise<AdminAuthResult 
     const user: AdminUser = await response.json();
 
     // Step 3: Verify admin status
-    if (!user.is_admin) {
+    if (user.role !== 'admin') {
       return Astro.redirect('/?error=admin_required');
     }
 

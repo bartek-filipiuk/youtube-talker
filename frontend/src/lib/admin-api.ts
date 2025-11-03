@@ -103,7 +103,11 @@ export async function getAdminStats(token: string): Promise<AdminStats> {
  * List all channels (active and inactive)
  */
 export async function listChannels(token: string): Promise<Channel[]> {
-  return adminFetch<Channel[]>('/admin/channels', token);
+  const response = await adminFetch<{ channels: Channel[]; total: number; limit: number; offset: number }>(
+    '/admin/channels',
+    token
+  );
+  return response.channels;
 }
 
 /**
@@ -160,7 +164,11 @@ export async function listChannelVideos(
   token: string,
   channelId: string
 ): Promise<ChannelVideo[]> {
-  return adminFetch<ChannelVideo[]>(`/admin/channels/${channelId}/videos`, token);
+  const response = await adminFetch<{ videos: ChannelVideo[]; total: number; limit: number; offset: number }>(
+    `/admin/channels/${channelId}/videos`,
+    token
+  );
+  return response.videos;
 }
 
 /**
