@@ -206,7 +206,18 @@ if (!channel) {
   <script>
     import { addVideoToChannel, removeVideoFromChannel } from '../../../../lib/admin-api';
 
-    const token = localStorage.getItem('token');
+    // Get token from localStorage or cookie
+    let token = localStorage.getItem('token');
+
+    if (!token) {
+      // Try to get from cookie (SSR auth)
+      const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
+      if (cookieMatch) {
+        token = cookieMatch[1];
+        // Store in localStorage for future use
+        localStorage.setItem('token', token);
+      }
+    }
 
     // =========================================================================
     // Add Video Form Handler
