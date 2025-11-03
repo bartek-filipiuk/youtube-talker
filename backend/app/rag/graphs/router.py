@@ -69,12 +69,19 @@ async def run_graph(
         print(result["metadata"]["chunks_used"])  # 5
     """
     # Initialize state
+    config = config or {}
     state: GraphState = {
         "user_query": user_query,
         "user_id": user_id,
         "conversation_history": conversation_history,
-        "config": config or {}
+        "config": config
     }
+
+    # Extract channel info from config if present
+    if "channel_id" in config:
+        state["channel_id"] = config["channel_id"]
+    if "collection_name" in config:
+        state["collection_name"] = config["collection_name"]
 
     logger.info(f"Starting RAG flow for user {user_id}: {user_query[:50]}...")
 
