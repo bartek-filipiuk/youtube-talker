@@ -19,7 +19,7 @@ from loguru import logger
 
 from app.core.middleware import setup_middleware
 from app.api.routes import auth, transcripts, health, conversations, channels, channel_conversations
-from app.api.routes.admin import channels_router
+from app.api.routes.admin import channels_router, stats_router
 from app.api.websocket.chat_handler import websocket_endpoint
 
 # Import custom exceptions and handlers
@@ -90,7 +90,8 @@ app.include_router(auth.router)
 app.include_router(transcripts.router)
 app.include_router(health.router)
 app.include_router(conversations.router)
-app.include_router(channels_router)  # Admin routes
+app.include_router(channels_router)  # Admin channel routes
+app.include_router(stats_router)  # Admin stats routes
 app.include_router(channels.router)  # Public channel discovery
 app.include_router(channel_conversations.router)  # Channel conversations
 

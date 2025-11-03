@@ -90,9 +90,9 @@ async def create_channel(
             description=channel.description,
             qdrant_collection_name=channel.qdrant_collection_name,
             created_by=str(channel.created_by) if channel.created_by else None,
+            is_active=channel.is_active,
             created_at=channel.created_at,
             updated_at=channel.updated_at,
-            deleted_at=channel.deleted_at,
             video_count=video_count,
         )
     except ChannelAlreadyExistsError as e:
@@ -207,9 +207,9 @@ async def get_channel(
             description=channel.description,
             qdrant_collection_name=channel.qdrant_collection_name,
             created_by=str(channel.created_by) if channel.created_by else None,
+            is_active=channel.is_active,
             created_at=channel.created_at,
             updated_at=channel.updated_at,
-            deleted_at=channel.deleted_at,
             video_count=video_count,
         )
     except ChannelNotFoundError as e:
@@ -258,9 +258,9 @@ async def get_channel_by_name(
             description=channel.description,
             qdrant_collection_name=channel.qdrant_collection_name,
             created_by=str(channel.created_by) if channel.created_by else None,
+            is_active=channel.is_active,
             created_at=channel.created_at,
             updated_at=channel.updated_at,
-            deleted_at=channel.deleted_at,
             video_count=video_count,
         )
     except ChannelNotFoundError as e:
@@ -319,9 +319,9 @@ async def update_channel(
             description=channel.description,
             qdrant_collection_name=channel.qdrant_collection_name,
             created_by=str(channel.created_by) if channel.created_by else None,
+            is_active=channel.is_active,
             created_at=channel.created_at,
             updated_at=channel.updated_at,
-            deleted_at=channel.deleted_at,
             video_count=video_count,
         )
     except ValueError as e:
@@ -417,9 +417,9 @@ async def reactivate_channel(
             description=channel.description,
             qdrant_collection_name=channel.qdrant_collection_name,
             created_by=str(channel.created_by) if channel.created_by else None,
+            is_active=channel.is_active,
             created_at=channel.created_at,
             updated_at=channel.updated_at,
-            deleted_at=channel.deleted_at,
             video_count=video_count,
         )
     except ChannelNotFoundError as e:

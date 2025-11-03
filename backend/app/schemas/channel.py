@@ -99,9 +99,9 @@ class ChannelResponse(BaseModel):
     description: Optional[str] = Field(None, description="Channel description")
     qdrant_collection_name: str = Field(..., description="Qdrant collection name")
     created_by: Optional[str] = Field(None, description="Creator user UUID")
+    is_active: bool = Field(True, description="Channel active status (false = soft deleted)")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
-    deleted_at: Optional[datetime] = Field(None, description="Deletion timestamp (soft delete)")
     video_count: int = Field(..., description="Total videos in channel")
 
     model_config = ConfigDict(
