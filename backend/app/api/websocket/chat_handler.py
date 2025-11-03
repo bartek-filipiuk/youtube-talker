@@ -361,10 +361,16 @@ async def websocket_endpoint(
 
                 # Step 5: Fetch conversation history (last N messages from config)
                 # Returns list of dicts: [{"role": str, "content": str}, ...]
-                conversation_history = await message_repo.get_last_n(
-                    conversation.id,
-                    n=rag_config["context_messages"]
-                )
+                if isinstance(conversation, ChannelConversation):
+                    conversation_history = await message_repo.get_last_n(
+                        n=rag_config["context_messages"],
+                        channel_conversation_id=conversation.id
+                    )
+                else:
+                    conversation_history = await message_repo.get_last_n(
+                        n=rag_config["context_messages"],
+                        conversation_id=conversation.id
+                    )
 
                 # Step 6: Send status update - retrieving
                 await connection_manager.send_json(
