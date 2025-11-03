@@ -12,6 +12,12 @@ from uuid import UUID
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import (
+    ChannelAlreadyExistsError,
+    ChannelNotFoundError,
+    VideoAlreadyInChannelError,
+    VideoNotInChannelError,
+)
 from app.db.repositories.channel_repo import ChannelRepository
 from app.db.repositories.channel_video_repo import ChannelVideoRepository
 from app.db.repositories.channel_conversation_repo import ChannelConversationRepository
@@ -86,7 +92,7 @@ class ChannelService:
         # Check if channel name already exists
         existing = await self.channel_repo.get_by_name(name)
         if existing:
-            raise ValueError(f"Channel with name '{name}' already exists")
+            raise ChannelAlreadyExistsError(f"Channel with name '{name}' already exists")
 
         # Create Qdrant collection (eager)
         try:
@@ -197,7 +203,7 @@ class ChannelService:
         """
         channel = await self.channel_repo.get_by_id(channel_id)
         if not channel:
-            raise ValueError(f"Channel {channel_id} not found")
+            raise ChannelNotFoundError(f"Channel {channel_id} not found")
         return channel
 
     async def get_channel_by_name(self, name: str) -> Channel:
@@ -215,7 +221,7 @@ class ChannelService:
         """
         channel = await self.channel_repo.get_by_name(name)
         if not channel:
-            raise ValueError(f"Channel '{name}' not found")
+            raise ChannelNotFoundError(f"Channel '{name}' not found")
         return channel
 
     async def list_channels(
@@ -330,7 +336,7 @@ class ChannelService:
                     channel_id, existing_transcript.id
                 )
                 if video_exists:
-                    raise ValueError(
+                    raise VideoAlreadyInChannelError(
                         f"Video {youtube_video_id} already exists in channel"
                     )
 
@@ -489,7 +495,7 @@ class ChannelService:
         try:
             # Verify video exists in channel
             if not await self.channel_video_repo.video_exists(channel_id, transcript_id):
-                raise ValueError(
+                raise VideoNotInChannelError(
                     f"Video {transcript_id} not found in channel {channel_id}"
                 )
 
