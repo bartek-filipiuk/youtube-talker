@@ -60,6 +60,10 @@ class MessageRepository(BaseRepository[Message]):
         else:
             kwargs["channel_conversation_id"] = channel_conversation_id
 
+        # Debug logging
+        from loguru import logger
+        logger.debug(f"MessageRepository.create() kwargs: {list(kwargs.keys())}")
+
         return await super().create(**kwargs)
 
     async def list_by_conversation(
