@@ -49,13 +49,18 @@ class MessageRepository(BaseRepository[Message]):
         if conversation_id and channel_conversation_id:
             raise ValueError("Cannot specify both conversation_id and channel_conversation_id")
 
-        return await super().create(
-            conversation_id=conversation_id,
-            channel_conversation_id=channel_conversation_id,
-            role=role,
-            content=content,
-            meta_data=meta_data or {},
-        )
+        # Only pass the non-None conversation parameter to avoid DB constraint violations
+        kwargs = {
+            "role": role,
+            "content": content,
+            "meta_data": meta_data or {},
+        }
+        if conversation_id:
+            kwargs["conversation_id"] = conversation_id
+        else:
+            kwargs["channel_conversation_id"] = channel_conversation_id
+
+        return await super().create(**kwargs)
 
     async def list_by_conversation(
         self, conversation_id: UUID, limit: int = 100, offset: int = 0
