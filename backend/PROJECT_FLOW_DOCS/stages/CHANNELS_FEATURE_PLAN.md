@@ -132,12 +132,46 @@ alembic downgrade -1
 ```
 
 ### Next Steps (Future PRs)
-- **PR #2:** Admin API endpoints (channel CRUD, video management)
+- **PR #2:** Admin API endpoints (channel CRUD, video management) - [See Plan](./PR2_ADMIN_API_PLAN.md)
 - **PR #3:** Public API endpoints (channel search, conversation management)
 - **PR #4:** WebSocket + RAG modifications
 - **PR #5:** Admin UI
 - **PR #6:** Frontend integration
 - **PR #7:** Testing + Documentation
+
+---
+
+## PR #2: Admin API Endpoints 🔄 PLANNED
+
+**Branch:** `feature/channels-pr2-admin-api`
+**Target:** `channels`
+**Status:** 🔄 Planning complete - Ready to implement
+**Plan Document:** [PR2_ADMIN_API_PLAN.md](./PR2_ADMIN_API_PLAN.md)
+
+### Scope
+- Admin-only dependency guard (`get_admin_user`)
+- Pydantic schemas for channel APIs
+- ChannelService for business logic
+- 10 admin endpoints (channel CRUD + video management)
+- Full YouTube video ingestion to channels
+- Repository extensions (ChunkRepository, TranscriptRepository)
+- Unit + integration tests (80%+ coverage)
+
+### Key Features
+- **Create Channel** - Auto-creates Qdrant collection
+- **Update Channel** - Metadata only (name immutable)
+- **Soft Delete/Reactivate** - Preserve data
+- **Add Video** - Full ingestion pipeline (YouTube → Qdrant)
+- **Remove Video** - Clean up chunks and vectors
+- **List Operations** - Pagination for channels and videos
+
+### Architecture
+- Service layer pattern (like TranscriptService)
+- Eager Qdrant collection creation
+- Admin role enforcement on all endpoints
+- Rate limiting (5-60 req/min depending on endpoint)
+
+See [PR2_ADMIN_API_PLAN.md](./PR2_ADMIN_API_PLAN.md) for full implementation details.
 
 ---
 
