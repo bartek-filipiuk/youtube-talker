@@ -1,0 +1,111 @@
+---
+/**
+ * Channel Video List Component
+ *
+ * Displays a list of videos in a channel (server-side rendered).
+ * For use in the channel chat page sidebar.
+ */
+
+interface Props {
+  videos: Array<{
+    transcript_id: string;
+    youtube_video_id: string;
+    title: string;
+    channel_name: string | null;
+    duration: number | null;
+    added_at: string;
+  }>;
+}
+
+const { videos } = Astro.props;
+
+// Helper to format duration
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return 'N/A';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+---
+
+<div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+  <!-- Header -->
+  <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+    <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+      <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+      </svg>
+      Videos in Channel
+      <span class="ml-auto text-xs font-normal text-gray-500">
+        {videos.length} {videos.length === 1 ? 'video' : 'videos'}
+      </span>
+    </h3>
+  </div>
+
+  <!-- Video List -->
+  <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+    {videos.length === 0 ? (
+      <div class="p-6 text-center">
+        <p class="text-sm text-gray-500 italic">
+          No videos in this channel yet
+        </p>
+      </div>
+    ) : (
+      videos.map((video) => {
+        const addedDate = new Date(video.added_at).toLocaleDateString();
+
+        return (
+          <a
+            href={`https://youtube.com/watch?v=${video.youtube_video_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="block px-4 py-3 hover:bg-blue-50 transition group"
+          >
+            <div class="flex items-start gap-3">
+              <!-- Thumbnail placeholder -->
+              <div class="flex-shrink-0 w-16 h-12 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
+                <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                </svg>
+              </div>
+
+              <!-- Video Info -->
+              <div class="flex-1 min-w-0">
+                <h4 class="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 transition">
+                  {video.title}
+                </h4>
+                <div class="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                  {video.channel_name && (
+                    <>
+                      <span class="truncate max-w-[120px]">{video.channel_name}</span>
+                      <span>•</span>
+                    </>
+                  )}
+                  {video.duration && (
+                    <>
+                      <span>{formatDuration(video.duration)}</span>
+                      <span>•</span>
+                    </>
+                  )}
+                  <span>Added {addedDate}</span>
+                </div>
+              </div>
+
+              <!-- External link icon -->
+              <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </div>
+            </div>
+          </a>
+        );
+      })
+    )}
+  </div>
+</div>

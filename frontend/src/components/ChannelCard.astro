@@ -1,0 +1,81 @@
+---
+/**
+ * Channel Card Component
+ *
+ * Displays a channel card with info for discovery page.
+ * Click card to navigate to channel chat.
+ */
+
+interface Props {
+  channel: {
+    id: string;
+    name: string;
+    display_title: string;
+    description: string | null;
+    video_count: number;
+    created_at: string;
+  };
+}
+
+const { channel } = Astro.props;
+
+// Format date
+const createdDate = new Date(channel.created_at).toLocaleDateString();
+---
+
+<a
+  href={`/channels/${channel.name}/chat`}
+  class="block bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-200 overflow-hidden border border-gray-200 hover:border-blue-400 group"
+>
+  <!-- Header with gradient -->
+  <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+    <h3 class="text-xl font-bold text-white group-hover:text-blue-50 transition">
+      {channel.display_title}
+    </h3>
+    <p class="text-sm text-blue-100 mt-1 font-mono">
+      @{channel.name}
+    </p>
+  </div>
+
+  <!-- Body -->
+  <div class="px-6 py-4">
+    <!-- Description -->
+    {channel.description ? (
+      <p class="text-gray-700 text-sm line-clamp-3 mb-4 min-h-[3.75rem]">
+        {channel.description}
+      </p>
+    ) : (
+      <p class="text-gray-400 text-sm italic mb-4 min-h-[3.75rem]">
+        No description available
+      </p>
+    )}
+
+    <!-- Stats -->
+    <div class="flex items-center justify-between text-sm">
+      <div class="flex items-center gap-2 text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+        </svg>
+        <span class="font-semibold">
+          {channel.video_count} {channel.video_count === 1 ? 'video' : 'videos'}
+        </span>
+      </div>
+
+      <div class="text-gray-500 text-xs">
+        Created {createdDate}
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer with CTA -->
+  <div class="bg-gray-50 px-6 py-3 border-t border-gray-100">
+    <div class="flex items-center justify-between">
+      <span class="text-sm text-gray-600 font-medium">
+        Start chatting
+      </span>
+      <svg class="w-5 h-5 text-blue-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+      </svg>
+    </div>
+  </div>
+</a>

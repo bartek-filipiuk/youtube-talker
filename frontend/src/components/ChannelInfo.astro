@@ -1,0 +1,94 @@
+---
+/**
+ * Channel Info Component
+ *
+ * Displays channel details in the sidebar of the channel chat page.
+ */
+
+interface Props {
+  channel: {
+    id: string;
+    name: string;
+    display_title: string;
+    description: string | null;
+    video_count: number;
+    created_at: string;
+  };
+}
+
+const { channel } = Astro.props;
+
+// Format date
+const createdDate = new Date(channel.created_at).toLocaleDateString();
+---
+
+<div class="bg-white rounded-lg shadow-md p-6 mb-4 border border-gray-200">
+  <!-- Channel Header -->
+  <div class="mb-4">
+    <h2 class="text-2xl font-bold text-gray-900 mb-1">
+      {channel.display_title}
+    </h2>
+    <p class="text-sm text-gray-500 font-mono">
+      @{channel.name}
+    </p>
+  </div>
+
+  <!-- Description -->
+  <div class="mb-4">
+    {channel.description ? (
+      <p class="text-sm text-gray-700 leading-relaxed">
+        {channel.description}
+      </p>
+    ) : (
+      <p class="text-sm text-gray-400 italic">
+        No description available
+      </p>
+    )}
+  </div>
+
+  <!-- Stats -->
+  <div class="border-t border-gray-200 pt-4 space-y-3">
+    <!-- Video Count -->
+    <div class="flex items-center gap-3">
+      <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">Videos</p>
+        <p class="text-lg font-semibold text-gray-900">
+          {channel.video_count}
+        </p>
+      </div>
+    </div>
+
+    <!-- Created Date -->
+    <div class="flex items-center gap-3">
+      <div class="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm text-gray-500">Created</p>
+        <p class="text-sm font-medium text-gray-900">
+          {createdDate}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Browse Channels Link -->
+  <div class="mt-4 pt-4 border-t border-gray-200">
+    <a
+      href="/channels"
+      class="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition font-medium"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Browse all channels
+    </a>
+  </div>
+</div>
