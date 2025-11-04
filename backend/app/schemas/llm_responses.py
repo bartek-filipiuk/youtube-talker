@@ -38,14 +38,14 @@ class RelevanceGrade(BaseModel):
 
 class IntentClassification(BaseModel):
     """
-    Schema for intent classification (Router Node).
+    Schema for intent classification (Router Node V2 - Simplified 3-Intent System).
 
-    Used with Gemini 2.5 Flash to classify user intent into one of seven categories.
-    Determines which LangGraph flow to execute.
+    Used with Claude Haiku 4.5 to classify user intent into one of three categories.
+    Determines which handler to route to.
     """
 
-    intent: Literal["chitchat", "qa", "linkedin", "metadata", "metadata_search", "metadata_search_and_summarize", "video_load"] = Field(
-        description="Classified user intent: chitchat (casual), qa (question-answering), linkedin (post generation), metadata (system info/list all videos), metadata_search (find videos by subject), metadata_search_and_summarize (find video AND get info from it), video_load (YouTube URL detected)"
+    intent: Literal["system", "linkedin", "content"] = Field(
+        description="Classified user intent: system (YouTube URLs, list commands), linkedin (LinkedIn post creation - must explicitly mention 'LinkedIn'), content (everything else - questions, searches, chitchat)"
     )
     confidence: float = Field(
         ge=0.0,
@@ -60,9 +60,9 @@ class IntentClassification(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "intent": "qa",
-                "confidence": 0.95,
-                "reasoning": "User is asking a specific factual question about FastAPI that requires retrieving information from the knowledge base."
+                "intent": "content",
+                "confidence": 0.92,
+                "reasoning": "User is requesting content about a topic. Content handler will perform semantic search and route accordingly."
             }
         }
     )

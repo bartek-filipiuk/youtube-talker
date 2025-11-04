@@ -83,7 +83,7 @@ class MessageRepository(BaseRepository[Message]):
         result = await self.session.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.asc(), Message.role.desc(), Message.id.asc())
             .limit(limit)
             .offset(offset)
         )
@@ -114,7 +114,7 @@ class MessageRepository(BaseRepository[Message]):
         if conversation_id and channel_conversation_id:
             raise ValueError("Cannot specify both conversation_id and channel_conversation_id")
 
-        query = select(Message).order_by(Message.created_at.desc()).limit(n)
+        query = select(Message).order_by(Message.created_at.desc(), Message.role.asc(), Message.id.desc()).limit(n)
 
         if conversation_id:
             query = query.where(Message.conversation_id == conversation_id)
@@ -141,11 +141,11 @@ class MessageRepository(BaseRepository[Message]):
             channel_conversation_id: UUID of channel conversation
 
         Returns:
-            List of Message instances ordered by created_at ASC
+            List of Message instances ordered by created_at ASC, role DESC (user first), then id ASC
         """
         result = await self.session.execute(
             select(Message)
             .where(Message.channel_conversation_id == channel_conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.asc(), Message.role.desc(), Message.id.asc())
         )
         return list(result.scalars().all())

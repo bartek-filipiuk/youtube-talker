@@ -55,17 +55,8 @@ renderer.paragraph = ({ text }: { text: string }) => {
 };
 
 // Lists with better styling
-renderer.list = ({ items, ordered }: { items: string; ordered: boolean }) => {
-  const tag = ordered ? 'ol' : 'ul';
-  const classes = ordered
-    ? 'list-decimal list-inside space-y-2 mb-4 pl-4'
-    : 'list-disc list-inside space-y-2 mb-4 pl-4';
-  return `<${tag} class="${classes}">${items}</${tag}>`;
-};
-
-renderer.listitem = ({ text }: { text: string }) => {
-  return `<li class="text-gray-800">${text}</li>`;
-};
+// Note: In marked v16+, we need to use hooks.postprocess instead of renderer for lists
+// We'll handle list styling via CSS classes added in postprocess
 
 // Blockquotes
 renderer.blockquote = ({ text }: { text: string }) => {
@@ -129,6 +120,21 @@ export function renderMarkdown(content: string): string {
       rawHtml = content; // Fallback to raw content
     } else {
       rawHtml = result as string;
+
+      // Post-process to add Tailwind classes to lists
+      // (marked v16+ changed list rendering API, so we add classes after generation)
+      rawHtml = rawHtml.replace(
+        /<ul>/g,
+        '<ul class="list-disc list-inside space-y-2 mb-4 pl-4">'
+      );
+      rawHtml = rawHtml.replace(
+        /<ol>/g,
+        '<ol class="list-decimal list-inside space-y-2 mb-4 pl-4">'
+      );
+      rawHtml = rawHtml.replace(
+        /<li>/g,
+        '<li class="text-gray-800">'
+      );
     }
   } catch (error) {
     console.error('Markdown parsing error:', error);
