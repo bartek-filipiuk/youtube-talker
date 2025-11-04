@@ -129,9 +129,35 @@ async def run_graph(
     elif intent == "metadata_search":
         result = await compiled_metadata_search_flow.ainvoke(state)
     elif intent == "metadata_search_and_summarize":
-        # Route compound queries to metadata_search flow
-        # The video_search_node will detect this intent and provide guidance
-        result = await compiled_metadata_search_flow.ainvoke(state)
+        # TWO-STAGE FLOW: Find video → Auto-summarize
+        logger.info("Executing compound flow: metadata_search → qa (auto-summarize)")
+
+        # STAGE 1: Find the video(s)
+        search_result = await compiled_metadata_search_flow.ainvoke(state)
+
+        # Check if exactly 1 video was found
+        video_count = search_result.get("metadata", {}).get("video_count", 0)
+
+        if video_count == 1:
+            logger.info("Single video found - auto-generating summary via QA flow")
+
+            # STAGE 2: Auto-generate summary using QA flow
+            # Update user_query to trigger summary generation
+            qa_state = {
+                **search_result,
+                "user_query": "Summarize the main points and key information from this video",
+                "intent": "qa"  # Override to qa for generation
+            }
+            result = await compiled_qa_flow.ainvoke(qa_state)
+
+            # Preserve original search metadata
+            result["metadata"]["original_intent"] = "metadata_search_and_summarize"
+            result["metadata"]["search_subject"] = search_result.get("metadata", {}).get("search_subject")
+            result["metadata"]["video_found_by"] = search_result.get("metadata", {}).get("search_method", "semantic_search")
+        else:
+            # Multiple or zero videos - return search results with guidance
+            logger.info(f"Found {video_count} videos - returning search results with guidance")
+            result = search_result
     elif intent == "video_load":
         result = await compiled_video_load_flow.ainvoke(state)
     else:

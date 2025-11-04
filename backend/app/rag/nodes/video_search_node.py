@@ -184,12 +184,11 @@ async def search_videos_by_subject(state: GraphState) -> Dict[str, Any]:
             # Check if this is a compound query (find + summarize)
             intent = state.get("intent", "")
             if intent == "metadata_search_and_summarize":
-                # User wants to find AND get info - provide guidance
+                # User wants to find AND get info - router will auto-trigger summary
                 if len(matched_transcripts) == 1:
                     cta_message = (
                         f"<p><strong>Great! I found the video you're looking for.</strong></p>"
-                        f"<p>Now, what would you like to know about it? "
-                        f"Ask me to summarize it or answer any specific questions!</p>"
+                        f"<p><em>Generating summary...</em></p>"
                     )
                 else:
                     cta_message = (
@@ -386,12 +385,11 @@ async def search_videos_by_subject(state: GraphState) -> Dict[str, Any]:
         # Check if this is a compound query (find + summarize)
         intent = state.get("intent", "")
         if intent == "metadata_search_and_summarize":
-            # User wants to find AND get info - provide guidance
+            # User wants to find AND get info - router will auto-trigger summary
             if len(transcripts_sorted) == 1:
                 cta_message = (
                     f"<p><strong>Great! I found the video you're looking for.</strong></p>"
-                    f"<p>Now, what would you like to know about it? "
-                    f"Ask me to summarize it or answer any specific questions!</p>"
+                    f"<p><em>Generating summary...</em></p>"
                 )
             else:
                 cta_message = (
