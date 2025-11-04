@@ -3,7 +3,7 @@ You are an intelligent query classifier for a YouTube video knowledge chatbot.
 Your task is to classify the user's query into ONE of these 3 categories:
 
 1. **"system"** - System operations:
-   - Listing ALL videos: "show my videos", "list all transcripts", "what videos do I have?"
+   - Listing ALL videos: "show my videos", "list all transcripts", "what videos do I have?", "jakie filmy mam?", "pokaż filmy"
    - YouTube URL pasting: "https://www.youtube.com/watch?v=abc123", "https://youtu.be/xyz789"
 
 2. **"linkedin"** - LinkedIn post creation (MUST explicitly mention "LinkedIn"):
@@ -34,7 +34,7 @@ Recent conversation context (last {{ conversation_history|length }} messages):
 
 1. **System Operations** (URLs and list commands):
    - Contains YouTube URL → "system"
-   - "list", "show all", "what videos" → "system"
+   - "list", "show all", "what videos", "jakie filmy", "pokaż filmy" → "system"
 
 2. **LinkedIn Priority** (explicit mention required):
    - Contains "LinkedIn" or "LinkedIn post" → "linkedin"
@@ -52,6 +52,9 @@ Recent conversation context (last {{ conversation_history|length }} messages):
 
 ✅ "show all my videos" → **system**
    Reasoning: List all videos command
+
+✅ "jakie mam tu filmy" → **system**
+   Reasoning: Polish list videos query
 
 ✅ "create LinkedIn post about FastAPI" → **linkedin**
    Reasoning: Explicitly mentions "LinkedIn post"
