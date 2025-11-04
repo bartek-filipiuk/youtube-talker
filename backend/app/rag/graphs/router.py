@@ -92,6 +92,29 @@ async def run_graph(
     if not intent:
         raise ValueError("Intent classification failed - no intent returned")
 
+    # Validate intent is recognized
+    VALID_INTENTS = {
+        "chitchat", "qa", "linkedin", "metadata",
+        "metadata_search", "metadata_search_and_summarize", "video_load"
+    }
+
+    if intent not in VALID_INTENTS:
+        logger.error(
+            f"Invalid intent '{intent}' returned by LLM. "
+            f"Valid intents: {VALID_INTENTS}. "
+            f"Defaulting to chitchat flow."
+        )
+        # Store original invalid intent for debugging
+        original_intent = intent
+        intent = "chitchat"
+        state["intent"] = "chitchat"
+
+        # Add error metadata
+        metadata = state.get("metadata", {})
+        metadata["intent_error"] = True
+        metadata["original_invalid_intent"] = original_intent
+        state["metadata"] = metadata
+
     logger.info(f"Intent classified as '{intent}' with confidence {state.get('metadata', {}).get('intent_confidence', 0):.2f}")
 
     # Step 2: Route to appropriate flow
@@ -104,6 +127,10 @@ async def run_graph(
     elif intent == "metadata":
         result = await compiled_metadata_flow.ainvoke(state)
     elif intent == "metadata_search":
+        result = await compiled_metadata_search_flow.ainvoke(state)
+    elif intent == "metadata_search_and_summarize":
+        # Route compound queries to metadata_search flow
+        # The video_search_node will detect this intent and provide guidance
         result = await compiled_metadata_search_flow.ainvoke(state)
     elif intent == "video_load":
         result = await compiled_video_load_flow.ainvoke(state)

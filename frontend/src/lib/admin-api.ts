@@ -55,6 +55,21 @@ export interface AddVideoRequest {
   youtube_url: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  role: string;
+  transcript_count: number;
+  created_at: string;
+}
+
+export interface UsersListResponse {
+  users: User[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 // ============================================================================
 // API Client
 // ============================================================================
@@ -194,6 +209,26 @@ export async function removeVideoFromChannel(
   videoId: string
 ): Promise<void> {
   await adminFetch<void>(`/admin/channels/${channelId}/videos/${videoId}`, token, {
+    method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Users
+// ============================================================================
+
+/**
+ * List all users (admin only)
+ */
+export async function listUsers(token: string, limit: number = 50, offset: number = 0): Promise<UsersListResponse> {
+  return adminFetch<UsersListResponse>(`/admin/users?limit=${limit}&offset=${offset}`, token);
+}
+
+/**
+ * Delete user and all related data (admin only)
+ */
+export async function deleteUser(token: string, userId: string): Promise<void> {
+  await adminFetch<void>(`/admin/users/${userId}`, token, {
     method: 'DELETE',
   });
 }

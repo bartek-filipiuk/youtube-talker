@@ -126,15 +126,7 @@ if (!name) {
     getOrCreateConversation,
     getConversationWithMessages,
   } from '../../../lib/channels-api';
-  import {
-    $messages,
-    $isTyping,
-    addMessage,
-    startStreaming,
-    appendToStream,
-    finalizeStreaming,
-    setMessages,
-  } from '../../../stores/chat';
+  // Chat store not needed for channel chat (direct DOM rendering instead)
   import { renderMarkdown } from '../../../lib/markdown';
 
   // Get channel name from URL
@@ -189,21 +181,37 @@ if (!name) {
   function renderMessage(message: { role: string; content: string; created_at?: string }) {
     const messageDiv = document.createElement('div');
     messageDiv.className = message.role === 'user'
-      ? 'flex justify-end'
-      : 'flex justify-start';
+      ? 'flex justify-end mb-4'
+      : 'flex justify-start mb-4';
 
     const bubble = document.createElement('div');
     bubble.className = message.role === 'user'
-      ? 'bg-blue-600 text-white px-4 py-3 rounded-lg max-w-[80%] shadow-sm'
-      : 'bg-white text-gray-900 px-4 py-3 rounded-lg max-w-[80%] shadow-sm border border-gray-200';
+      ? 'bg-gray-50 text-gray-900 px-3 py-2 rounded-lg max-w-3xl shadow-sm border border-gray-200'
+      : 'bg-white text-gray-900 px-3 py-2 rounded-lg max-w-3xl shadow-sm border border-gray-200';
 
-    // Render markdown for assistant messages
+    // Create content wrapper with proper styling for markdown
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = message.role === 'user'
+      ? 'break-words whitespace-pre-line'
+      : 'break-words prose';
+
+    // Render markdown for assistant messages with defensive type checking
     if (message.role === 'assistant') {
-      bubble.innerHTML = renderMarkdown(message.content);
+      // Defensive: ensure content is always a string
+      const messageContent = typeof message.content === 'string'
+        ? message.content
+        : JSON.stringify(message.content);
+
+      contentWrapper.innerHTML = renderMarkdown(messageContent);
     } else {
-      bubble.textContent = message.content;
+      // Defensive: ensure content is always a string for user messages too
+      const messageContent = typeof message.content === 'string'
+        ? message.content
+        : JSON.stringify(message.content);
+      contentWrapper.textContent = messageContent;
     }
 
+    bubble.appendChild(contentWrapper);
     messageDiv.appendChild(bubble);
     messagesList.appendChild(messageDiv);
 
@@ -229,8 +237,15 @@ if (!name) {
       // 4. Load conversation history
       const conversationDetail = await getConversationWithMessages(token, conversation.id);
 
-      // Render messages
-      conversationDetail.messages.forEach(msg => renderMessage(msg));
+      // Render messages with defensive content handling
+      conversationDetail.messages.forEach(msg => {
+        // Ensure content is always a string before rendering
+        const safeMsg = {
+          ...msg,
+          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+        };
+        renderMessage(safeMsg);
+      });
 
       // 5. Render channel info (client-side)
       const createdDate = new Date(channel.created_at).toLocaleDateString();
@@ -362,12 +377,13 @@ if (!name) {
           // Backend sends complete message at once
           typingIndicator.classList.add('hidden');
           if (data.content) {
-            startStreaming();
-            appendToStream(data.content);
-            finalizeStreaming();
+            // Defensive: ensure content is always a string
+            const messageContent = typeof data.content === 'string'
+              ? data.content
+              : JSON.stringify(data.content);
 
-            // Render the message
-            renderMessage({ role: 'assistant', content: data.content });
+            // Render the message directly (no store functions needed)
+            renderMessage({ role: 'assistant', content: messageContent });
           }
         } else if (data.type === 'error') {
           typingIndicator.classList.add('hidden');
@@ -424,4 +440,39 @@ if (!name) {
 
   // Initialize chat
   initializeChat();
+
+  // Handle copy code button clicks (using event delegation)
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('copy-code-btn')) {
+      const codeContent = target.getAttribute('data-code');
+      if (codeContent) {
+        // Decode HTML entities
+        const decodedCode = codeContent
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#039;/g, "'");
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(decodedCode).then(() => {
+          // Visual feedback
+          const originalText = target.textContent;
+          target.textContent = '✓ Copied!';
+          target.classList.add('text-green-400');
+          setTimeout(() => {
+            target.textContent = originalText;
+            target.classList.remove('text-green-400');
+          }, 2000);
+        }).catch((err) => {
+          console.error('Failed to copy:', err);
+          target.textContent = '✗ Failed';
+          setTimeout(() => {
+            target.textContent = 'Copy';
+          }, 2000);
+        });
+      }
+    }
+  });
 </script>

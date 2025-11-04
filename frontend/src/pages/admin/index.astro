@@ -93,7 +93,7 @@ try {
     <!-- Quick Actions -->
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Manage Channels -->
         <a
           href="/admin/channels"
@@ -119,6 +119,20 @@ try {
           <div>
             <h3 class="font-semibold text-gray-900">Create New Channel</h3>
             <p class="text-sm text-gray-600">Add a new channel to the system</p>
+          </div>
+        </a>
+
+        <!-- Manage Users -->
+        <a
+          href="/admin/users"
+          class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition"
+        >
+          <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+            <span class="text-xl">👥</span>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Manage Users</h3>
+            <p class="text-sm text-gray-600">View and delete user accounts</p>
           </div>
         </a>
       </div>

@@ -262,8 +262,9 @@ if (!channel) {
         addVideoForm.reset();
 
         // Reload page after 2 seconds to show new video
+        // Use explicit URL to ensure we stay on admin video management page
         setTimeout(() => {
-          window.location.reload();
+          window.location.href = window.location.pathname;
         }, 2000);
 
       } catch (error) {

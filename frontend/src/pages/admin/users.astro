@@ -1,0 +1,203 @@
+---
+/**
+ * Users List Page
+ *
+ * Displays all users in a table with:
+ * - User info (email, role, transcript count)
+ * - Created date
+ * - Delete button (cannot delete yourself)
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../lib/admin-auth';
+import { listUsers, type User } from '../../lib/admin-api';
+
+// Auth check
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+// Fetch users
+let users: User[] = [];
+let total = 0;
+let error: string | null = null;
+
+try {
+  const response = await listUsers(auth.token);
+  users = response.users;
+  total = response.total;
+} catch (err) {
+  console.error('Failed to fetch users:', err);
+  error = 'Failed to load users. Please try again.';
+}
+
+// Get current user ID for self-deletion prevention
+const currentUserId = auth.user.id;
+---
+
+<AdminLayout title="Users" auth={auth}>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+        <p class="text-gray-600 mt-1">Manage all user accounts and permissions</p>
+      </div>
+      <div class="text-sm text-gray-600">
+        Total: <span class="font-semibold">{total}</span> users
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    {error && (
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+        {error}
+      </div>
+    )}
+
+    <!-- Users Table -->
+    {users.length === 0 && !error ? (
+      <div class="bg-white rounded-lg shadow p-12 text-center">
+        <div class="text-6xl mb-4">👥</div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">No users found</h3>
+        <p class="text-gray-600">No users in the system.</p>
+      </div>
+    ) : (
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Email
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Role
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Transcripts
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Created
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {users.map((user) => (
+              <tr class="hover:bg-gray-50">
+                <!-- Email -->
+                <td class="px-6 py-4">
+                  <div class="flex items-center">
+                    <div class="text-sm font-medium text-gray-900">
+                      {user.email}
+                    </div>
+                    {user.id === currentUserId && (
+                      <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        You
+                      </span>
+                    )}
+                  </div>
+                </td>
+
+                <!-- Role Badge -->
+                <td class="px-6 py-4 whitespace-nowrap">
+                  {user.role === 'admin' ? (
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      🔑 Admin
+                    </span>
+                  ) : (
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      👤 User
+                    </span>
+                  )}
+                </td>
+
+                <!-- Transcript Count -->
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {user.transcript_count} videos
+                </td>
+
+                <!-- Created Date -->
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(user.created_at).toLocaleDateString()}
+                </td>
+
+                <!-- Actions -->
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  {user.id === currentUserId ? (
+                    <span class="text-gray-400 italic">Cannot delete yourself</span>
+                  ) : (
+                    <button
+                      data-user-id={user.id}
+                      data-user-email={user.email}
+                      class="delete-btn inline-block px-3 py-1 text-red-600 hover:text-red-900 border border-red-600 rounded hover:bg-red-50 transition"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+
+  <!-- Delete Confirmation Script -->
+  <script>
+    import { deleteUser } from '../../lib/admin-api';
+
+    // Get auth token from localStorage
+    const token = localStorage.getItem('token');
+
+    // Attach delete handlers to all delete buttons
+    document.querySelectorAll('.delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const button = e.target as HTMLButtonElement;
+        const userId = button.dataset.userId;
+        const userEmail = button.dataset.userEmail;
+
+        if (!userId || !token) return;
+
+        // Confirm deletion
+        const confirmed = confirm(
+          `⚠️ WARNING: Permanently delete user "${userEmail}"?\n\n` +
+          `This will PERMANENTLY DELETE:\n` +
+          `• User account and credentials\n` +
+          `• All user sessions\n` +
+          `• All transcripts and chunks\n` +
+          `• All conversations and messages\n` +
+          `• All channel conversations\n\n` +
+          `⚠️ THIS ACTION CANNOT BE UNDONE!\n\n` +
+          `Type "DELETE" in the next prompt to confirm.`
+        );
+
+        if (!confirmed) return;
+
+        // Secondary confirmation
+        const confirmText = prompt('Type "DELETE" to confirm permanent deletion:');
+        if (confirmText !== 'DELETE') {
+          alert('Deletion cancelled. You must type "DELETE" to confirm.');
+          return;
+        }
+
+        // Delete user
+        button.disabled = true;
+        button.textContent = 'Deleting...';
+
+        try {
+          await deleteUser(token, userId);
+          alert('User deleted successfully!');
+          window.location.reload();
+        } catch (error) {
+          console.error('Delete failed:', error);
+          alert(`Failed to delete user: ${error}`);
+          button.disabled = false;
+          button.textContent = 'Delete';
+        }
+      });
+    });
+  </script>
+</AdminLayout>

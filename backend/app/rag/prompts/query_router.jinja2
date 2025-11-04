@@ -6,6 +6,7 @@ Your task is to classify the user's query into ONE of these categories:
 - "linkedin": Request to generate a LinkedIn post based on video content (e.g., "create a LinkedIn post about X", "write about topic Y")
 - "metadata": Questions about AVAILABLE VIDEOS or SYSTEM INFO - listing ALL videos without filtering (e.g., "what videos do I have?", "show my videos", "list my transcripts", "which videos are loaded?", "what can I ask about?")
 - "metadata_search": User wants to FIND or FILTER videos by a specific SUBJECT/TOPIC (e.g., "show videos about Claude Code", "find videos on machine learning", "videos related to FastAPI", "I want to see content about Python")
+- "metadata_search_and_summarize": COMPOUND query where user wants to BOTH find a specific video by title/subject AND immediately get information/summary from it (e.g., "10x lepszy programista, co to za film, zrób mi streszczenie", "find video about X and explain it to me", "which video discusses Y and what does it say?", "show me the video on Z and summarize it")
 - "video_load": User pasted a YouTube URL and wants to load it to the knowledge base (e.g., "https://www.youtube.com/watch?v=abc123", "https://youtu.be/xyz789", "can you load this video: [URL]")
 
 User's query:
@@ -19,15 +20,19 @@ Recent conversation context (last {{ conversation_history|length }} messages):
 {% endif %}
 
 Analyze the query and provide your classification with:
-1. The intent category (chitchat, qa, linkedin, metadata, metadata_search, or video_load)
+1. The intent category (chitchat, qa, linkedin, metadata, metadata_search, metadata_search_and_summarize, or video_load)
 2. Your confidence level (0.0 to 1.0)
 3. Brief reasoning (1-2 sentences, max 300 characters)
 
-IMPORTANT: Choose "metadata" for listing ALL videos, and "metadata_search" when user specifies a SUBJECT to filter by.
+IMPORTANT GUIDELINES:
+- Choose "metadata" for listing ALL videos without filtering
+- Choose "metadata_search" when user wants to FIND/FILTER videos by a subject (e.g., "show videos about X")
+- Choose "metadata_search_and_summarize" when user wants to FIND a video AND also get info/summary from it in the SAME query (e.g., "find video X and explain it", "what video is about Y, summarize it")
+- Choose "qa" when user asks questions about content but doesn't need to find videos first
 
 Return your response as valid JSON matching this structure:
 {
-  "intent": "qa|chitchat|linkedin|metadata|metadata_search|video_load",
+  "intent": "qa|chitchat|linkedin|metadata|metadata_search|metadata_search_and_summarize|video_load",
   "confidence": 0.95,
-  "reasoning": "User is asking to find videos about a specific subject, so metadata_search is appropriate."
+  "reasoning": "User is asking to find a specific video AND wants a summary from it, so metadata_search_and_summarize is appropriate."
 }
