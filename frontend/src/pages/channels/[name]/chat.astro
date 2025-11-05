@@ -94,15 +94,8 @@ if (!name) {
           <!-- Messages will be rendered here -->
           <div id="messagesList" class="space-y-4"></div>
 
-          <!-- Typing Indicator -->
-          <div id="typingIndicator" class="hidden flex items-center gap-2 text-gray-500 mt-4">
-            <div class="flex gap-1">
-              <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
-              <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-              <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
-            </div>
-            <span class="text-sm">AI is typing...</span>
-          </div>
+          <!-- Status Message Queue (replaces single typing indicator) -->
+          <div id="statusQueueContainer" class="hidden space-y-2"></div>
         </div>
 
         <!-- Input Area -->
@@ -128,6 +121,7 @@ if (!name) {
   } from '../../../lib/channels-api';
   // Chat store not needed for channel chat (direct DOM rendering instead)
   import { renderMarkdown } from '../../../lib/markdown';
+  import { StatusQueue } from '../../../lib/status-queue';
 
   // Get channel name from URL
   const pathParts = window.location.pathname.split('/');
@@ -154,9 +148,11 @@ if (!name) {
   const channelVideosContainer = document.getElementById('channelVideosContainer')!;
   const messagesContainer = document.getElementById('messagesContainer')!;
   const messagesList = document.getElementById('messagesList')!;
-  const typingIndicator = document.getElementById('typingIndicator')!;
   const chatErrorMessage = document.getElementById('chatErrorMessage')!;
   const chatErrorText = document.getElementById('chatErrorText')!;
+
+  // Initialize status queue for WebSocket status messages
+  const statusQueue = new StatusQueue('statusQueueContainer');
 
   // State
   let ws: WebSocketClient | null = null;
@@ -365,17 +361,13 @@ if (!name) {
         console.log('WebSocket message:', data);
 
         if (data.type === 'status') {
-          // Show status message in typing indicator
+          // Show status message in status queue
           if (data.message && !data.message.startsWith('Connected as')) {
-            typingIndicator.classList.remove('hidden');
-            const statusText = typingIndicator.querySelector('span') as HTMLSpanElement;
-            if (statusText) {
-              statusText.textContent = data.message;
-            }
+            statusQueue.add('status', data.message);
           }
         } else if (data.type === 'message') {
           // Backend sends complete message at once
-          typingIndicator.classList.add('hidden');
+          statusQueue.remove('status');
           if (data.content) {
             // Defensive: ensure content is always a string
             const messageContent = typeof data.content === 'string'
@@ -386,7 +378,7 @@ if (!name) {
             renderMessage({ role: 'assistant', content: messageContent });
           }
         } else if (data.type === 'error') {
-          typingIndicator.classList.add('hidden');
+          statusQueue.clear();
           showChatError(data.message || 'An error occurred');
         }
       });
@@ -423,8 +415,8 @@ if (!name) {
       // Clear input
       chatInputTextarea.value = '';
 
-      // Show typing indicator
-      typingIndicator.classList.remove('hidden');
+      // Show typing status in queue
+      statusQueue.add('typing', 'AI is typing...');
 
       // Send via WebSocket
       ws.sendMessage(message, conversationId);

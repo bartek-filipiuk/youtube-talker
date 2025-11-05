@@ -5,28 +5,47 @@
  * Used for displaying formatted AI responses in the chat interface.
  *
  * Uses isomorphic-dompurify for compatibility with both browser and Node.js (SSR) environments.
+ * Includes syntax highlighting via highlight.js with GitHub Dark theme.
  */
 
 import { marked } from 'marked';
 import DOMPurify from 'isomorphic-dompurify';
+import hljs from 'highlight.js';
 
 // Configure marked with custom renderer for better styling
 const renderer = new marked.Renderer();
 
-// Custom code block rendering with language label and copy button support
+// Custom code block rendering with language label, syntax highlighting, and copy button support
 renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
   const language = lang || 'text';
   const escapedCode = escapeHtml(text);
 
+  // Apply syntax highlighting using highlight.js
+  let highlightedCode: string;
+  try {
+    if (language && language !== 'text' && hljs.getLanguage(language)) {
+      // Language specified and supported
+      highlightedCode = hljs.highlight(text, { language }).value;
+    } else {
+      // Auto-detect language
+      const result = hljs.highlightAuto(text);
+      highlightedCode = result.value;
+    }
+  } catch (error) {
+    // Fallback to escaped code if highlighting fails
+    console.warn('Syntax highlighting failed:', error);
+    highlightedCode = escapedCode;
+  }
+
   return `
-    <div class="code-block-container my-4 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+    <div class="code-block-container my-4 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
       <div class="code-header flex items-center justify-between bg-gray-800 text-gray-300 px-4 py-2 text-sm">
         <span class="font-mono">${language}</span>
         <button class="copy-code-btn text-gray-400 hover:text-white transition px-2 py-1 rounded hover:bg-gray-700" data-code="${escapedCode.replace(/"/g, '&quot;')}">
           Copy
         </button>
       </div>
-      <pre class="bg-gray-900 text-gray-100 p-4 overflow-x-auto"><code class="language-${language}">${escapedCode}</code></pre>
+      <pre class="hljs bg-gray-900 p-4 overflow-x-auto"><code class="language-${language}">${highlightedCode}</code></pre>
     </div>
   `;
 };

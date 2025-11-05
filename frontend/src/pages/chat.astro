@@ -57,15 +57,8 @@ const activeConversationId = urlParams.get('id');
       <!-- Messages will be rendered here -->
       <div id="messagesList" class="space-y-4"></div>
 
-      <!-- Typing Indicator -->
-      <div id="typingIndicator" class="hidden flex items-center gap-2 text-gray-500">
-        <div class="flex gap-1">
-          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
-          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
-        </div>
-        <span class="text-sm">AI is typing...</span>
-      </div>
+      <!-- Status Message Queue (replaces single typing indicator) -->
+      <div id="statusQueueContainer" class="hidden space-y-2"></div>
     </div>
 
     <!-- Input Area -->
@@ -85,6 +78,7 @@ const activeConversationId = urlParams.get('id');
   import { getConversation, createConversation } from '../lib/api';
   import { $messages, $isTyping, addMessage, startStreaming, appendToStream, finalizeStreaming, setMessages } from '../stores/chat';
   import { renderMarkdown } from '../lib/markdown';
+  import { StatusQueue } from '../lib/status-queue';
 
   // Ensure user is authenticated
   const auth = await requireAuth();
@@ -150,7 +144,7 @@ const activeConversationId = urlParams.get('id');
 
   // Initialize WebSocket
   const wsClient = new WebSocketClient(WS_URL, token);
-  const typingIndicator = document.getElementById('typingIndicator') as HTMLDivElement;
+  const statusQueue = new StatusQueue('statusQueueContainer');
   const connectionStatus = document.getElementById('connectionStatus') as HTMLDivElement;
   const chatForm = document.getElementById('chatForm') as HTMLFormElement;
   const chatInput = (window as any).chatInput;
@@ -163,9 +157,9 @@ const activeConversationId = urlParams.get('id');
   // Subscribe to typing indicator
   $isTyping.subscribe((isTyping) => {
     if (isTyping) {
-      typingIndicator.classList.remove('hidden');
+      statusQueue.add('typing', 'AI is typing...');
     } else {
-      typingIndicator.classList.add('hidden');
+      statusQueue.remove('typing');
     }
     scrollToBottom();
   });
@@ -232,21 +226,17 @@ const activeConversationId = urlParams.get('id');
     console.log('WebSocket message:', data);
 
     if (data.type === 'status') {
-      // Show status message in typing indicator (without creating a message)
+      // Show status message in status queue (without creating a message)
       // Skip "Connected as..." messages - those are just connection confirmations
       if (data.message && !data.message.startsWith('Connected as')) {
-        // Show typing indicator with custom status text
-        typingIndicator.classList.remove('hidden');
-        const statusText = typingIndicator.querySelector('span.text-sm');
-        if (statusText) {
-          statusText.textContent = data.message;
-        }
+        // Add status message to queue with 'status' id
+        statusQueue.add('status', data.message);
         scrollToBottom();
       }
     } else if (data.type === 'message') {
       if (data.content) {
-        // Hide typing indicator
-        typingIndicator.classList.add('hidden');
+        // Remove status messages from queue
+        statusQueue.remove('status');
 
         // Backend sends complete message at once (not streamed)
         // Start streaming, add content, and finalize immediately
@@ -257,7 +247,7 @@ const activeConversationId = urlParams.get('id');
       }
     } else if (data.type === 'video_load_confirmation') {
       // Video loading confirmation request from backend
-      typingIndicator.classList.add('hidden');
+      statusQueue.clear(); // Clear all status messages
 
       // Display confirmation message from assistant (using simple text)
       let confirmationText = data.message;
@@ -272,25 +262,23 @@ const activeConversationId = urlParams.get('id');
       chatInput.enable(); // Re-enable input to allow yes/no response
     } else if (data.type === 'video_load_status') {
       // Video loading status update
-      typingIndicator.classList.add('hidden');
-
       let statusContent = '';
       if (data.status === 'started') {
-        // Show status in typing indicator instead of message
-        const statusText = typingIndicator.querySelector('span.text-sm');
-        if (statusText) {
-          statusText.textContent = data.message || 'Loading video...';
-        }
-        typingIndicator.classList.remove('hidden');
+        // Show status in queue instead of creating a message
+        statusQueue.add('video_load', data.message || 'Loading video...');
         scrollToBottom();
         return; // Don't create a message for 'started' status
       } else if (data.status === 'completed') {
+        // Remove video loading status
+        statusQueue.remove('video_load');
         statusContent = `✓ **Success:** ${data.message}`;
         if (data.video_title) {
           statusContent += `\n\n**Video:** ${data.video_title}`;
         }
         chatInput.enable(); // Re-enable input after completion
       } else if (data.status === 'failed') {
+        // Remove video loading status
+        statusQueue.remove('video_load');
         statusContent = `✗ **Failed:** ${data.message}`;
         if (data.error) {
           statusContent += `\n\nError: ${data.error}`;
@@ -304,8 +292,8 @@ const activeConversationId = urlParams.get('id');
         finalizeStreaming();
       }
     } else if (data.type === 'error') {
-      // Hide typing indicator on error
-      typingIndicator.classList.add('hidden');
+      // Clear all status messages on error
+      statusQueue.clear();
       showToast('Error: ' + (data.message || 'Unknown error'), 'error', 5000);
       finalizeStreaming();
       chatInput.enable();
