@@ -177,7 +177,7 @@ export async function createConversation(token: string, title?: string): Promise
 }
 
 /**
- * Get all conversations for the current user
+ * Get all conversations for the current user (legacy - non-paginated)
  */
 export async function getConversations(token: string): Promise<Conversation[]> {
   const response = await fetch(`${API_BASE}/conversations`, {
@@ -195,6 +195,35 @@ export async function getConversations(token: string): Promise<Conversation[]> {
   // Backend returns paginated response: { conversations: [...], total, limit, offset }
   const data = await response.json();
   return data.conversations || [];
+}
+
+/**
+ * Get conversations with pagination support
+ */
+export async function getConversationsPaginated(
+  token: string,
+  limit: number = 10,
+  offset: number = 0
+): Promise<{ conversations: Conversation[]; total: number }> {
+  const url = `${API_BASE}/conversations?limit=${limit}&offset=${offset}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to load conversations');
+  }
+
+  // Backend returns paginated response: { conversations: [...], total, limit, offset }
+  const data = await response.json();
+  return {
+    conversations: data.conversations || [],
+    total: data.total || 0
+  };
 }
 
 /**

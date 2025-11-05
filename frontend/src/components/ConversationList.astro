@@ -29,12 +29,48 @@ const { activeId } = Astro.props;
   <div id="conversationsList" class="flex-1 overflow-y-auto p-2">
     <!-- Populated by client-side script -->
   </div>
+
+  <!-- Pagination Controls -->
+  <div id="conversationPagination" class="hidden p-4 border-t border-gray-200">
+    <div class="flex justify-between items-center text-sm">
+      <button
+        id="prevPageBtn"
+        class="px-3 py-1 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        disabled
+      >
+        ← Previous
+      </button>
+      <span id="pageInfo" class="text-gray-500"></span>
+      <button
+        id="nextPageBtn"
+        class="px-3 py-1 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        disabled
+      >
+        Next →
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div id="conversationsLoading" class="hidden p-4 text-center text-gray-500 text-sm">
+    Loading conversations...
+  </div>
 </div>
 
 <script>
   import { requireAuth, showToast, showConfirm } from '../lib/auth';
-  import { getConversations, deleteConversation } from '../lib/api';
-  import { $conversations, $activeConversationId, setConversations, setActiveConversation, removeConversation } from '../stores/conversations';
+  import { getConversationsPaginated, deleteConversation } from '../lib/api';
+  import {
+    $conversationList,
+    $activeConversationId,
+    setActiveConversation,
+    setConversationsWithPagination,
+    setConversationsLoading,
+    setConversationsError,
+    removeConversationPaginated,
+    nextConversationPage,
+    prevConversationPage
+  } from '../stores/conversations';
 
   // Ensure user is authenticated
   const auth = await requireAuth();
@@ -46,6 +82,11 @@ const { activeId } = Astro.props;
 
   // DOM elements
   const conversationsList = document.getElementById('conversationsList') as HTMLDivElement;
+  const conversationPagination = document.getElementById('conversationPagination') as HTMLDivElement;
+  const prevPageBtn = document.getElementById('prevPageBtn') as HTMLButtonElement;
+  const nextPageBtn = document.getElementById('nextPageBtn') as HTMLButtonElement;
+  const pageInfo = document.getElementById('pageInfo') as HTMLSpanElement;
+  const conversationsLoading = document.getElementById('conversationsLoading') as HTMLDivElement;
   const newConversationBtn = document.getElementById('newConversationBtn') as HTMLButtonElement;
 
   // Get active conversation ID from URL
@@ -53,17 +94,19 @@ const { activeId } = Astro.props;
   const activeId = urlParams.get('id');
   setActiveConversation(activeId);
 
-  // Load conversations from backend
+  // Load conversations from backend with pagination
   async function loadConversations() {
+    const state = $conversationList.get();
+    setConversationsLoading(true);
+    conversationsLoading.classList.remove('hidden');
+
     try {
-      const conversations = await getConversations(token);
-      // Sort by updated_at descending (most recent first)
-      const sorted = conversations.sort((a, b) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-      );
-      setConversations(sorted);
+      const offset = state.currentPage * state.limit;
+      const data = await getConversationsPaginated(token, state.limit, offset);
+      setConversationsWithPagination(data.conversations, data.total);
     } catch (error: any) {
       console.error('Failed to load conversations:', error);
+      setConversationsError(error.message);
       conversationsList.innerHTML = `
         <div class="p-4 text-center text-gray-500">
           <p class="text-sm">Failed to load conversations</p>
@@ -72,6 +115,8 @@ const { activeId } = Astro.props;
           </button>
         </div>
       `;
+    } finally {
+      conversationsLoading.classList.add('hidden');
     }
   }
 
@@ -82,22 +127,25 @@ const { activeId } = Astro.props;
     return div.innerHTML;
   }
 
-  // Render conversations list
+  // Render conversations list with pagination
   function renderConversations() {
-    const conversations = $conversations.get();
+    const state = $conversationList.get();
     const activeConvId = $activeConversationId.get();
 
-    if (conversations.length === 0) {
+    // Empty state
+    if (state.conversations.length === 0 && !state.loading) {
       conversationsList.innerHTML = `
         <div class="p-4 text-center text-gray-500">
           <p class="text-sm">No conversations yet</p>
           <p class="text-xs mt-1">Click "New Conversation" to start</p>
         </div>
       `;
+      conversationPagination.classList.add('hidden');
       return;
     }
 
-    conversationsList.innerHTML = conversations
+    // Render conversation list
+    conversationsList.innerHTML = state.conversations
       .map((conv) => {
         const isActive = conv.id === activeConvId;
         const title = escapeHtml(conv.title || 'New conversation');
@@ -170,7 +218,7 @@ const { activeId } = Astro.props;
           await deleteConversation(token, id);
 
           // Remove from store
-          removeConversation(id);
+          removeConversationPaginated(id);
 
           // Show success toast
           showToast('Conversation deleted successfully', 'success');
@@ -180,16 +228,45 @@ const { activeId } = Astro.props;
             setTimeout(() => {
               window.location.href = '/chat';
             }, 500);
+          } else {
+            // Reload if page is now empty and not first page
+            const state = $conversationList.get();
+            if (state.conversations.length === 0 && state.currentPage > 0) {
+              prevConversationPage();
+              await loadConversations();
+            }
           }
         } catch (error: any) {
           showToast('Failed to delete conversation: ' + error.message, 'error', 5000);
         }
       });
     });
+
+    // Update pagination controls
+    const totalPages = Math.ceil(state.total / state.limit);
+    if (totalPages > 1) {
+      conversationPagination.classList.remove('hidden');
+      pageInfo.textContent = `Page ${state.currentPage + 1} of ${totalPages}`;
+      prevPageBtn.disabled = state.currentPage === 0;
+      nextPageBtn.disabled = state.currentPage >= totalPages - 1;
+    } else {
+      conversationPagination.classList.add('hidden');
+    }
   }
 
-  // Subscribe to conversations store changes
-  $conversations.subscribe(() => {
+  // Pagination button handlers
+  prevPageBtn.addEventListener('click', async () => {
+    prevConversationPage();
+    await loadConversations();
+  });
+
+  nextPageBtn.addEventListener('click', async () => {
+    nextConversationPage();
+    await loadConversations();
+  });
+
+  // Subscribe to conversation list store changes
+  $conversationList.subscribe(() => {
     renderConversations();
   });
 
