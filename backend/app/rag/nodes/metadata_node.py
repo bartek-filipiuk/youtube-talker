@@ -12,6 +12,7 @@ from uuid import UUID
 from app.rag.utils.state import GraphState
 from app.db.session import AsyncSessionLocal
 from app.db.repositories.transcript_repo import TranscriptRepository
+from app.db.repositories.channel_video_repo import ChannelVideoRepository
 
 
 
@@ -45,29 +46,54 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
     user_id_str = state.get("user_id", "")
     user_query = state.get("user_query", "")
 
-    logger.info(f"Fetching video metadata for user {user_id_str}")
+    # Extract channel context if present
+    channel_id_str = state.get("channel_id")
+    collection_name = state.get("collection_name")
+
+    if channel_id_str:
+        logger.info(f"Fetching video metadata for CHANNEL (channel_id={channel_id_str})")
+    else:
+        logger.info(f"Fetching video metadata for PERSONAL chat (user_id={user_id_str})")
 
     try:
         # Convert user_id string to UUID
         user_id = UUID(user_id_str)
 
+        # Convert channel_id to UUID if present
+        channel_id = UUID(channel_id_str) if channel_id_str else None
+
         # Create database session
         async with AsyncSessionLocal() as session:
-            transcript_repo = TranscriptRepository(session)
+            if channel_id:
+                # Channel context - query channel videos
+                channel_video_repo = ChannelVideoRepository(session)
+                channel_videos, total = await channel_video_repo.list_by_channel(
+                    channel_id=channel_id,
+                    limit=20,
+                    offset=0
+                )
+                # Extract transcripts from channel videos
+                transcripts = [cv.transcript for cv in channel_videos if cv.transcript]
+            else:
+                # Personal context - query user's transcripts
+                transcript_repo = TranscriptRepository(session)
+                transcripts, total = await transcript_repo.list_by_user(user_id, limit=20)
 
-            # Query user's transcripts (returns tuple of transcripts list and total count)
-            # Limit to 20 latest videos
-            transcripts, total = await transcript_repo.list_by_user(user_id, limit=20)
-
-            logger.info(f"Found {len(transcripts)} transcript(s) for user {user_id} (total: {total})")
+            logger.info(f"Found {len(transcripts)} transcript(s) (total: {total})")
 
             # Format response
             if not transcripts:
-                response = (
-                    "<p>You don't have any videos loaded yet.</p>"
-                    "<p>To get started, use the <strong>transcript ingestion API</strong> "
-                    "to add YouTube videos to your knowledge base.</p>"
-                )
+                if channel_id:
+                    response = (
+                        "<p>This channel doesn't have any videos yet.</p>"
+                        "<p>An admin needs to add videos to this channel using the admin panel.</p>"
+                    )
+                else:
+                    response = (
+                        "<p>You don't have any videos loaded yet.</p>"
+                        "<p>To get started, use the <strong>transcript ingestion API</strong> "
+                        "to add YouTube videos to your knowledge base.</p>"
+                    )
             else:
                 # Build HTML list
                 video_items = []
@@ -92,17 +118,30 @@ async def get_user_videos(state: GraphState) -> Dict[str, Any]:
 
                 videos_html = "\n".join(video_items)
 
-                # Show count message based on whether we're showing all or limited
-                if total > len(transcripts):
-                    count_msg = (
-                        f"<p>Showing your <strong>{len(transcripts)} latest videos</strong> "
-                        f"(you have {total} videos total in your knowledge base):</p>"
-                    )
+                # Show count message based on context and whether we're showing all or limited
+                if channel_id:
+                    # Channel context
+                    if total > len(transcripts):
+                        count_msg = (
+                            f"<p>Showing the <strong>{len(transcripts)} latest videos</strong> "
+                            f"in this channel ({total} videos total):</p>"
+                        )
+                    else:
+                        count_msg = (
+                            f"<p>This channel has <strong>{len(transcripts)} video(s)</strong>:</p>"
+                        )
                 else:
-                    count_msg = (
-                        f"<p>You have <strong>{len(transcripts)} video(s)</strong> "
-                        f"loaded in your knowledge base:</p>"
-                    )
+                    # Personal context
+                    if total > len(transcripts):
+                        count_msg = (
+                            f"<p>Showing your <strong>{len(transcripts)} latest videos</strong> "
+                            f"(you have {total} videos total in your knowledge base):</p>"
+                        )
+                    else:
+                        count_msg = (
+                            f"<p>You have <strong>{len(transcripts)} video(s)</strong> "
+                            f"loaded in your knowledge base:</p>"
+                        )
 
                 response = (
                     f"{count_msg}"

@@ -1,0 +1,478 @@
+---
+/**
+ * Channel Chat Page
+ *
+ * Chat interface for a specific channel with full conversation persistence.
+ * Displays channel info, video list, and real-time chat via WebSocket.
+ */
+
+import Layout from '../../../layouts/Layout.astro';
+import ChatInput from '../../../components/ChatInput.astro';
+import ChannelInfo from '../../../components/ChannelInfo.astro';
+import ChannelVideoList from '../../../components/ChannelVideoList.astro';
+
+// Get channel name from URL params
+const { name } = Astro.params;
+
+if (!name) {
+  return Astro.redirect('/channels');
+}
+---
+
+<Layout title={`Channel Chat`}>
+  <div class="flex h-screen bg-gray-50">
+    <!-- Sidebar - Hidden on mobile, visible on tablet+ -->
+    <aside class="hidden md:block w-80 flex-shrink-0 flex flex-col p-4 space-y-4 overflow-y-auto bg-gray-100 border-r border-gray-200">
+      <!-- Channel Info (will be populated client-side) -->
+      <div id="channelInfoContainer"></div>
+
+      <!-- Video List (will be populated client-side) -->
+      <div id="channelVideosContainer"></div>
+    </aside>
+
+    <!-- Main Chat Area - Full width on mobile, flexible on tablet+ -->
+    <main class="flex-1 flex flex-col w-full md:w-auto">
+      <!-- Header -->
+      <header class="bg-white border-b border-gray-200 px-6 py-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 id="channelTitle" class="text-2xl font-bold text-gray-900">
+              Loading...
+            </h1>
+            <p class="text-sm text-gray-600 mt-1">
+              Channel conversation
+            </p>
+          </div>
+          <a
+            href="/channels"
+            class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+          >
+            ← All Channels
+          </a>
+        </div>
+      </header>
+
+      <!-- Loading State -->
+      <div id="loadingState" class="flex-1 flex items-center justify-center">
+        <div class="text-center">
+          <div class="inline-block w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p class="text-gray-600">Loading channel...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="errorState" class="hidden flex-1 flex items-center justify-center px-4">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+          <div class="flex items-start gap-3">
+            <svg class="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 class="text-lg font-semibold text-red-900 mb-1">Failed to load channel</h3>
+              <p id="errorMessage" class="text-red-700 text-sm"></p>
+              <a
+                href="/channels"
+                class="inline-block mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+              >
+                Back to Channels
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Container (hidden until loaded) -->
+      <div id="chatContainer" class="hidden flex-1 flex flex-col">
+        <!-- Messages Container -->
+        <div id="messagesContainer" class="flex-1 overflow-y-auto px-4 py-3">
+          <!-- Error Message -->
+          <div id="chatErrorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+            <p class="font-bold">Error</p>
+            <p id="chatErrorText"></p>
+          </div>
+
+          <!-- Messages will be rendered here -->
+          <div id="messagesList" class="space-y-4"></div>
+
+          <!-- Typing Indicator -->
+          <div id="typingIndicator" class="hidden flex items-center gap-2 text-gray-500 mt-4">
+            <div class="flex gap-1">
+              <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </div>
+            <span class="text-sm">AI is typing...</span>
+          </div>
+        </div>
+
+        <!-- Input Area -->
+        <ChatInput />
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="hidden fixed bottom-24 right-6 px-4 py-2 bg-yellow-100 border border-yellow-300 rounded-lg text-sm text-yellow-800">
+          Reconnecting...
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  import { requireAuth } from '../../../lib/auth';
+  import { WebSocketClient } from '../../../lib/websocket';
+  import {
+    getChannelByName,
+    getChannelVideos,
+    getOrCreateConversation,
+    getConversationWithMessages,
+  } from '../../../lib/channels-api';
+  // Chat store not needed for channel chat (direct DOM rendering instead)
+  import { renderMarkdown } from '../../../lib/markdown';
+
+  // Get channel name from URL
+  const pathParts = window.location.pathname.split('/');
+  const channelName = pathParts[pathParts.length - 2]; // /channels/[name]/chat
+
+  // Ensure user is authenticated
+  const auth = await requireAuth();
+  if (!auth) {
+    throw new Error('Not authenticated');
+  }
+
+  const { token } = auth;
+
+  // WebSocket configuration
+  const WS_URL = import.meta.env.PUBLIC_WS_URL || 'ws://localhost:8000/api/ws/chat';
+
+  // DOM elements
+  const loadingState = document.getElementById('loadingState')!;
+  const errorState = document.getElementById('errorState')!;
+  const errorMessage = document.getElementById('errorMessage')!;
+  const chatContainer = document.getElementById('chatContainer')!;
+  const channelTitle = document.getElementById('channelTitle')!;
+  const channelInfoContainer = document.getElementById('channelInfoContainer')!;
+  const channelVideosContainer = document.getElementById('channelVideosContainer')!;
+  const messagesContainer = document.getElementById('messagesContainer')!;
+  const messagesList = document.getElementById('messagesList')!;
+  const typingIndicator = document.getElementById('typingIndicator')!;
+  const chatErrorMessage = document.getElementById('chatErrorMessage')!;
+  const chatErrorText = document.getElementById('chatErrorText')!;
+
+  // State
+  let ws: WebSocketClient | null = null;
+  let channelId: string | null = null;
+  let conversationId: string | null = null;
+
+  // Show error
+  function showError(message: string) {
+    errorMessage.textContent = message;
+    loadingState.classList.add('hidden');
+    chatContainer.classList.add('hidden');
+    errorState.classList.remove('hidden');
+  }
+
+  // Show chat error
+  function showChatError(message: string) {
+    chatErrorText.textContent = message;
+    chatErrorMessage.classList.remove('hidden');
+  }
+
+  // Render message
+  function renderMessage(message: { role: string; content: string; created_at?: string }) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = message.role === 'user'
+      ? 'flex justify-end mb-4'
+      : 'flex justify-start mb-4';
+
+    const bubble = document.createElement('div');
+    bubble.className = message.role === 'user'
+      ? 'bg-gray-50 text-gray-900 px-3 py-2 rounded-lg max-w-3xl shadow-sm border border-gray-200'
+      : 'bg-white text-gray-900 px-3 py-2 rounded-lg max-w-3xl shadow-sm border border-gray-200';
+
+    // Create content wrapper with proper styling for markdown
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = message.role === 'user'
+      ? 'break-words whitespace-pre-line'
+      : 'break-words prose';
+
+    // Render markdown for assistant messages with defensive type checking
+    if (message.role === 'assistant') {
+      // Defensive: ensure content is always a string
+      const messageContent = typeof message.content === 'string'
+        ? message.content
+        : JSON.stringify(message.content);
+
+      contentWrapper.innerHTML = renderMarkdown(messageContent);
+    } else {
+      // Defensive: ensure content is always a string for user messages too
+      const messageContent = typeof message.content === 'string'
+        ? message.content
+        : JSON.stringify(message.content);
+      contentWrapper.textContent = messageContent;
+    }
+
+    bubble.appendChild(contentWrapper);
+    messageDiv.appendChild(bubble);
+    messagesList.appendChild(messageDiv);
+
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  // Load channel and initialize chat
+  async function initializeChat() {
+    try {
+      // 1. Fetch channel details
+      const channel = await getChannelByName(token, channelName);
+      channelId = channel.id;
+      channelTitle.textContent = channel.display_title;
+
+      // 2. Fetch channel videos
+      const videosResponse = await getChannelVideos(token, channel.id);
+
+      // 3. Get or create conversation
+      const conversation = await getOrCreateConversation(token, channel.id);
+      conversationId = conversation.id;
+
+      // 4. Load conversation history
+      const conversationDetail = await getConversationWithMessages(token, conversation.id);
+
+      // Render messages with defensive content handling
+      conversationDetail.messages.forEach(msg => {
+        // Ensure content is always a string before rendering
+        const safeMsg = {
+          ...msg,
+          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+        };
+        renderMessage(safeMsg);
+      });
+
+      // 5. Render channel info (client-side)
+      const createdDate = new Date(channel.created_at).toLocaleDateString();
+      channelInfoContainer.innerHTML = `
+        <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+          <div class="mb-4">
+            <h2 class="text-2xl font-bold text-gray-900 mb-1">${channel.display_title}</h2>
+            <p class="text-sm text-gray-500 font-mono">@${channel.name}</p>
+          </div>
+          <div class="mb-4">
+            ${channel.description
+              ? `<p class="text-sm text-gray-700 leading-relaxed">${channel.description}</p>`
+              : `<p class="text-sm text-gray-400 italic">No description available</p>`
+            }
+          </div>
+          <div class="border-t border-gray-200 pt-4 space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm text-gray-500">Videos</p>
+                <p class="text-lg font-semibold text-gray-900">${channel.video_count}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm text-gray-500">Created</p>
+                <p class="text-sm font-medium text-gray-900">${createdDate}</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-gray-200">
+            <a href="/channels" class="flex items-center justify-center gap-2 w-full px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition font-medium">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              Browse all channels
+            </a>
+          </div>
+        </div>
+      `;
+
+      // 6. Render videos list
+      const formatDuration = (seconds) => {
+        if (!seconds) return 'N/A';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (hours > 0) {
+          return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+        return `${minutes}:${String(secs).padStart(2, '0')}`;
+      };
+
+      channelVideosContainer.innerHTML = `
+        <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+          <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+              </svg>
+              Videos in Channel
+              <span class="ml-auto text-xs font-normal text-gray-500">
+                ${videosResponse.videos.length} ${videosResponse.videos.length === 1 ? 'video' : 'videos'}
+              </span>
+            </h3>
+          </div>
+          <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+            ${videosResponse.videos.length === 0
+              ? '<div class="p-6 text-center"><p class="text-sm text-gray-500 italic">No videos in this channel yet</p></div>'
+              : videosResponse.videos.map(video => {
+                  const addedDate = new Date(video.added_at).toLocaleDateString();
+                  return `
+                    <a href="https://youtube.com/watch?v=${video.youtube_video_id}" target="_blank" rel="noopener noreferrer" class="block px-4 py-3 hover:bg-blue-50 transition group">
+                      <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 w-16 h-12 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
+                          <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                          </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <h4 class="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-blue-600 transition">${video.title}</h4>
+                          <div class="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                            ${video.channel_name ? `<span class="truncate max-w-[120px]">${video.channel_name}</span><span>•</span>` : ''}
+                            ${video.duration ? `<span>${formatDuration(video.duration)}</span><span>•</span>` : ''}
+                            <span>Added ${addedDate}</span>
+                          </div>
+                        </div>
+                        <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
+                      </div>
+                    </a>
+                  `;
+                }).join('')
+            }
+          </div>
+        </div>
+      `;
+
+      // 7. Connect WebSocket
+      ws = new WebSocketClient(WS_URL, token);
+      ws.connect();
+
+      // Handle incoming messages
+      ws.onMessage((data) => {
+        console.log('WebSocket message:', data);
+
+        if (data.type === 'status') {
+          // Show status message in typing indicator
+          if (data.message && !data.message.startsWith('Connected as')) {
+            typingIndicator.classList.remove('hidden');
+            const statusText = typingIndicator.querySelector('span') as HTMLSpanElement;
+            if (statusText) {
+              statusText.textContent = data.message;
+            }
+          }
+        } else if (data.type === 'message') {
+          // Backend sends complete message at once
+          typingIndicator.classList.add('hidden');
+          if (data.content) {
+            // Defensive: ensure content is always a string
+            const messageContent = typeof data.content === 'string'
+              ? data.content
+              : JSON.stringify(data.content);
+
+            // Render the message directly (no store functions needed)
+            renderMessage({ role: 'assistant', content: messageContent });
+          }
+        } else if (data.type === 'error') {
+          typingIndicator.classList.add('hidden');
+          showChatError(data.message || 'An error occurred');
+        }
+      });
+
+      ws.onError((error) => {
+        console.error('WebSocket error:', error);
+        showChatError('Connection error. Please refresh the page.');
+      });
+
+      // Show chat interface
+      loadingState.classList.add('hidden');
+      chatContainer.classList.remove('hidden');
+
+    } catch (error) {
+      console.error('Failed to initialize chat:', error);
+      showError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    }
+  }
+
+  // Handle message sending
+  const chatInputForm = document.querySelector('form');
+  const chatInputTextarea = document.querySelector('textarea');
+
+  if (chatInputForm && chatInputTextarea) {
+    chatInputForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const message = chatInputTextarea.value.trim();
+      if (!message || !ws || !conversationId) return;
+
+      // Add user message to UI
+      renderMessage({ role: 'user', content: message });
+
+      // Clear input
+      chatInputTextarea.value = '';
+
+      // Show typing indicator
+      typingIndicator.classList.remove('hidden');
+
+      // Send via WebSocket
+      ws.sendMessage(message, conversationId);
+    });
+  }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if (ws) {
+      ws.disconnect();
+    }
+  });
+
+  // Initialize chat
+  initializeChat();
+
+  // Handle copy code button clicks (using event delegation)
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('copy-code-btn')) {
+      const codeContent = target.getAttribute('data-code');
+      if (codeContent) {
+        // Decode HTML entities
+        const decodedCode = codeContent
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#039;/g, "'");
+
+        // Copy to clipboard
+        navigator.clipboard.writeText(decodedCode).then(() => {
+          // Visual feedback
+          const originalText = target.textContent;
+          target.textContent = '✓ Copied!';
+          target.classList.add('text-green-400');
+          setTimeout(() => {
+            target.textContent = originalText;
+            target.classList.remove('text-green-400');
+          }, 2000);
+        }).catch((err) => {
+          console.error('Failed to copy:', err);
+          target.textContent = '✗ Failed';
+          setTimeout(() => {
+            target.textContent = 'Copy';
+          }, 2000);
+        });
+      }
+    }
+  });
+</script>

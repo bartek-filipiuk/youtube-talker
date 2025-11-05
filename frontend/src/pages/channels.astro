@@ -1,0 +1,243 @@
+---
+/**
+ * Channels Discovery Page
+ *
+ * List all available channels for users to browse and chat with.
+ * Requires authentication.
+ */
+
+import Layout from '../layouts/Layout.astro';
+import ChannelCard from '../components/ChannelCard.astro';
+import LoadingSpinner from '../components/LoadingSpinner.astro';
+---
+
+<Layout title="Discover Channels">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900">Discover Channels</h1>
+            <p class="text-gray-600 mt-2">
+              Browse curated video collections and start chatting
+            </p>
+          </div>
+          <a
+            href="/chat"
+            class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+          >
+            ← Back to Chat
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Loading State -->
+      <div id="loadingState" class="flex justify-center items-center py-20">
+        <LoadingSpinner />
+      </div>
+
+      <!-- Error State -->
+      <div id="errorState" class="hidden">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
+          <div class="flex items-start gap-3">
+            <svg class="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 class="text-lg font-semibold text-red-900 mb-1">Failed to load channels</h3>
+              <p id="errorMessage" class="text-red-700 text-sm"></p>
+              <button
+                id="retryButton"
+                class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden">
+        <div class="text-center py-20">
+          <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-6">
+            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">No channels available yet</h2>
+          <p class="text-gray-600 mb-6">
+            Check back later for curated video collections
+          </p>
+          <a
+            href="/chat"
+            class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Personal Chat
+          </a>
+        </div>
+      </div>
+
+      <!-- Channels Grid -->
+      <div id="channelsGrid" class="hidden">
+        <!-- Stats Bar -->
+        <div class="mb-6 flex items-center justify-between">
+          <p class="text-sm text-gray-600">
+            <span id="totalChannels" class="font-semibold text-gray-900">0</span> channels available
+          </p>
+        </div>
+
+        <!-- Grid -->
+        <div id="channelsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Channel cards will be inserted here -->
+        </div>
+      </div>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  import { requireAuth } from '../lib/auth';
+  import { listChannels, type Channel } from '../lib/channels-api';
+
+  // Ensure user is authenticated
+  const auth = await requireAuth();
+  if (!auth) {
+    throw new Error('Not authenticated');
+  }
+
+  const { token } = auth;
+
+  // DOM elements
+  const loadingState = document.getElementById('loadingState')!;
+  const errorState = document.getElementById('errorState')!;
+  const errorMessage = document.getElementById('errorMessage')!;
+  const retryButton = document.getElementById('retryButton')!;
+  const emptyState = document.getElementById('emptyState')!;
+  const channelsGrid = document.getElementById('channelsGrid')!;
+  const channelsList = document.getElementById('channelsList')!;
+  const totalChannels = document.getElementById('totalChannels')!;
+
+  // State management
+  function showState(state: 'loading' | 'error' | 'empty' | 'channels') {
+    loadingState.classList.add('hidden');
+    errorState.classList.add('hidden');
+    emptyState.classList.add('hidden');
+    channelsGrid.classList.add('hidden');
+
+    switch (state) {
+      case 'loading':
+        loadingState.classList.remove('hidden');
+        break;
+      case 'error':
+        errorState.classList.remove('hidden');
+        break;
+      case 'empty':
+        emptyState.classList.remove('hidden');
+        break;
+      case 'channels':
+        channelsGrid.classList.remove('hidden');
+        break;
+    }
+  }
+
+  // Render channel card
+  function renderChannelCard(channel: Channel): string {
+    const createdDate = new Date(channel.created_at).toLocaleDateString();
+    const description = channel.description
+      ? channel.description.length > 150
+        ? channel.description.substring(0, 150) + '...'
+        : channel.description
+      : null;
+
+    return `
+      <a
+        href="/channels/${channel.name}/chat"
+        class="block bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-200 overflow-hidden border border-gray-200 hover:border-blue-400 group"
+      >
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+          <h3 class="text-xl font-bold text-white group-hover:text-blue-50 transition">
+            ${channel.display_title}
+          </h3>
+          <p class="text-sm text-blue-100 mt-1 font-mono">
+            @${channel.name}
+          </p>
+        </div>
+        <div class="px-6 py-4">
+          ${description ? `
+            <p class="text-gray-700 text-sm line-clamp-3 mb-4 min-h-[3.75rem]">
+              ${description}
+            </p>
+          ` : `
+            <p class="text-gray-400 text-sm italic mb-4 min-h-[3.75rem]">
+              No description available
+            </p>
+          `}
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2 text-gray-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+              </svg>
+              <span class="font-semibold">
+                ${channel.video_count} ${channel.video_count === 1 ? 'video' : 'videos'}
+              </span>
+            </div>
+            <div class="text-gray-500 text-xs">
+              Created ${createdDate}
+            </div>
+          </div>
+        </div>
+        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 font-medium">
+              Start chatting
+            </span>
+            <svg class="w-5 h-5 text-blue-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </div>
+        </div>
+      </a>
+    `;
+  }
+
+  // Load channels
+  async function loadChannels() {
+    try {
+      showState('loading');
+
+      const response = await listChannels(token);
+
+      if (response.channels.length === 0) {
+        showState('empty');
+        return;
+      }
+
+      // Render channels
+      channelsList.innerHTML = response.channels
+        .map(channel => renderChannelCard(channel))
+        .join('');
+
+      totalChannels.textContent = response.total.toString();
+      showState('channels');
+
+    } catch (error) {
+      console.error('Failed to load channels:', error);
+      errorMessage.textContent = error instanceof Error ? error.message : 'An unexpected error occurred';
+      showState('error');
+    }
+  }
+
+  // Retry button handler
+  retryButton.addEventListener('click', loadChannels);
+
+  // Initial load
+  loadChannels();
+</script>

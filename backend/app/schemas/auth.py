@@ -98,8 +98,35 @@ class UserResponse(BaseModel):
         description="User email address",
         examples=["user@example.com"],
     )
+    role: str = Field(
+        ...,
+        description="User role (user or admin)",
+        examples=["user", "admin"],
+    )
     created_at: datetime = Field(
         ...,
         description="Account creation timestamp",
         examples=["2025-01-01T12:00:00"],
+    )
+
+
+class ChangePasswordRequest(BaseModel):
+    """
+    Password change request.
+
+    Validates:
+    - Old password is provided (for verification)
+    - New password minimum length (8 characters)
+    """
+
+    old_password: str = Field(
+        ...,
+        description="Current password for verification",
+        examples=["oldpassword123"],
+    )
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        description="New password must be at least 8 characters",
+        examples=["newpassword123"],
     )

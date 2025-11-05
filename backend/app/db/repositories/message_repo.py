@@ -21,26 +21,50 @@ class MessageRepository(BaseRepository[Message]):
         super().__init__(Message, session)
 
     async def create(
-        self, conversation_id: UUID, role: str, content: str, meta_data: dict = None
+        self,
+        role: str,
+        content: str,
+        conversation_id: UUID = None,
+        channel_conversation_id: UUID = None,
+        meta_data: dict = None,
     ) -> Message:
         """
         Create a new message.
 
         Args:
-            conversation_id: Conversation's UUID
             role: Message role ('user', 'assistant', 'system')
             content: Message content
+            conversation_id: Personal conversation's UUID (optional)
+            channel_conversation_id: Channel conversation's UUID (optional)
             meta_data: Optional metadata dictionary
 
         Returns:
             Created Message instance
+
+        Note:
+            Exactly one of conversation_id or channel_conversation_id must be provided.
         """
-        return await super().create(
-            conversation_id=conversation_id,
-            role=role,
-            content=content,
-            meta_data=meta_data or {},
-        )
+        if not conversation_id and not channel_conversation_id:
+            raise ValueError("Either conversation_id or channel_conversation_id must be provided")
+        if conversation_id and channel_conversation_id:
+            raise ValueError("Cannot specify both conversation_id and channel_conversation_id")
+
+        # Only pass the non-None conversation parameter to avoid DB constraint violations
+        kwargs = {
+            "role": role,
+            "content": content,
+            "meta_data": meta_data or {},
+        }
+        if conversation_id:
+            kwargs["conversation_id"] = conversation_id
+        else:
+            kwargs["channel_conversation_id"] = channel_conversation_id
+
+        # Debug logging
+        from loguru import logger
+        logger.debug(f"MessageRepository.create() kwargs: {list(kwargs.keys())}")
+
+        return await super().create(**kwargs)
 
     async def list_by_conversation(
         self, conversation_id: UUID, limit: int = 100, offset: int = 0
@@ -59,29 +83,45 @@ class MessageRepository(BaseRepository[Message]):
         result = await self.session.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.asc(), Message.role.desc(), Message.id.asc())
             .limit(limit)
             .offset(offset)
         )
         return list(result.scalars().all())
 
-    async def get_last_n(self, conversation_id: UUID, n: int = 10) -> List[dict]:
+    async def get_last_n(
+        self,
+        n: int = 10,
+        conversation_id: UUID = None,
+        channel_conversation_id: UUID = None,
+    ) -> List[dict]:
         """
         Get the last N messages from a conversation.
 
         Args:
-            conversation_id: Conversation's UUID
             n: Number of recent messages to retrieve
+            conversation_id: Personal conversation's UUID (optional)
+            channel_conversation_id: Channel conversation's UUID (optional)
 
         Returns:
             List of message dicts with {role, content} (most recent last)
+
+        Note:
+            Exactly one of conversation_id or channel_conversation_id must be provided.
         """
-        result = await self.session.execute(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.desc())
-            .limit(n)
-        )
+        if not conversation_id and not channel_conversation_id:
+            raise ValueError("Either conversation_id or channel_conversation_id must be provided")
+        if conversation_id and channel_conversation_id:
+            raise ValueError("Cannot specify both conversation_id and channel_conversation_id")
+
+        query = select(Message).order_by(Message.created_at.desc(), Message.role.asc(), Message.id.desc()).limit(n)
+
+        if conversation_id:
+            query = query.where(Message.conversation_id == conversation_id)
+        else:
+            query = query.where(Message.channel_conversation_id == channel_conversation_id)
+
+        result = await self.session.execute(query)
         messages = list(result.scalars().all())
 
         # Convert to dicts in async context to avoid greenlet issues
@@ -90,3 +130,22 @@ class MessageRepository(BaseRepository[Message]):
             {"role": msg.role, "content": msg.content}
             for msg in reversed(messages)
         ]
+
+    async def list_by_channel_conversation(
+        self, channel_conversation_id: UUID
+    ) -> List[Message]:
+        """
+        List all messages for a channel conversation in chronological order.
+
+        Args:
+            channel_conversation_id: UUID of channel conversation
+
+        Returns:
+            List of Message instances ordered by created_at ASC, role DESC (user first), then id ASC
+        """
+        result = await self.session.execute(
+            select(Message)
+            .where(Message.channel_conversation_id == channel_conversation_id)
+            .order_by(Message.created_at.asc(), Message.role.desc(), Message.id.asc())
+        )
+        return list(result.scalars().all())

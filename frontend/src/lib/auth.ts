@@ -5,6 +5,7 @@
 
 import { getCurrentUser } from './api';
 import type { User } from './api';
+import { showToast, showConfirm } from './ui-utils';
 
 export interface AuthResult {
   token: string;
@@ -73,3 +74,7 @@ export function getToken(): string | null {
 
   return localStorage.getItem('token');
 }
+
+// Re-export UI utilities for backward compatibility
+// Actual implementations are in ui-utils.ts
+export { showToast, showConfirm };

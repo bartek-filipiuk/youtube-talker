@@ -32,7 +32,7 @@ const { activeId } = Astro.props;
 </div>
 
 <script>
-  import { requireAuth } from '../lib/auth';
+  import { requireAuth, showToast, showConfirm } from '../lib/auth';
   import { getConversations, deleteConversation } from '../lib/api';
   import { $conversations, $activeConversationId, setConversations, setActiveConversation, removeConversation } from '../stores/conversations';
 
@@ -156,8 +156,13 @@ const { activeId } = Astro.props;
 
         if (!id) return;
 
-        // Confirm delete
-        const confirmed = confirm(`Delete conversation "${title}"?\n\nThis action cannot be undone.`);
+        // Confirm delete with custom modal
+        const confirmed = await showConfirm(
+          `Delete conversation "${title}"?\n\nThis action cannot be undone.`,
+          'Delete Conversation',
+          'Delete',
+          'Cancel'
+        );
         if (!confirmed) return;
 
         try {
@@ -167,12 +172,17 @@ const { activeId } = Astro.props;
           // Remove from store
           removeConversation(id);
 
+          // Show success toast
+          showToast('Conversation deleted successfully', 'success');
+
           // If deleting active conversation, redirect to new conversation
           if (id === activeConvId) {
-            window.location.href = '/chat';
+            setTimeout(() => {
+              window.location.href = '/chat';
+            }, 500);
           }
         } catch (error: any) {
-          alert('Failed to delete conversation: ' + error.message);
+          showToast('Failed to delete conversation: ' + error.message, 'error', 5000);
         }
       });
     });

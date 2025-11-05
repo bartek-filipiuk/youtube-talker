@@ -11,14 +11,17 @@ from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthenticationError
+from app.core.security import hash_password, verify_password
 from app.db.session import get_db
 from app.db.models import User
+from app.db.repositories.user_repo import UserRepository
 from app.dependencies import get_current_user
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
     TokenResponse,
     UserResponse,
+    ChangePasswordRequest,
 )
 from app.services.auth_service import AuthService
 
@@ -169,3 +172,52 @@ async def get_current_user_info(
         >>> Response: {"id": "...", "email": "user@example.com", "created_at": "..."}
     """
     return UserResponse.model_validate(user)
+
+
+@router.post("/change-password", status_code=200)
+@limiter.limit("5/minute")
+async def change_password(
+    request: Request,
+    body: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Change authenticated user's password.
+
+    Requires old password verification for security.
+    Rate limit: 5 requests per minute per IP.
+
+    Args:
+        request: FastAPI request (for rate limiting)
+        body: Password change data (old_password, new_password)
+        user: Current authenticated user (from dependency)
+        db: Database session
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException(401): Invalid old password or missing auth token
+        HTTPException(422): New password too short (min 8 chars)
+        HTTPException(429): Rate limit exceeded
+
+    Example:
+        >>> POST /api/auth/change-password
+        >>> Headers: {"Authorization": "Bearer <token>"}
+        >>> {"old_password": "oldpass123", "new_password": "newpass123"}
+        >>> Response: {"message": "Password changed successfully"}
+    """
+    # Verify old password
+    if not verify_password(body.old_password, user.password_hash):
+        raise AuthenticationError("Invalid current password")
+
+    # Hash new password
+    new_password_hash = hash_password(body.new_password)
+
+    # Update password in database
+    repo = UserRepository(db)
+    await repo.update_password(user.id, new_password_hash)
+    await db.commit()
+
+    return {"message": "Password changed successfully"}

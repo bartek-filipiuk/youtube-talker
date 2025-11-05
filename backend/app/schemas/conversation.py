@@ -47,13 +47,15 @@ class MessageResponse(BaseModel):
     """
     Response schema for message data.
 
-    Used within conversation detail views.
+    Used within conversation detail views (both personal and channel conversations).
+    Messages belong to either conversation_id OR channel_conversation_id (exactly one must be set).
     """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(description="Message UUID")
-    conversation_id: UUID = Field(description="Parent conversation UUID")
+    conversation_id: Optional[UUID] = Field(None, description="Parent conversation UUID (personal conversations)")
+    channel_conversation_id: Optional[UUID] = Field(None, description="Parent channel conversation UUID (channel conversations)")
     role: str = Field(description="Message role: 'user' or 'assistant'")
     content: str = Field(description="Message content")
     meta_data: dict = Field(default_factory=dict, description="Optional metadata (intent, sources, etc.)")

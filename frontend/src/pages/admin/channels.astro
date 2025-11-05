@@ -1,0 +1,211 @@
+---
+/**
+ * Channels List Page
+ *
+ * Displays all channels in a table with:
+ * - Channel info (name, title, status)
+ * - Video count
+ * - Action buttons (Edit, Videos, Delete)
+ */
+
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../lib/admin-auth';
+import { listChannels, type Channel } from '../../lib/admin-api';
+
+// Auth check
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+// Fetch channels
+let channels: Channel[] = [];
+let error: string | null = null;
+
+try {
+  channels = await listChannels(auth.token);
+} catch (err) {
+  console.error('Failed to fetch channels:', err);
+  error = 'Failed to load channels. Please try again.';
+}
+---
+
+<AdminLayout title="Channels" auth={auth}>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Channels</h1>
+        <p class="text-gray-600 mt-1">Manage all channels and their videos</p>
+      </div>
+      <a
+        href="/admin/channels/new"
+        class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition"
+      >
+        ➕ Create New Channel
+      </a>
+    </div>
+
+    <!-- Error Message -->
+    {error && (
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+        {error}
+      </div>
+    )}
+
+    <!-- Channels Table -->
+    {channels.length === 0 && !error ? (
+      <div class="bg-white rounded-lg shadow p-12 text-center">
+        <div class="text-6xl mb-4">📺</div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">No channels yet</h3>
+        <p class="text-gray-600 mb-6">Create your first channel to get started.</p>
+        <a
+          href="/admin/channels/new"
+          class="inline-block px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition"
+        >
+          Create New Channel
+        </a>
+      </div>
+    ) : (
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Channel
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Videos
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Created
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {channels.map((channel) => (
+              <tr class="hover:bg-gray-50">
+                <!-- Channel Name & Title -->
+                <td class="px-6 py-4">
+                  <div class="flex flex-col">
+                    <div class="text-sm font-semibold text-gray-900">
+                      {channel.display_title}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                      {channel.name}
+                    </div>
+                    {channel.description && (
+                      <div class="text-xs text-gray-400 mt-1 max-w-md truncate">
+                        {channel.description}
+                      </div>
+                    )}
+                  </div>
+                </td>
+
+                <!-- Status Badge -->
+                <td class="px-6 py-4 whitespace-nowrap">
+                  {channel.is_active ? (
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      ✅ Active
+                    </span>
+                  ) : (
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      ❌ Inactive
+                    </span>
+                  )}
+                </td>
+
+                <!-- Video Count -->
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {channel.video_count || 0} videos
+                </td>
+
+                <!-- Created Date -->
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(channel.created_at).toLocaleDateString()}
+                </td>
+
+                <!-- Actions -->
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <a
+                    href={`/admin/channels/${channel.id}/videos`}
+                    class="inline-block px-3 py-1 text-blue-600 hover:text-blue-900 border border-blue-600 rounded hover:bg-blue-50 transition"
+                  >
+                    Videos
+                  </a>
+                  <a
+                    href={`/admin/channels/${channel.id}/edit`}
+                    class="inline-block px-3 py-1 text-gray-600 hover:text-gray-900 border border-gray-600 rounded hover:bg-gray-50 transition"
+                  >
+                    Edit
+                  </a>
+                  <button
+                    data-channel-id={channel.id}
+                    data-channel-name={channel.display_title}
+                    class="delete-btn inline-block px-3 py-1 text-red-600 hover:text-red-900 border border-red-600 rounded hover:bg-red-50 transition"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+
+  <!-- Delete Confirmation Script -->
+  <script type="module">
+    import { deleteChannel } from '../../lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '../../lib/admin-auth';
+
+    // Get auth token from localStorage (fallback if cookie not accessible)
+    const token = getClientToken();
+
+    // Attach delete handlers to all delete buttons
+    document.querySelectorAll('.delete-btn').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const button = e.currentTarget as HTMLButtonElement;
+        const channelId = button.dataset.channelId;
+        const channelName = button.dataset.channelName;
+
+        if (!channelId || !token) return;
+
+        // Confirm deletion
+        const confirmed = await showConfirm(
+          `Are you sure you want to delete channel "${channelName}"?\n\n` +
+          `This will:\n` +
+          `• Mark the channel as inactive\n` +
+          `• Block new messages to the channel\n` +
+          `• Keep all videos and data for recovery\n\n` +
+          `This action can be reversed by reactivating the channel.`,
+          'Delete Channel',
+          'Delete',
+          'Cancel'
+        );
+
+        if (!confirmed) return;
+
+        // Delete channel
+        button.disabled = true;
+        button.textContent = 'Deleting...';
+
+        try {
+          await deleteChannel(token, channelId);
+          showToast('Channel deleted successfully! Refreshing...', 'success');
+          setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+          console.error('Delete failed:', error);
+          showToast(`Failed to delete channel: ${error}`, 'error', 5000);
+          button.disabled = false;
+          button.textContent = 'Delete';
+        }
+      });
+    });
+  </script>
+</AdminLayout>

@@ -35,7 +35,87 @@ from app.services.auth_service import AuthService
 from app.services.config_service import ConfigService
 from app.rag.graphs.router import run_graph
 from app.config import settings
+from app.db.repositories.channel_conversation_repo import ChannelConversationRepository
+from app.db.repositories.channel_repo import ChannelRepository
+from app.db.models import ChannelConversation, Channel
+from app.core.errors import (
+    ChannelNotFoundError,
+    ConversationNotFoundError,
+    ConversationAccessDeniedError,
+)
 
+
+async def detect_conversation_type(
+    conversation_id: UUID,
+    user_id: UUID,
+    db: AsyncSession
+) -> tuple[str, Conversation | ChannelConversation, Optional[Channel]]:
+    """
+    Detect if conversation_id is personal or channel conversation.
+
+    Args:
+        conversation_id: UUID of the conversation (personal or channel)
+        user_id: UUID of the current user
+        db: Database session
+
+    Returns:
+        ("personal", conversation_obj, None) for personal conversations
+        ("channel", channel_conversation_obj, channel_obj) for channel conversations
+
+    Raises:
+        ConversationNotFoundError: Conversation doesn't exist
+        ConversationAccessDeniedError: User doesn't own conversation
+        ChannelNotFoundError: Channel was soft-deleted
+
+    Example:
+        conv_type, conversation, channel = await detect_conversation_type(
+            conversation_id=uuid_obj,
+            user_id=current_user.id,
+            db=db
+        )
+        if conv_type == "channel":
+            # Use channel.qdrant_collection_name
+    """
+    from app.core.errors import ConversationNotFoundError, ConversationAccessDeniedError
+
+    # Try personal conversation first (most common case)
+    conversation_repo = ConversationRepository(db)
+    personal_conv = await conversation_repo.get_by_id(conversation_id)
+
+    if personal_conv:
+        # Verify ownership
+        if personal_conv.user_id != user_id:
+            raise ConversationAccessDeniedError(
+                f"User {user_id} does not have access to conversation {conversation_id}"
+            )
+        return ("personal", personal_conv, None)
+
+    # Try channel conversation
+    channel_conv_repo = ChannelConversationRepository(db)
+    channel_conv = await channel_conv_repo.get_by_id(conversation_id)
+
+    if channel_conv:
+        # Verify ownership
+        if channel_conv.user_id != user_id:
+            raise ConversationAccessDeniedError(
+                f"User {user_id} does not have access to channel conversation {conversation_id}"
+            )
+
+        # Fetch channel and verify not deleted (is_active=True)
+        channel_repo = ChannelRepository(db)
+        channel = await channel_repo.get_by_id(channel_conv.channel_id)
+
+        if not channel or not channel.is_active:
+            raise ChannelNotFoundError(
+                f"Channel {channel_conv.channel_id} is no longer available"
+            )
+
+        return ("channel", channel_conv, channel)
+
+    # Not found in either table
+    raise ConversationNotFoundError(
+        f"Conversation {conversation_id} not found"
+    )
 
 
 async def websocket_endpoint(
@@ -147,46 +227,46 @@ async def websocket_endpoint(
                     continue
 
                 # Step 2: Handle conversation (auto-create or verify ownership)
-                conversation_repo = ConversationRepository(db)
                 message_repo = MessageRepository(db)
 
-                conversation: Optional[Conversation] = None
+                conversation: Optional[Conversation | ChannelConversation] = None
                 conversation_id_str = message.conversation_id
+                channel: Optional[Channel] = None
+                state_extras = {}  # Extra state fields for channel conversations
 
                 if conversation_id_str == "new" or not conversation_id_str:
-                    # Auto-create new conversation
+                    # Auto-create new personal conversation
+                    # Note: Channel conversations must already exist (created via REST API)
                     # Note: Repository already flushes and refreshes, so conversation.id is available
                     # We defer commit until after RAG succeeds to ensure all-or-nothing persistence
+                    conversation_repo = ConversationRepository(db)
                     conversation = await conversation_repo.create(
                         user_id=current_user.id,
                         title=f"Chat {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
                     )
-                    logger.info(f"Created new conversation {conversation.id} for user {current_user.id}")
+                    logger.info(f"Created new personal conversation {conversation.id} for user {current_user.id}")
                 else:
-                    # Verify user owns conversation
+                    # Detect conversation type (personal or channel) and verify ownership
                     try:
                         conversation_uuid = UUID(conversation_id_str)
-                        conversation = await conversation_repo.get_by_id(conversation_uuid)
+                        conv_type, conversation, channel = await detect_conversation_type(
+                            conversation_id=conversation_uuid,
+                            user_id=current_user.id,
+                            db=db
+                        )
 
-                        if not conversation:
-                            await connection_manager.send_json(
-                                websocket,
-                                ErrorMessage(
-                                    message="Conversation not found.",
-                                    code="NOT_FOUND"
-                                ).model_dump()
+                        # If channel conversation, add channel info to state
+                        if conv_type == "channel" and channel:
+                            state_extras["channel_id"] = str(channel.id)
+                            state_extras["collection_name"] = channel.qdrant_collection_name
+                            logger.info(
+                                f"User {current_user.id} chatting with channel {channel.name} "
+                                f"(conversation {conversation.id})"
                             )
-                            continue
-
-                        if conversation.user_id != current_user.id:
-                            await connection_manager.send_json(
-                                websocket,
-                                ErrorMessage(
-                                    message="Access denied to this conversation.",
-                                    code="FORBIDDEN"
-                                ).model_dump()
+                        else:
+                            logger.info(
+                                f"User {current_user.id} using personal conversation {conversation.id}"
                             )
-                            continue
 
                     except ValueError:
                         await connection_manager.send_json(
@@ -196,6 +276,18 @@ async def websocket_endpoint(
                                 code="VALIDATION_ERROR"
                             ).model_dump()
                         )
+                        continue
+                    except (ConversationNotFoundError, ConversationAccessDeniedError, ChannelNotFoundError) as e:
+                        # All three errors map to appropriate HTTP-like status codes
+                        error_code = "NOT_FOUND" if isinstance(e, (ConversationNotFoundError, ChannelNotFoundError)) else "FORBIDDEN"
+                        await connection_manager.send_json(
+                            websocket,
+                            ErrorMessage(
+                                message=str(e),
+                                code=error_code
+                            ).model_dump()
+                        )
+                        logger.warning(f"Conversation access error for user {current_user.id}: {e}")
                         continue
 
                 # Step 2b: Check if this is a confirmation response (yes/no)
@@ -218,12 +310,21 @@ async def websocket_endpoint(
 
                     if is_confirmation:
                         # Save user's confirmation message FIRST (before triggering background task)
-                        await message_repo.create(
-                            conversation_id=conversation.id,
-                            role="user",
-                            content=message.content,
-                            meta_data={"intent": "video_load_confirmation"}
-                        )
+                        # Note: Confirmation is only for personal conversations (channels block video_load)
+                        if isinstance(conversation, ChannelConversation):
+                            await message_repo.create(
+                                channel_conversation_id=conversation.id,
+                                role="user",
+                                content=message.content,
+                                meta_data={"intent": "video_load_confirmation"}
+                            )
+                        else:
+                            await message_repo.create(
+                                conversation_id=conversation.id,
+                                role="user",
+                                content=message.content,
+                                meta_data={"intent": "video_load_confirmation"}
+                            )
 
                         # Commit BEFORE triggering background task
                         conversation.updated_at = datetime.now(timezone.utc)
@@ -246,6 +347,7 @@ async def websocket_endpoint(
                 rag_config = {
                     "top_k": await config_service.get_config("rag.top_k", default=settings.RAG_TOP_K),
                     "context_messages": await config_service.get_config("rag.context_messages", default=settings.RAG_CONTEXT_MESSAGES),
+                    **state_extras  # Add channel_id + collection_name if channel conversation
                 }
 
                 # Step 4: Send status update - classifying
@@ -259,10 +361,16 @@ async def websocket_endpoint(
 
                 # Step 5: Fetch conversation history (last N messages from config)
                 # Returns list of dicts: [{"role": str, "content": str}, ...]
-                conversation_history = await message_repo.get_last_n(
-                    conversation.id,
-                    n=rag_config["context_messages"]
-                )
+                if isinstance(conversation, ChannelConversation):
+                    conversation_history = await message_repo.get_last_n(
+                        n=rag_config["context_messages"],
+                        channel_conversation_id=conversation.id
+                    )
+                else:
+                    conversation_history = await message_repo.get_last_n(
+                        n=rag_config["context_messages"],
+                        conversation_id=conversation.id
+                    )
 
                 # Step 6: Send status update - retrieving
                 await connection_manager.send_json(
@@ -283,7 +391,37 @@ async def websocket_endpoint(
 
                 # Step 7a: Check if response requires WebSocket handling (video_load)
                 if result.get("metadata", {}).get("requires_websocket_handling"):
-                    # This is a video load request - extract URL and handle it
+                    # Block video_load for channel conversations (admin-only feature)
+                    if state_extras.get("channel_id"):
+                        # Save user's blocked video load attempt
+                        if isinstance(conversation, ChannelConversation):
+                            await message_repo.create(
+                                channel_conversation_id=conversation.id,
+                                role="user",
+                                content=message.content,
+                                meta_data={"intent": "video_load_blocked"}
+                            )
+
+                        await connection_manager.send_json(
+                            websocket,
+                            ErrorMessage(
+                                message="Videos can only be added to channels by administrators. "
+                                        "Please contact an admin to add this video to the channel.",
+                                code="CHANNEL_VIDEO_ADMIN_ONLY"
+                            ).model_dump()
+                        )
+
+                        conversation.updated_at = datetime.now(timezone.utc)
+                        await db.commit()
+
+                        logger.info(
+                            f"Blocked video_load for channel conversation {conversation.id} "
+                            f"(user {current_user.id})"
+                        )
+                        continue  # Skip video load handler
+
+                    # Personal conversation - allow video loading
+                    # Extract URL and handle it
                     youtube_url = message.content
                     # Extract full URL if it's embedded in text
                     for word in message.content.split():
@@ -339,21 +477,35 @@ async def websocket_endpoint(
                 )
 
                 # Step 10: Save messages to database
-                # Save user message
-                await message_repo.create(
-                    conversation_id=conversation.id,
-                    role="user",
-                    content=message.content,
-                    meta_data={}
-                )
-
-                # Save assistant message
-                await message_repo.create(
-                    conversation_id=conversation.id,
-                    role="assistant",
-                    content=result.get("response", ""),
-                    meta_data=response_metadata
-                )
+                # Save user and assistant messages (support both personal and channel conversations)
+                if isinstance(conversation, ChannelConversation):
+                    # Channel conversation
+                    await message_repo.create(
+                        channel_conversation_id=conversation.id,
+                        role="user",
+                        content=message.content,
+                        meta_data={}
+                    )
+                    await message_repo.create(
+                        channel_conversation_id=conversation.id,
+                        role="assistant",
+                        content=result.get("response", ""),
+                        meta_data=response_metadata
+                    )
+                else:
+                    # Personal conversation
+                    await message_repo.create(
+                        conversation_id=conversation.id,
+                        role="user",
+                        content=message.content,
+                        meta_data={}
+                    )
+                    await message_repo.create(
+                        conversation_id=conversation.id,
+                        role="assistant",
+                        content=result.get("response", ""),
+                        meta_data=response_metadata
+                    )
 
                 # Update conversation timestamp
                 conversation.updated_at = datetime.now(timezone.utc)

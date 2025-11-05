@@ -30,12 +30,20 @@ const activeConversationId = urlParams.get('id');
           <h1 class="text-2xl font-bold text-gray-900">YoutubeTalker</h1>
           <p class="text-sm text-gray-600">Chat with your YouTube videos</p>
         </div>
-        <a
-          href="/logout"
-          class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
-        >
-          Logout
-        </a>
+        <div class="flex items-center gap-2">
+          <a
+            href="/channels"
+            class="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition font-medium"
+          >
+            Browse Channels
+          </a>
+          <a
+            href="/logout"
+            class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+          >
+            Logout
+          </a>
+        </div>
       </header>
 
       <!-- Messages Container -->
@@ -72,7 +80,7 @@ const activeConversationId = urlParams.get('id');
 </Layout>
 
 <script>
-  import { requireAuth } from '../lib/auth';
+  import { requireAuth, showToast } from '../lib/auth';
   import { WebSocketClient } from '../lib/websocket';
   import { getConversation, createConversation } from '../lib/api';
   import { $messages, $isTyping, addMessage, startStreaming, appendToStream, finalizeStreaming, setMessages } from '../stores/chat';
@@ -298,7 +306,7 @@ const activeConversationId = urlParams.get('id');
     } else if (data.type === 'error') {
       // Hide typing indicator on error
       typingIndicator.classList.add('hidden');
-      alert('Error: ' + (data.message || 'Unknown error'));
+      showToast('Error: ' + (data.message || 'Unknown error'), 'error', 5000);
       finalizeStreaming();
       chatInput.enable();
     }

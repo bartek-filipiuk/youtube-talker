@@ -1,0 +1,317 @@
+---
+/**
+ * Channel Videos Management Page
+ *
+ * Manage videos for a specific channel:
+ * - List all videos with status
+ * - Add new video by YouTube URL
+ * - Remove videos from channel
+ */
+
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../../lib/admin-auth';
+import { getChannel, listChannelVideos, type Channel, type ChannelVideo } from '../../../../lib/admin-api';
+
+// Auth check
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+// Get channel ID from URL
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/admin/channels');
+}
+
+// Fetch channel data
+let channel: Channel | null = null;
+let videos: ChannelVideo[] = [];
+let error: string | null = null;
+
+try {
+  channel = await getChannel(auth.token, id);
+  videos = await listChannelVideos(auth.token, id);
+} catch (err) {
+  console.error('Failed to fetch channel data:', err);
+  error = 'Failed to load channel data. Please try again.';
+}
+
+// If channel not found, redirect back
+if (!channel) {
+  return Astro.redirect('/admin/channels?error=channel_not_found');
+}
+---
+
+<AdminLayout title={`Videos - ${channel.display_title}`} auth={auth}>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">
+          {channel.display_title}
+        </h1>
+        <p class="text-gray-600 mt-1">
+          Manage videos for this channel
+        </p>
+      </div>
+      <a
+        href={`/admin/channels/${channel.id}/edit`}
+        class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-md hover:bg-gray-300 transition"
+      >
+        Edit Channel
+      </a>
+    </div>
+
+    <!-- Back Link -->
+    <a
+      href="/admin/channels"
+      class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900"
+    >
+      ← Back to Channels
+    </a>
+
+    <!-- Add Video Form -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Add New Video</h2>
+
+      <form id="add-video-form" class="space-y-4">
+        <input type="hidden" name="channel_id" value={channel.id} />
+
+        <div class="flex space-x-3">
+          <div class="flex-1">
+            <input
+              type="url"
+              id="youtube_url"
+              name="youtube_url"
+              required
+              placeholder="https://www.youtube.com/watch?v=..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Enter a YouTube video URL to add it to this channel.
+            </p>
+          </div>
+          <button
+            type="submit"
+            id="add-video-btn"
+            class="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            Add Video
+          </button>
+        </div>
+
+        <!-- Add Video Error -->
+        <div id="add-video-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm"></div>
+
+        <!-- Add Video Success -->
+        <div id="add-video-success" class="hidden bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm"></div>
+      </form>
+    </div>
+
+    <!-- Error Message -->
+    {error && (
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+        {error}
+      </div>
+    )}
+
+    <!-- Videos List -->
+    {videos.length === 0 && !error ? (
+      <div class="bg-white rounded-lg shadow p-12 text-center">
+        <div class="text-6xl mb-4">🎬</div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">No videos yet</h3>
+        <p class="text-gray-600">Add your first video using the form above.</p>
+      </div>
+    ) : (
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-semibold text-gray-900">
+            Videos ({videos.length})
+          </h2>
+        </div>
+
+        <div class="divide-y divide-gray-200">
+          {videos.map((video) => (
+            <div class="px-6 py-4 hover:bg-gray-50">
+              <div class="flex items-start justify-between">
+                <!-- Video Info -->
+                <div class="flex-1">
+                  <h3 class="text-sm font-semibold text-gray-900 mb-1">
+                    {video.title}
+                  </h3>
+                  <div class="flex items-center space-x-4 text-xs text-gray-500">
+                    <span>ID: {video.youtube_video_id}</span>
+                    {video.total_chunks !== undefined && (
+                      <span>{video.total_chunks} chunks</span>
+                    )}
+                    <span>Added: {new Date(video.added_at).toLocaleDateString()}</span>
+                  </div>
+
+                  <!-- Processing Status Badge -->
+                  <div class="mt-2">
+                    {video.processing_status === 'completed' && (
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ✅ Completed
+                      </span>
+                    )}
+                    {video.processing_status === 'processing' && (
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        ⏳ Processing
+                      </span>
+                    )}
+                    {video.processing_status === 'failed' && (
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        ❌ Failed
+                      </span>
+                    )}
+                    {video.processing_status === 'pending' && (
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        ⏱️ Pending
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="ml-4">
+                  <button
+                    data-video-id={video.id}
+                    data-video-title={video.title}
+                    data-channel-id={channel.id}
+                    class="remove-video-btn px-3 py-1 text-sm text-red-600 hover:text-red-900 border border-red-600 rounded hover:bg-red-50 transition"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Info Box -->
+    <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+      <h3 class="text-sm font-semibold text-blue-900 mb-2">📌 Video Processing</h3>
+      <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
+        <li>Videos are processed asynchronously after being added</li>
+        <li>Transcripts are fetched and chunked for semantic search</li>
+        <li>Processing typically takes 1-5 minutes per video</li>
+        <li>Refresh this page to see updated processing status</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    import { addVideoToChannel, removeVideoFromChannel } from '../../../../lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '../../../../lib/admin-auth';
+
+    // Get authentication token
+    const token = getClientToken();
+
+    // =========================================================================
+    // Add Video Form Handler
+    // =========================================================================
+
+    const addVideoForm = document.getElementById('add-video-form') as HTMLFormElement;
+    const addVideoBtn = document.getElementById('add-video-btn') as HTMLButtonElement;
+    const addVideoError = document.getElementById('add-video-error') as HTMLDivElement;
+    const addVideoSuccess = document.getElementById('add-video-success') as HTMLDivElement;
+
+    if (!token) {
+      addVideoError.textContent = 'Authentication required. Please log in again.';
+      addVideoError.classList.remove('hidden');
+      addVideoBtn.disabled = true;
+    }
+
+    addVideoForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!token) return;
+
+      const formData = new FormData(addVideoForm);
+      const channelId = formData.get('channel_id') as string;
+      const youtube_url = (formData.get('youtube_url') as string).trim();
+
+      // Hide messages
+      addVideoError.classList.add('hidden');
+      addVideoSuccess.classList.add('hidden');
+
+      // Disable button
+      addVideoBtn.disabled = true;
+      addVideoBtn.textContent = 'Adding...';
+
+      try {
+        await addVideoToChannel(token, channelId, { youtube_url });
+
+        // Success
+        addVideoSuccess.textContent = 'Video added successfully! Processing will begin shortly.';
+        addVideoSuccess.classList.remove('hidden');
+
+        // Reset form
+        addVideoForm.reset();
+
+        // Reload page after 2 seconds to show new video
+        // Use explicit URL to ensure we stay on admin video management page
+        setTimeout(() => {
+          window.location.href = window.location.pathname;
+        }, 2000);
+
+      } catch (error) {
+        console.error('Failed to add video:', error);
+        addVideoError.textContent = `Failed to add video: ${error}`;
+        addVideoError.classList.remove('hidden');
+
+        // Re-enable button
+        addVideoBtn.disabled = false;
+        addVideoBtn.textContent = 'Add Video';
+      }
+    });
+
+    // =========================================================================
+    // Remove Video Handlers
+    // =========================================================================
+
+    document.querySelectorAll('.remove-video-btn').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const button = e.target as HTMLButtonElement;
+        const videoId = button.dataset.videoId;
+        const videoTitle = button.dataset.videoTitle;
+        const channelId = button.dataset.channelId;
+
+        if (!videoId || !channelId || !token) return;
+
+        // Confirm removal
+        const confirmed = await showConfirm(
+          `Are you sure you want to remove this video?\n\n` +
+          `"${videoTitle}"\n\n` +
+          `This will:\n` +
+          `• Remove the video from the channel\n` +
+          `• Delete all associated chunks from Qdrant\n` +
+          `• This action cannot be undone`,
+          'Remove Video',
+          'Remove',
+          'Cancel'
+        );
+
+        if (!confirmed) return;
+
+        // Remove video
+        button.disabled = true;
+        button.textContent = 'Removing...';
+
+        try {
+          await removeVideoFromChannel(token, channelId, videoId);
+          showToast('Video removed successfully! Refreshing...', 'success');
+          setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+          console.error('Remove failed:', error);
+          showToast(`Failed to remove video: ${error}`, 'error', 5000);
+          button.disabled = false;
+          button.textContent = 'Remove';
+        }
+      });
+    });
+  </script>
+</AdminLayout>

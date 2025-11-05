@@ -69,17 +69,35 @@ async def retrieve_chunks(state: GraphState) -> GraphState:
     query_vector = embeddings[0]  # Extract single embedding (1536-dim)
     logger.debug(f"Generated query embedding (dim={len(query_vector)})")
 
-    # Step 2: Search Qdrant (user_id filtered)
+    # Step 2: Search Qdrant (user_id or channel_id filtered)
     # Load top_k from config (loaded from database via ConfigService), fallback to 12
     config = state.get("config", {})
     top_k = config.get("top_k", 12)
 
+    # Check if this is a channel conversation
+    channel_id = state.get("channel_id")
+    collection_name = state.get("collection_name")
+
     qdrant_service = QdrantService()
-    qdrant_results = await qdrant_service.search(
-        query_vector=query_vector,
-        user_id=user_id,
-        top_k=top_k,
-    )
+
+    if channel_id and collection_name:
+        # Channel conversation - search channel collection
+        logger.info(f"Searching channel collection: {collection_name} (channel_id={channel_id})")
+        qdrant_results = await qdrant_service.search(
+            query_vector=query_vector,
+            user_id=user_id,  # Still pass for logging purposes
+            channel_id=channel_id,
+            collection_name=collection_name,
+            top_k=top_k,
+        )
+    else:
+        # Personal conversation - search user collection
+        qdrant_results = await qdrant_service.search(
+            query_vector=query_vector,
+            user_id=user_id,
+            top_k=top_k,
+        )
+
     logger.info(f"Qdrant returned {len(qdrant_results)} chunks (top_k={top_k})")
 
     # Step 3: Format results (chunk_text already in Qdrant payload - no PostgreSQL fetch!)
