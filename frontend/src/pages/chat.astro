@@ -155,14 +155,15 @@ const activeConversationId = urlParams.get('id');
   });
 
   // Subscribe to typing indicator
-  $isTyping.subscribe((isTyping) => {
-    if (isTyping) {
-      statusQueue.add('typing', 'AI is typing...');
-    } else {
-      statusQueue.remove('typing');
-    }
-    scrollToBottom();
-  });
+  // DISABLED: Backend status messages (like "Searching...") are more informative
+  // $isTyping.subscribe((isTyping) => {
+  //   if (isTyping) {
+  //     statusQueue.add('typing', 'AI is typing...');
+  //   } else {
+  //     statusQueue.remove('typing');
+  //   }
+  //   scrollToBottom();
+  // });
 
   // Render messages
   function renderMessages(messages: any[]) {

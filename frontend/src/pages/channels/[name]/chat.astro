@@ -416,7 +416,8 @@ if (!name) {
       chatInputTextarea.value = '';
 
       // Show typing status in queue
-      statusQueue.add('typing', 'AI is typing...');
+      // DISABLED: Backend status messages (like "Searching...") are more informative
+      // statusQueue.add('typing', 'AI is typing...');
 
       // Send via WebSocket
       ws.sendMessage(message, conversationId);
