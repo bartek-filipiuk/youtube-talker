@@ -221,7 +221,7 @@ class QdrantService:
         # Build payload based on collection type
         points = []
         for chunk_id, vector, chunk_index, chunk_text in zip(
-            chunk_ids, vectors, chunk_indices, chunk_texts
+            chunk_ids, vectors, chunk_indices, chunk_texts, strict=True
         ):
             payload = {
                 "chunk_id": chunk_id,

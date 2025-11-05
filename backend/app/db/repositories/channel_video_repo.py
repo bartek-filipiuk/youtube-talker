@@ -4,7 +4,7 @@ Channel Video Repository
 Database operations for ChannelVideo model (video-channel associations).
 """
 
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
@@ -149,6 +149,38 @@ class ChannelVideoRepository(BaseRepository[ChannelVideo]):
             .where(ChannelVideo.channel_id == channel_id)
         )
         return result.scalar_one()
+
+    async def count_by_channels_batch(self, channel_ids: List[UUID]) -> Dict[UUID, int]:
+        """
+        Count videos for multiple channels in a single query (performance optimization).
+
+        Args:
+            channel_ids: List of channel UUIDs
+
+        Returns:
+            Dictionary mapping channel_id to video count (channels with 0 videos not included)
+
+        Example:
+            >>> counts = await repo.count_by_channels_batch([uuid1, uuid2, uuid3])
+            >>> # {uuid1: 5, uuid2: 0, uuid3: 12}
+        """
+        if not channel_ids:
+            return {}
+
+        result = await self.session.execute(
+            select(
+                ChannelVideo.channel_id,
+                func.count(ChannelVideo.id).label("count")
+            )
+            .where(ChannelVideo.channel_id.in_(channel_ids))
+            .group_by(ChannelVideo.channel_id)
+        )
+
+        # Convert to dict, defaulting to 0 for channels not in result
+        counts = {row.channel_id: row.count for row in result}
+
+        # Ensure all requested channels are in the result (even if 0 videos)
+        return {channel_id: counts.get(channel_id, 0) for channel_id in channel_ids}
 
     async def video_exists(
         self,

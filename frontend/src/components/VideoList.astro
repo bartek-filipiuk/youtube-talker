@@ -40,7 +40,7 @@
 </div>
 
 <script>
-  import { requireAuth } from '../lib/auth';
+  import { requireAuth, showToast, showConfirm } from '../lib/auth';
   import { getVideos, deleteTranscript } from '../lib/api';
   import { $videoList, setVideos, setLoading, setError, removeVideo, nextPage, prevPage } from '../stores/videos';
 
@@ -151,14 +151,18 @@
     if (!videoId) return;
 
     // Confirmation dialog
-    const confirmed = confirm(
-      `Delete video "${title}"?\n\nThis will delete the transcript but keep your chat conversations.`
+    const confirmed = await showConfirm(
+      `Delete video "${title}"?\n\nThis will delete the transcript but keep your chat conversations.`,
+      'Delete Video',
+      'Delete',
+      'Cancel'
     );
     if (!confirmed) return;
 
     try {
       await deleteTranscript(token, videoId);
       removeVideo(videoId);
+      showToast('Video deleted successfully', 'success');
 
       // Reload if page is now empty and not first page
       const state = $videoList.get();
@@ -167,7 +171,7 @@
         await loadVideos();
       }
     } catch (error: any) {
-      alert('Failed to delete video: ' + error.message);
+      showToast('Failed to delete video: ' + error.message, 'error', 5000);
     }
   }
 

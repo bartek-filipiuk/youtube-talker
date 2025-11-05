@@ -80,7 +80,7 @@ const activeConversationId = urlParams.get('id');
 </Layout>
 
 <script>
-  import { requireAuth } from '../lib/auth';
+  import { requireAuth, showToast } from '../lib/auth';
   import { WebSocketClient } from '../lib/websocket';
   import { getConversation, createConversation } from '../lib/api';
   import { $messages, $isTyping, addMessage, startStreaming, appendToStream, finalizeStreaming, setMessages } from '../stores/chat';
@@ -306,7 +306,7 @@ const activeConversationId = urlParams.get('id');
     } else if (data.type === 'error') {
       // Hide typing indicator on error
       typingIndicator.classList.add('hidden');
-      alert('Error: ' + (data.message || 'Unknown error'));
+      showToast('Error: ' + (data.message || 'Unknown error'), 'error', 5000);
       finalizeStreaming();
       chatInput.enable();
     }

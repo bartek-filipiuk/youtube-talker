@@ -76,7 +76,7 @@ async def test_get_last_n_messages(db_session: AsyncSession, test_conversation: 
         )
 
     # Get last 3 (returns List[dict] with {role, content})
-    last_3 = await repo.get_last_n(test_conversation.id, n=3)
+    last_3 = await repo.get_last_n(n=3, conversation_id=test_conversation.id)
 
     assert len(last_3) == 3
     # Verify all returned messages have expected structure

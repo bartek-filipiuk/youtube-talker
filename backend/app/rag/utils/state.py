@@ -19,7 +19,8 @@ class GraphState(TypedDict, total=False):
         config: Runtime configuration values (loaded from database via ConfigService)
         channel_id: Optional channel UUID if this is a channel conversation
         collection_name: Optional Qdrant collection name for channel conversations
-        intent: Classified intent ("chitchat" | "qa" | "linkedin" | "metadata" | "metadata_search")
+        intent: Classified intent from router ("system" | "linkedin" | "content")
+                or internal intent from handlers ("qa" | "chitchat")
         subject: Extracted subject/topic for video filtering (metadata_search flow)
         retrieved_chunks: Raw chunks from Qdrant search (before grading)
         graded_chunks: Filtered chunks after relevance grading

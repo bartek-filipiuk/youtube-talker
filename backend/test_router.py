@@ -16,7 +16,7 @@ async def test_intent(query: str, expected_intent: str = None):
     print(f"\n{'='*80}")
     print(f"Query: {query}")
     print(f"Expected: {expected_intent or 'TBD'}")
-    print(f"-"*80)
+    print("-"*80)
 
     state = GraphState(
         user_query=query,
@@ -139,7 +139,7 @@ async def main():
     print(f"Failed: {failed} ({failed/total*100:.1f}%)")
 
     if failed > 0:
-        print(f"\n❌ FAILED TESTS:")
+        print("\n❌ FAILED TESTS:")
         for r in results:
             if r["pass"] is False:
                 print(f"  - {r['query'][:50]}")

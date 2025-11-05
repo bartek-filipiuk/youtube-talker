@@ -258,6 +258,22 @@ class ChannelService:
         """
         return await self.channel_video_repo.count_by_channel(channel_id)
 
+    async def get_channel_video_counts_batch(self, channel_ids: List[UUID]) -> Dict[UUID, int]:
+        """
+        Get video counts for multiple channels in a single query (performance optimization).
+
+        Args:
+            channel_ids: List of channel UUIDs
+
+        Returns:
+            Dictionary mapping channel_id to video count
+
+        Example:
+            >>> counts = await service.get_channel_video_counts_batch([uuid1, uuid2])
+            >>> # {uuid1: 5, uuid2: 12}
+        """
+        return await self.channel_video_repo.count_by_channels_batch(channel_ids)
+
     async def list_channel_videos(
         self,
         channel_id: UUID,

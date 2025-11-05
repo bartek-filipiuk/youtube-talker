@@ -162,27 +162,31 @@ try {
   <!-- Delete Confirmation Script -->
   <script>
     import { deleteChannel } from '../../lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '../../lib/admin-auth';
 
     // Get auth token from localStorage (fallback if cookie not accessible)
-    const token = localStorage.getItem('token');
+    const token = getClientToken();
 
     // Attach delete handlers to all delete buttons
     document.querySelectorAll('.delete-btn').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
-        const button = e.target as HTMLButtonElement;
+        const button = e.currentTarget as HTMLButtonElement;
         const channelId = button.dataset.channelId;
         const channelName = button.dataset.channelName;
 
         if (!channelId || !token) return;
 
         // Confirm deletion
-        const confirmed = confirm(
+        const confirmed = await showConfirm(
           `Are you sure you want to delete channel "${channelName}"?\n\n` +
           `This will:\n` +
           `• Mark the channel as inactive\n` +
           `• Block new messages to the channel\n` +
           `• Keep all videos and data for recovery\n\n` +
-          `This action can be reversed by reactivating the channel.`
+          `This action can be reversed by reactivating the channel.`,
+          'Delete Channel',
+          'Delete',
+          'Cancel'
         );
 
         if (!confirmed) return;
@@ -193,11 +197,11 @@ try {
 
         try {
           await deleteChannel(token, channelId);
-          alert('Channel deleted successfully!');
-          window.location.reload();
+          showToast('Channel deleted successfully! Refreshing...', 'success');
+          setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
           console.error('Delete failed:', error);
-          alert(`Failed to delete channel: ${error}`);
+          showToast(`Failed to delete channel: ${error}`, 'error', 5000);
           button.disabled = false;
           button.textContent = 'Delete';
         }

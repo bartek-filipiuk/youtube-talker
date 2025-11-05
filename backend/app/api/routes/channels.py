@@ -74,17 +74,19 @@ async def list_channels(
     service = ChannelService(db)
     channels, total = await service.list_public_channels(limit=limit, offset=offset)
 
-    # Enrich with video counts
+    # Enrich with video counts (batch query for performance)
+    channel_ids = [channel.id for channel in channels]
+    video_counts = await service.get_channel_video_counts_batch(channel_ids)
+
     channel_responses: List[ChannelPublicResponse] = []
     for channel in channels:
-        video_count = await service.get_channel_video_count(channel.id)
         channel_responses.append(
             ChannelPublicResponse(
                 id=channel.id,
                 name=channel.name,
                 display_title=channel.display_title,
                 description=channel.description,
-                video_count=video_count,
+                video_count=video_counts.get(channel.id, 0),
                 created_at=channel.created_at,
             )
         )

@@ -205,19 +205,10 @@ if (!channel) {
   <!-- Scripts -->
   <script>
     import { addVideoToChannel, removeVideoFromChannel } from '../../../../lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '../../../../lib/admin-auth';
 
-    // Get token from localStorage or cookie
-    let token = localStorage.getItem('token');
-
-    if (!token) {
-      // Try to get from cookie (SSR auth)
-      const cookieMatch = document.cookie.match(/(?:^|;\s*)token=([^;]+)/);
-      if (cookieMatch) {
-        token = cookieMatch[1];
-        // Store in localStorage for future use
-        localStorage.setItem('token', token);
-      }
-    }
+    // Get authentication token
+    const token = getClientToken();
 
     // =========================================================================
     // Add Video Form Handler
@@ -292,13 +283,16 @@ if (!channel) {
         if (!videoId || !channelId || !token) return;
 
         // Confirm removal
-        const confirmed = confirm(
+        const confirmed = await showConfirm(
           `Are you sure you want to remove this video?\n\n` +
           `"${videoTitle}"\n\n` +
           `This will:\n` +
           `• Remove the video from the channel\n` +
           `• Delete all associated chunks from Qdrant\n` +
-          `• This action cannot be undone`
+          `• This action cannot be undone`,
+          'Remove Video',
+          'Remove',
+          'Cancel'
         );
 
         if (!confirmed) return;
@@ -309,11 +303,11 @@ if (!channel) {
 
         try {
           await removeVideoFromChannel(token, channelId, videoId);
-          alert('Video removed successfully!');
-          window.location.reload();
+          showToast('Video removed successfully! Refreshing...', 'success');
+          setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
           console.error('Remove failed:', error);
-          alert(`Failed to remove video: ${error}`);
+          showToast(`Failed to remove video: ${error}`, 'error', 5000);
           button.disabled = false;
           button.textContent = 'Remove';
         }

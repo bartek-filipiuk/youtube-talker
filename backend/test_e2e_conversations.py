@@ -84,8 +84,6 @@ TEST_CONVERSATIONS = [
 async def get_channel_context():
     """Get test-channel context"""
     async with AsyncSessionLocal() as session:
-        channel_repo = ChannelVideoRepository(session)
-
         # Get test-channel info
         from app.db.repositories.channel_repo import ChannelRepository
         channel_repo_obj = ChannelRepository(session)

@@ -125,13 +125,14 @@ if (auth instanceof Response) return auth;
   <!-- Form Submission Script -->
   <script>
     import { createChannel } from '../../../lib/admin-api';
+    import { getClientToken, showToast } from '../../../lib/admin-auth';
 
     const form = document.getElementById('create-channel-form') as HTMLFormElement;
     const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
     const errorMessage = document.getElementById('error-message') as HTMLDivElement;
 
     // Get auth token
-    const token = localStorage.getItem('token');
+    const token = getClientToken();
 
     if (!token) {
       errorMessage.textContent = 'Authentication required. Please log in again.';
@@ -173,8 +174,10 @@ if (auth instanceof Response) return auth;
         });
 
         // Success - redirect to channels list
-        alert('Channel created successfully!');
-        window.location.href = '/admin/channels';
+        showToast('Channel created successfully! Redirecting...', 'success');
+        setTimeout(() => {
+          window.location.href = '/admin/channels';
+        }, 1500);
       } catch (error) {
         console.error('Failed to create channel:', error);
         errorMessage.textContent = `Failed to create channel: ${error}`;

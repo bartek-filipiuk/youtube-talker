@@ -171,13 +171,14 @@ if (!channel) {
   <!-- Form Submission Script -->
   <script>
     import { updateChannel } from '../../../../lib/admin-api';
+    import { getClientToken, showToast } from '../../../../lib/admin-auth';
 
     const form = document.getElementById('edit-channel-form') as HTMLFormElement;
     const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
     const errorMessage = document.getElementById('error-message') as HTMLDivElement;
 
     // Get auth token
-    const token = localStorage.getItem('token');
+    const token = getClientToken();
 
     if (!token) {
       errorMessage.textContent = 'Authentication required. Please log in again.';
@@ -211,8 +212,10 @@ if (!channel) {
         });
 
         // Success - redirect to channels list
-        alert('Channel updated successfully!');
-        window.location.href = '/admin/channels';
+        showToast('Channel updated successfully! Redirecting...', 'success');
+        setTimeout(() => {
+          window.location.href = '/admin/channels';
+        }, 1500);
       } catch (error) {
         console.error('Failed to update channel:', error);
         errorMessage.textContent = `Failed to update channel: ${error}`;

@@ -148,9 +148,10 @@ const currentUserId = auth.user.id;
   <!-- Delete Confirmation Script -->
   <script>
     import { deleteUser } from '../../lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '../../lib/admin-auth';
 
-    // Get auth token from localStorage
-    const token = localStorage.getItem('token');
+    // Get authentication token
+    const token = getClientToken();
 
     // Attach delete handlers to all delete buttons
     document.querySelectorAll('.delete-btn').forEach((btn) => {
@@ -162,7 +163,7 @@ const currentUserId = auth.user.id;
         if (!userId || !token) return;
 
         // Confirm deletion
-        const confirmed = confirm(
+        const confirmed = await showConfirm(
           `⚠️ WARNING: Permanently delete user "${userEmail}"?\n\n` +
           `This will PERMANENTLY DELETE:\n` +
           `• User account and credentials\n` +
@@ -171,7 +172,10 @@ const currentUserId = auth.user.id;
           `• All conversations and messages\n` +
           `• All channel conversations\n\n` +
           `⚠️ THIS ACTION CANNOT BE UNDONE!\n\n` +
-          `Type "DELETE" in the next prompt to confirm.`
+          `You will need to type "DELETE" in the next prompt to confirm.`,
+          'Delete User',
+          'Continue',
+          'Cancel'
         );
 
         if (!confirmed) return;
@@ -179,7 +183,7 @@ const currentUserId = auth.user.id;
         // Secondary confirmation
         const confirmText = prompt('Type "DELETE" to confirm permanent deletion:');
         if (confirmText !== 'DELETE') {
-          alert('Deletion cancelled. You must type "DELETE" to confirm.');
+          showToast('Deletion cancelled. You must type "DELETE" to confirm.', 'info');
           return;
         }
 
@@ -189,11 +193,11 @@ const currentUserId = auth.user.id;
 
         try {
           await deleteUser(token, userId);
-          alert('User deleted successfully!');
-          window.location.reload();
+          showToast('User deleted successfully! Refreshing...', 'success');
+          setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
           console.error('Delete failed:', error);
-          alert(`Failed to delete user: ${error}`);
+          showToast(`Failed to delete user: ${error}`, 'error', 5000);
           button.disabled = false;
           button.textContent = 'Delete';
         }
