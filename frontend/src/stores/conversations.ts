@@ -97,6 +97,16 @@ export function removeConversationPaginated(id: string) {
   });
 }
 
+export function updateConversationInList(id: string, updates: Partial<Conversation>) {
+  const state = $conversationList.get();
+  $conversationList.set({
+    ...state,
+    conversations: state.conversations.map(c =>
+      c.id === id ? { ...c, ...updates } : c
+    )
+  });
+}
+
 export function nextConversationPage() {
   const state = $conversationList.get();
   const maxPage = Math.ceil(state.total / state.limit) - 1;

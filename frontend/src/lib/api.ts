@@ -227,6 +227,31 @@ export async function getConversationsPaginated(
 }
 
 /**
+ * Update conversation title
+ */
+export async function updateConversationTitle(
+  token: string,
+  id: string,
+  title: string
+): Promise<Conversation> {
+  const response = await fetch(`${API_BASE}/conversations/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to update conversation');
+  }
+
+  return response.json();
+}
+
+/**
  * Delete a conversation
  */
 export async function deleteConversation(token: string, id: string): Promise<void> {

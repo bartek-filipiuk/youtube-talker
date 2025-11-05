@@ -59,7 +59,7 @@ const { activeId } = Astro.props;
 
 <script>
   import { requireAuth, showToast, showConfirm } from '../lib/auth';
-  import { getConversationsPaginated, deleteConversation } from '../lib/api';
+  import { getConversationsPaginated, deleteConversation, updateConversationTitle } from '../lib/api';
   import {
     $conversationList,
     $activeConversationId,
@@ -68,6 +68,7 @@ const { activeId } = Astro.props;
     setConversationsLoading,
     setConversationsError,
     removeConversationPaginated,
+    updateConversationInList,
     nextConversationPage,
     prevConversationPage
   } from '../stores/conversations';
@@ -93,6 +94,10 @@ const { activeId } = Astro.props;
   const urlParams = new URLSearchParams(window.location.search);
   const activeId = urlParams.get('id');
   setActiveConversation(activeId);
+
+  // Edit mode state
+  let editingConversationId: string | null = null;
+  let editingTitle: string = '';
 
   // Load conversations from backend with pagination
   async function loadConversations() {
@@ -127,6 +132,61 @@ const { activeId } = Astro.props;
     return div.innerHTML;
   }
 
+  // Enter edit mode for a conversation
+  function startEditing(convId: string, currentTitle: string) {
+    editingConversationId = convId;
+    editingTitle = currentTitle;
+    renderConversations();
+
+    // Focus the input field
+    setTimeout(() => {
+      const input = document.querySelector(`[data-edit-input="${convId}"]`) as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 10);
+  }
+
+  // Cancel edit mode
+  function cancelEditing() {
+    editingConversationId = null;
+    editingTitle = '';
+    renderConversations();
+  }
+
+  // Save edited title
+  async function saveEditedTitle(convId: string, newTitle: string) {
+    const trimmed = newTitle.trim();
+
+    // Validate title (1-100 chars as per backend schema)
+    if (!trimmed || trimmed.length === 0) {
+      showToast('Title cannot be empty', 'error');
+      return;
+    }
+
+    if (trimmed.length > 100) {
+      showToast('Title must be 100 characters or less', 'error');
+      return;
+    }
+
+    try {
+      // Update backend
+      await updateConversationTitle(token, convId, trimmed);
+
+      // Update local state
+      updateConversationInList(convId, { title: trimmed });
+
+      // Exit edit mode
+      editingConversationId = null;
+      editingTitle = '';
+
+      showToast('Title updated successfully', 'success');
+    } catch (error: any) {
+      showToast('Failed to update title: ' + error.message, 'error', 5000);
+    }
+  }
+
   // Render conversations list with pagination
   function renderConversations() {
     const state = $conversationList.get();
@@ -148,6 +208,7 @@ const { activeId } = Astro.props;
     conversationsList.innerHTML = state.conversations
       .map((conv) => {
         const isActive = conv.id === activeConvId;
+        const isEditing = editingConversationId === conv.id;
         const title = escapeHtml(conv.title || 'New conversation');
         const createdDate = new Date(conv.created_at).toLocaleDateString('en-US', {
           month: 'short',
@@ -156,7 +217,7 @@ const { activeId } = Astro.props;
 
         return `
           <div
-            class="group conversation-item mb-1.5 p-2 rounded-lg cursor-pointer transition ${
+            class="group conversation-item mb-1.5 p-2 rounded-lg transition ${
               isActive
                 ? 'bg-blue-100 border border-blue-300'
                 : 'bg-white border border-gray-200 hover:bg-gray-100'
@@ -164,8 +225,18 @@ const { activeId } = Astro.props;
             data-id="${conv.id}"
           >
             <div class="flex items-start justify-between">
-              <div class="flex-1 min-w-0 pr-2" data-conv-link="${conv.id}">
-                <h3 class="text-sm font-medium text-gray-900 truncate">${title}</h3>
+              <div class="flex-1 min-w-0 pr-2 ${isEditing ? '' : 'cursor-pointer'}" ${isEditing ? '' : `data-conv-link="${conv.id}"`}>
+                ${
+                  isEditing
+                    ? `<input
+                        type="text"
+                        class="w-full px-2 py-1 text-sm font-medium text-gray-900 border border-blue-400 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        data-edit-input="${conv.id}"
+                        value="${title}"
+                        maxlength="100"
+                      />`
+                    : `<h3 class="text-sm font-medium text-gray-900 truncate" data-title-click="${conv.id}" title="Click to edit">${title}</h3>`
+                }
                 <p class="text-xs text-gray-500 mt-1">${createdDate}</p>
               </div>
               <button
@@ -239,6 +310,48 @@ const { activeId } = Astro.props;
         } catch (error: any) {
           showToast('Failed to delete conversation: ' + error.message, 'error', 5000);
         }
+      });
+    });
+
+    // Add click handlers for title editing
+    document.querySelectorAll('[data-title-click]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent navigation
+        const id = (e.currentTarget as HTMLElement).getAttribute('data-title-click');
+        if (id) {
+          const conv = state.conversations.find(c => c.id === id);
+          if (conv) {
+            startEditing(id, conv.title);
+          }
+        }
+      });
+    });
+
+    // Add handlers for edit inputs (Enter to save, Escape to cancel, blur to save)
+    document.querySelectorAll('[data-edit-input]').forEach((input) => {
+      const inputEl = input as HTMLInputElement;
+      const id = inputEl.getAttribute('data-edit-input');
+      if (!id) return;
+
+      // Handle keyboard events
+      inputEl.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          await saveEditedTitle(id, inputEl.value);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancelEditing();
+        }
+      });
+
+      // Handle blur (save on focus loss)
+      inputEl.addEventListener('blur', async () => {
+        // Small delay to allow click events to fire first
+        setTimeout(async () => {
+          if (editingConversationId === id) {
+            await saveEditedTitle(id, inputEl.value);
+          }
+        }, 100);
       });
     });
 

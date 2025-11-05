@@ -55,3 +55,26 @@ class ConversationRepository(BaseRepository[Conversation]):
             .offset(offset)
         )
         return list(result.scalars().all())
+
+    async def update_title(self, conversation_id: UUID, title: str) -> Conversation:
+        """
+        Update conversation title.
+
+        Args:
+            conversation_id: Conversation UUID
+            title: New title
+
+        Returns:
+            Updated Conversation instance
+
+        Raises:
+            ValueError: If conversation not found
+        """
+        conversation = await self.get_by_id(conversation_id)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+
+        conversation.title = title
+        await self.session.flush()
+        await self.session.refresh(conversation)
+        return conversation

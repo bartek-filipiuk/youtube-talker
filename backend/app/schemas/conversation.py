@@ -27,6 +27,22 @@ class ConversationCreateRequest(BaseModel):
     )
 
 
+class ConversationUpdateRequest(BaseModel):
+    """
+    Request schema for updating a conversation.
+
+    Attributes:
+        title: Conversation title (1-100 chars, required)
+    """
+
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Updated conversation title"
+    )
+
+
 class ConversationResponse(BaseModel):
     """
     Response schema for conversation data (without messages).
