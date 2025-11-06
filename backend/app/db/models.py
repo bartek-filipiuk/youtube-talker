@@ -124,6 +124,7 @@ class Conversation(Base):
     Organize chat messages into separate conversation threads.
 
     Each conversation belongs to a user and contains multiple messages.
+    Model selection is per-conversation and locked after first message.
     """
 
     __tablename__ = "conversations"
@@ -135,6 +136,9 @@ class Conversation(Base):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    model: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="claude-haiku-4.5", index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
 
@@ -145,7 +149,7 @@ class Conversation(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Conversation(id={self.id}, user_id={self.user_id}, title={self.title})>"
+        return f"<Conversation(id={self.id}, user_id={self.user_id}, title={self.title}, model={self.model})>"
 
 
 # Add indexes on conversations
@@ -538,6 +542,9 @@ class ChannelConversation(Base):
     )
     user_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="claude-haiku-4.5", index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))

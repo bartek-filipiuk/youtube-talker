@@ -50,8 +50,10 @@ async def classify_intent(state: GraphState) -> Dict[str, Any]:
     user_query = state.get("user_query", "")
     user_id = state.get("user_id")
     conversation_history = state.get("conversation_history", [])
+    config = state.get("config", {})
+    model = config.get("model", "claude-haiku-4.5")  # Get model from config
 
-    logger.info(f"Classifying intent (V2 - 3 intents) for query: {user_query[:50]}...")
+    logger.info(f"Classifying intent (V2 - 3 intents) for query: {user_query[:50]}... using model={model}")
 
     # Render prompt template (V2 - simplified prompt)
     prompt = render_prompt(
@@ -60,12 +62,12 @@ async def classify_intent(state: GraphState) -> Dict[str, Any]:
         conversation_history=conversation_history
     )
 
-    # Call LLM for structured output with user_id for LangSmith tracking
-    # Using Claude Haiku 4.5 for better reasoning on edge cases
+    # Call LLM for structured output with dynamic model selection
     llm_client = LLMClient()
-    classification = await llm_client.ainvoke_claude_structured(
+    classification = await llm_client.ainvoke_structured(
         prompt=prompt,
         schema=IntentClassification,
+        model=model,  # Use conversation-specific model
         user_id=user_id,  # Pass user_id for cost tracking
         temperature=0.3  # Low temperature for deterministic classification
     )

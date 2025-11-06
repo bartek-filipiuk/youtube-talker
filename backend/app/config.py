@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     OPENROUTER_SITE_URL: str = "http://localhost:8000"
     OPENROUTER_SITE_NAME: str = "YoutubeTalker"
 
+    # Available Models for Conversation Selection
+    # These are the friendly names used in the UI and database
+    AVAILABLE_MODELS: List[str] = [
+        "claude-haiku-4.5",
+        "gemini-2.5-flash",
+    ]
+    DEFAULT_CONVERSATION_MODEL: str = "claude-haiku-4.5"
+
     # OpenAI API Configuration (Embeddings)
     OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"

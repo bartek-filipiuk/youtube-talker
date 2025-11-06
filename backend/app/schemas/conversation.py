@@ -18,12 +18,19 @@ class ConversationCreateRequest(BaseModel):
     Attributes:
         title: Optional conversation title (max 200 chars)
                If not provided, auto-generated title will be used
+        model: Optional AI model selection (defaults to "claude-haiku-4.5")
+               Must be one of the available models
     """
 
     title: Optional[str] = Field(
         None,
         max_length=200,
         description="Conversation title (auto-generated if not provided)"
+    )
+    model: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="AI model to use (defaults to claude-haiku-4.5)"
     )
 
 
@@ -32,14 +39,20 @@ class ConversationUpdateRequest(BaseModel):
     Request schema for updating a conversation.
 
     Attributes:
-        title: Conversation title (1-100 chars, required)
+        title: Conversation title (1-100 chars, optional)
+        model: AI model selection (optional, can only change before first message)
     """
 
-    title: str = Field(
-        ...,
+    title: Optional[str] = Field(
+        None,
         min_length=1,
         max_length=100,
         description="Updated conversation title"
+    )
+    model: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="AI model (can only change before first message)"
     )
 
 
@@ -55,6 +68,7 @@ class ConversationResponse(BaseModel):
     id: UUID = Field(description="Conversation UUID")
     user_id: UUID = Field(description="Owner user UUID")
     title: str = Field(description="Conversation title")
+    model: str = Field(description="AI model used for this conversation")
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")
 
