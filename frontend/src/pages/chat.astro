@@ -31,6 +31,12 @@ const activeConversationId = urlParams.get('id');
           <p class="text-sm text-gray-600">Chat with your YouTube videos</p>
         </div>
         <div class="flex items-center gap-2">
+          <button
+            id="newChatBtn"
+            class="px-4 py-2 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition font-medium border border-green-600 hover:border-green-700"
+          >
+            + New Chat
+          </button>
           <a
             href="/channels"
             class="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition font-medium"
@@ -75,7 +81,7 @@ const activeConversationId = urlParams.get('id');
 <script>
   import { requireAuth, showToast } from '../lib/auth';
   import { WebSocketClient } from '../lib/websocket';
-  import { getConversation, createConversation } from '../lib/api';
+  import { getConversation, createConversation, getLatestConversation } from '../lib/api';
   import { $messages, $isTyping, addMessage, startStreaming, appendToStream, finalizeStreaming, setMessages } from '../stores/chat';
   import { renderMarkdown } from '../lib/markdown';
   import { StatusQueue } from '../lib/status-queue';
@@ -106,17 +112,34 @@ const activeConversationId = urlParams.get('id');
   const urlParams = new URLSearchParams(window.location.search);
   conversationId = urlParams.get('id');
 
-  // If no conversation ID, create one and redirect
+  // If no conversation ID in URL, try to fetch latest conversation first
   if (!conversationId) {
     try {
-      const newConversation = await createConversation(token);
-      conversationId = newConversation.id;
+      // Try to get the latest conversation
+      const latestConversation = await getLatestConversation(token);
+      conversationId = latestConversation.id;
       window.location.href = `/chat?id=${conversationId}`;
       // Stop execution here - page will reload with conversation ID
-      throw new Error('Redirecting...');
+      throw new Error('Redirecting to latest conversation...');
     } catch (error: any) {
-      showError('Failed to create conversation: ' + error.message);
-      throw error;
+      // If no conversations exist (404), create a new one
+      // This only happens for brand new users or when using "New Chat" button
+      if (error.message.includes('Failed to load latest conversation')) {
+        try {
+          const newConversation = await createConversation(token);
+          conversationId = newConversation.id;
+          window.location.href = `/chat?id=${conversationId}`;
+          // Stop execution here - page will reload with conversation ID
+          throw new Error('Redirecting to new conversation...');
+        } catch (createError: any) {
+          showError('Failed to create conversation: ' + createError.message);
+          throw createError;
+        }
+      } else {
+        // Some other error occurred
+        showError('Failed to load conversation: ' + error.message);
+        throw error;
+      }
     }
   }
 
@@ -345,6 +368,29 @@ const activeConversationId = urlParams.get('id');
     // Send message via WebSocket with current model selection
     const selectedModel = chatInput.getModel();
     wsClient.sendMessage(message, conversationId, selectedModel);
+  });
+
+  // Handle "New Chat" button click
+  const newChatBtn = document.getElementById('newChatBtn') as HTMLButtonElement;
+  newChatBtn.addEventListener('click', async () => {
+    try {
+      // Disable button during creation
+      newChatBtn.disabled = true;
+      newChatBtn.textContent = 'Creating...';
+
+      // Create new conversation
+      const newConversation = await createConversation(token);
+
+      // Redirect to new conversation
+      window.location.href = `/chat?id=${newConversation.id}`;
+    } catch (error: any) {
+      console.error('Failed to create new conversation:', error);
+      showToast('Failed to create new conversation: ' + error.message, 'error');
+
+      // Re-enable button on error
+      newChatBtn.disabled = false;
+      newChatBtn.textContent = '+ New Chat';
+    }
   });
 
   // Cleanup on page unload

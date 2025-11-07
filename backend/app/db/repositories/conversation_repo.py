@@ -72,6 +72,24 @@ class ConversationRepository(BaseRepository[Conversation]):
         )
         return result.scalar() or 0
 
+    async def get_latest_by_user(self, user_id: UUID) -> Optional[Conversation]:
+        """
+        Get the most recent conversation for a user (by updated_at).
+
+        Args:
+            user_id: User's UUID
+
+        Returns:
+            Most recent Conversation instance or None if user has no conversations
+        """
+        result = await self.session.execute(
+            select(Conversation)
+            .where(Conversation.user_id == user_id)
+            .order_by(Conversation.updated_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def update_title(self, conversation_id: UUID, title: str) -> Conversation:
         """
         Update conversation title.

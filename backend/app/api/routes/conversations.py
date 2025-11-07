@@ -87,6 +87,51 @@ async def list_conversations(
     )
 
 
+@router.get("/latest", response_model=ConversationResponse)
+async def get_latest_conversation(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> ConversationResponse:
+    """
+    Get the most recent conversation for the authenticated user.
+
+    Returns the conversation with the latest updated_at timestamp.
+    Useful for loading the last active conversation when user navigates to /chat.
+
+    Args:
+        current_user: Authenticated user (injected via Depends)
+        db: Database session (injected via Depends)
+
+    Returns:
+        ConversationResponse with latest conversation data
+
+    Raises:
+        ConversationNotFoundError: No conversations found for this user
+
+    Example:
+        >>> GET /api/conversations/latest
+        >>> Headers: {"Authorization": "Bearer <token>"}
+        >>> Response: {
+        >>>   "id": "550e8400-e29b-41d4-a716-446655440000",
+        >>>   "user_id": "...",
+        >>>   "title": "My Latest Chat",
+        >>>   "created_at": "2025-01-15T10:30:00Z",
+        >>>   "updated_at": "2025-01-15T14:45:00Z"
+        >>> }
+    """
+    repo = ConversationRepository(db)
+
+    # Get latest conversation
+    latest = await repo.get_latest_by_user(user_id=current_user.id)
+
+    if not latest:
+        raise ConversationNotFoundError()
+
+    logger.info(f"Retrieved latest conversation {latest.id} for user {current_user.id}")
+
+    return ConversationResponse.model_validate(latest)
+
+
 @router.get("/{conversation_id}", response_model=ConversationDetailResponse)
 async def get_conversation_detail(
     conversation_id: UUID,
