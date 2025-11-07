@@ -28,7 +28,7 @@ export function setAuth(token: string, user: User): void {
     // Set cookie for SSR pages (7 day expiry to match backend)
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 7);
-    document.cookie = `token=${token}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict`;
+    document.cookie = `token=${token}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
   }
 }
 
@@ -45,7 +45,7 @@ export function clearAuth(): void {
     localStorage.removeItem('user');
 
     // Clear cookie by setting expiry to past date
-    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure';
   }
 }
 

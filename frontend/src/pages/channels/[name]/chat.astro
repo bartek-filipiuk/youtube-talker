@@ -237,7 +237,7 @@ if (!name) {
       conversationId = conversation.id;
 
       // Set model selector to conversation's saved model
-      if (conversation.model) {
+      if (conversation.model && chatInput) {
         chatInput.setModel(conversation.model);
       }
 
@@ -438,7 +438,7 @@ if (!name) {
       // statusQueue.add('typing', 'AI is typing...');
 
       // Send via WebSocket with current model selection
-      const selectedModel = chatInput.getModel();
+      const selectedModel = chatInput ? chatInput.getModel() : undefined;
       ws.sendMessage(message, conversationId, selectedModel);
     });
   }

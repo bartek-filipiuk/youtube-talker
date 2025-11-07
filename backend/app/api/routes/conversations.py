@@ -66,20 +66,22 @@ async def list_conversations(
     """
     repo = ConversationRepository(db)
 
+    # Get both conversations and total count
     conversations = await repo.list_by_user(
         user_id=current_user.id,
         limit=limit,
         offset=offset
     )
+    total = await repo.count_by_user(user_id=current_user.id)
 
     logger.info(
         f"Listed {len(conversations)} conversations for user {current_user.id} "
-        f"(limit={limit}, offset={offset})"
+        f"(limit={limit}, offset={offset}, total={total})"
     )
 
     return ConversationListResponse(
         conversations=[ConversationResponse.model_validate(c) for c in conversations],
-        total=len(conversations),
+        total=total,
         limit=limit,
         offset=offset
     )
