@@ -360,7 +360,7 @@ Do not include explanations or additional text. Only output the JSON object."""
                 data = json.loads(content_stripped)
             except json.JSONDecodeError as e:
                 logger.error(f"Invalid JSON from {model}: {content}")
-                raise ValueError(f"{model} returned invalid JSON: {e}")
+                raise ValueError(f"{model} returned invalid JSON: {e}") from e
 
             # Validate against Pydantic schema
             try:
