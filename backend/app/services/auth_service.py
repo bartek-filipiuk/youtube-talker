@@ -17,6 +17,7 @@ from app.core.errors import AuthenticationError
 from app.db.models import User
 from app.db.repositories.user_repo import UserRepository
 from app.db.repositories.session_repo import SessionRepository
+from app.db.repositories.config_repo import ConfigRepository
 
 
 class AuthService:
@@ -46,9 +47,10 @@ class AuthService:
         Register new user with email and password.
 
         Steps:
-        1. Check if email already exists
-        2. Hash password securely
-        3. Create user in database
+        1. Check if registration is enabled in config
+        2. Check if email already exists
+        3. Hash password securely
+        4. Create user in database
 
         Args:
             email: User email (validated by Pydantic EmailStr)
@@ -58,6 +60,7 @@ class AuthService:
             Created User object
 
         Raises:
+            HTTPException(403): User registration is currently disabled
             HTTPException(409): Email already registered
 
         Example:
@@ -65,6 +68,19 @@ class AuthService:
             >>> user.email
             'test@example.com'
         """
+        # Check if registration is enabled
+        config_repo = ConfigRepository(self.db)
+        registration_config = await config_repo.get_value("registration_enabled")
+
+        # Default to enabled if config doesn't exist
+        is_enabled = registration_config.get("enabled", True) if registration_config else True
+
+        if not is_enabled:
+            raise HTTPException(
+                status_code=403,
+                detail="User registration is currently disabled. Please contact an administrator."
+            )
+
         # Check if email already exists
         existing_user = await self.user_repo.get_by_email(email)
         if existing_user:

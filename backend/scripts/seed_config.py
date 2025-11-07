@@ -87,6 +87,11 @@ async def seed_config():
                 "value": {"value": "false", "type": "bool"},
                 "description": "Enable LangSmith tracing (default: false)"
             },
+            {
+                "key": "registration_enabled",
+                "value": {"enabled": True},
+                "description": "Allow new user registrations (default: true)"
+            },
 
             # Video Loading Quotas
             {

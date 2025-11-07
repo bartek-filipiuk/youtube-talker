@@ -4,15 +4,19 @@ Admin User Management API Endpoints
 Admin-only endpoints for user CRUD operations.
 """
 
+import secrets
+import string
 from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, EmailStr
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
+from app.core.security import hash_password
 from app.db.session import get_db
 from app.db.models import User
 from app.dependencies import get_admin_user
@@ -24,6 +28,129 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Create router
 router = APIRouter(prefix="/api/admin/users", tags=["admin", "users"])
+
+
+# ============================================================================
+# Schemas
+# ============================================================================
+
+
+class CreateUserRequest(BaseModel):
+    """Create user request schema"""
+    email: EmailStr
+
+
+class CreateUserResponse(BaseModel):
+    """Create user response with generated password"""
+    user: UserItem
+    generated_password: str
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+
+def generate_random_password(length: int = 16) -> str:
+    """
+    Generate a cryptographically secure random password.
+
+    Args:
+        length: Password length (default: 16 characters)
+
+    Returns:
+        Random password with mixed case, digits, and symbols
+    """
+    # Use all printable ASCII characters except space
+    chars = string.ascii_letters + string.digits + string.punctuation.replace(' ', '')
+    return ''.join(secrets.choice(chars) for _ in range(length))
+
+
+# ============================================================================
+# Endpoints
+# ============================================================================
+
+
+@router.post("", response_model=CreateUserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
+async def create_user(
+    request: Request,
+    body: CreateUserRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+) -> CreateUserResponse:
+    """
+    Create new user with auto-generated password (admin only).
+
+    Generates a secure random password and returns it ONCE in the response.
+    Admin must save and share this password with the user.
+
+    Rate limit: 20/minute
+
+    Args:
+        request: FastAPI request (for rate limiting)
+        body: User creation data (email only)
+        db: Database session
+        admin: Authenticated admin user
+
+    Returns:
+        CreateUserResponse with user info and generated password
+
+    Raises:
+        HTTPException 403: Non-admin access
+        HTTPException 409: Email already registered
+
+    Example:
+        >>> POST /api/admin/users
+        >>> Headers: {"Authorization": "Bearer <admin_token>"}
+        >>> Body: {"email": "newuser@example.com"}
+        >>> Response: {
+        >>>   "user": {"id": "...", "email": "newuser@example.com", ...},
+        >>>   "generated_password": "xY9#mK2$pL7..."
+        >>> }
+    """
+    repo = UserRepository(db)
+
+    try:
+        # Check if email already exists
+        existing_user = await repo.get_by_email(body.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email already registered"
+            )
+
+        # Generate secure random password
+        password = generate_random_password()
+        password_hash = hash_password(password)
+
+        # Create user
+        user = await repo.create(email=body.email, password_hash=password_hash)
+        await db.commit()
+        await db.refresh(user)
+
+        logger.info(f"Admin {admin.id} created user {user.id} ({body.email})")
+
+        return CreateUserResponse(
+            user=UserItem(
+                id=user.id,
+                email=user.email,
+                role=user.role,
+                transcript_count=user.transcript_count,
+                created_at=user.created_at,
+            ),
+            generated_password=password
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create user: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}",
+        ) from e
 
 
 @router.get("", response_model=UserListResponse)
