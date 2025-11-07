@@ -217,6 +217,25 @@ export async function removeVideoFromChannel(
 // Users
 // ============================================================================
 
+export interface CreateUserRequest {
+  email: string;
+}
+
+export interface CreateUserResponse {
+  user: User;
+  generated_password: string;
+}
+
+/**
+ * Create new user with auto-generated password (admin only)
+ */
+export async function createUser(token: string, email: string): Promise<CreateUserResponse> {
+  return adminFetch<CreateUserResponse>('/admin/users', token, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
 /**
  * List all users (admin only)
  */
@@ -230,5 +249,30 @@ export async function listUsers(token: string, limit: number = 50, offset: numbe
 export async function deleteUser(token: string, userId: string): Promise<void> {
   await adminFetch<void>(`/admin/users/${userId}`, token, {
     method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Settings
+// ============================================================================
+
+export interface RegistrationStatus {
+  enabled: boolean;
+}
+
+/**
+ * Get registration status (admin only)
+ */
+export async function getRegistrationStatus(token: string): Promise<RegistrationStatus> {
+  return adminFetch<RegistrationStatus>('/admin/settings/registration', token);
+}
+
+/**
+ * Set registration status (admin only)
+ */
+export async function setRegistrationStatus(token: string, enabled: boolean): Promise<RegistrationStatus> {
+  return adminFetch<RegistrationStatus>('/admin/settings/registration', token, {
+    method: 'POST',
+    body: JSON.stringify({ enabled }),
   });
 }
