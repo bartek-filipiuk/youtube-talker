@@ -153,6 +153,7 @@ class ChannelConversationResponse(BaseModel):
     id: UUID = Field(description="Channel conversation UUID")
     channel_id: UUID = Field(description="Parent channel UUID")
     user_id: UUID = Field(description="Owner user UUID")
+    model: str = Field(description="LLM model used for this conversation")
     channel_name: str = Field(description="Channel URL-safe name")
     channel_display_title: str = Field(description="Channel display title")
     created_at: datetime = Field(description="Conversation creation timestamp")

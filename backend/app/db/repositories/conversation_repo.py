@@ -7,7 +7,7 @@ Database operations for Conversation model.
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation
@@ -55,3 +55,42 @@ class ConversationRepository(BaseRepository[Conversation]):
             .offset(offset)
         )
         return list(result.scalars().all())
+
+    async def count_by_user(self, user_id: UUID) -> int:
+        """
+        Count total conversations for a user.
+
+        Args:
+            user_id: User's UUID
+
+        Returns:
+            Total count of conversations
+        """
+        result = await self.session.execute(
+            select(func.count(Conversation.id))
+            .where(Conversation.user_id == user_id)
+        )
+        return result.scalar() or 0
+
+    async def update_title(self, conversation_id: UUID, title: str) -> Conversation:
+        """
+        Update conversation title.
+
+        Args:
+            conversation_id: Conversation UUID
+            title: New title
+
+        Returns:
+            Updated Conversation instance
+
+        Raises:
+            ValueError: If conversation not found
+        """
+        conversation = await self.get_by_id(conversation_id)
+        if not conversation:
+            raise ValueError(f"Conversation {conversation_id} not found")
+
+        conversation.title = title
+        await self.session.flush()
+        await self.session.refresh(conversation)
+        return conversation

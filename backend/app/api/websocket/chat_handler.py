@@ -342,11 +342,21 @@ async def websocket_endpoint(
                         # Confirmation was handled - skip normal message processing
                         continue
 
+                # Step 2c: Update conversation model if provided in message
+                if message.model and message.model != conversation.model:
+                    logger.info(
+                        f"Updating conversation {conversation.id} model from "
+                        f"{conversation.model} to {message.model}"
+                    )
+                    conversation.model = message.model
+                    # Note: Will be committed after successful RAG execution (Step 10)
+
                 # Step 3: Load config values from database (via ConfigService)
                 config_service = ConfigService(db)
                 rag_config = {
                     "top_k": await config_service.get_config("rag.top_k", default=settings.RAG_TOP_K),
                     "context_messages": await config_service.get_config("rag.context_messages", default=settings.RAG_CONTEXT_MESSAGES),
+                    "model": conversation.model,  # Per-conversation model selection (may have just been updated above)
                     **state_extras  # Add channel_id + collection_name if channel conversation
                 }
 

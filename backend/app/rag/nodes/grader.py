@@ -58,6 +58,8 @@ async def grade_chunks(state: GraphState) -> GraphState:
     user_query = state.get("user_query")
     user_id = state.get("user_id")
     retrieved_chunks = state.get("retrieved_chunks", [])
+    config = state.get("config", {})
+    model = config.get("model", "gemini-2.5-flash")  # Default to Gemini for grading
 
     if not user_query:
         logger.warning("Missing user_query in state")
@@ -74,7 +76,7 @@ async def grade_chunks(state: GraphState) -> GraphState:
         state["metadata"]["not_relevant_count"] = 0
         return state
 
-    logger.info(f"Grading {len(retrieved_chunks)} chunks for relevance")
+    logger.info(f"Grading {len(retrieved_chunks)} chunks for relevance using model={model}")
 
     llm_client = LLMClient()
     graded_chunks = []
@@ -95,10 +97,11 @@ async def grade_chunks(state: GraphState) -> GraphState:
                 },
             )
 
-            # Call Gemini for structured output with user_id for cost tracking
-            grade: RelevanceGrade = await llm_client.ainvoke_gemini_structured(
+            # Call LLM for structured output with dynamic model selection
+            grade: RelevanceGrade = await llm_client.ainvoke_structured(
                 prompt=prompt,
                 schema=RelevanceGrade,
+                model=model,  # Use conversation-specific model
                 user_id=user_id,  # Pass user_id for cost tracking
             )
 

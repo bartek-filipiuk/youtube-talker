@@ -48,8 +48,10 @@ async def extract_subject(state: GraphState) -> Dict[str, Any]:
     user_query = state.get("user_query", "")
     user_id = state.get("user_id")
     conversation_history = state.get("conversation_history", [])
+    config = state.get("config", {})
+    model = config.get("model", "gemini-2.5-flash")  # Default to Gemini for extraction
 
-    logger.info(f"Extracting subject from query: {user_query[:50]}...")
+    logger.info(f"Extracting subject from query: {user_query[:50]}... using model={model}")
 
     # Render prompt template
     prompt = render_prompt(
@@ -58,11 +60,12 @@ async def extract_subject(state: GraphState) -> Dict[str, Any]:
         conversation_history=conversation_history
     )
 
-    # Call LLM for structured output with user_id for LangSmith tracking
+    # Call LLM for structured output with dynamic model selection
     llm_client = LLMClient()
-    extraction = await llm_client.ainvoke_gemini_structured(
+    extraction = await llm_client.ainvoke_structured(
         prompt=prompt,
         schema=SubjectExtraction,
+        model=model,  # Use conversation-specific model
         user_id=user_id,  # Pass user_id for cost tracking
         temperature=0.3  # Low temperature for deterministic extraction
     )

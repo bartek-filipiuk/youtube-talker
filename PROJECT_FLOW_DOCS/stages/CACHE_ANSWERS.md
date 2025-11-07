@@ -1,0 +1,1 @@
+detect same sematically questions and answer from cache (db)

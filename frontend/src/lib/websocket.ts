@@ -19,6 +19,7 @@ export interface WebSocketMessage {
 export interface IncomingMessage {
   conversation_id?: string;
   content: string;
+  model?: string;
 }
 
 export class WebSocketClient {
@@ -97,7 +98,7 @@ export class WebSocketClient {
   /**
    * Send a message through WebSocket
    */
-  sendMessage(content: string, conversationId?: string): void {
+  sendMessage(content: string, conversationId?: string, model?: string): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error('WebSocket not connected');
       this.errorHandlers.forEach(handler =>
@@ -108,7 +109,8 @@ export class WebSocketClient {
 
     const message: IncomingMessage = {
       content,
-      ...(conversationId && { conversation_id: conversationId })
+      ...(conversationId && { conversation_id: conversationId }),
+      ...(model && { model })
     };
 
     this.ws.send(JSON.stringify(message));

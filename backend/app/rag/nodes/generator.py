@@ -60,8 +60,10 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
     user_id = state.get("user_id")
     conversation_history = state.get("conversation_history", [])
     graded_chunks = state.get("graded_chunks", [])
+    config = state.get("config", {})
+    model = config.get("model", "claude-haiku-4.5")  # Get model from config
 
-    logger.info(f"Generating response for intent: {intent}")
+    logger.info(f"Generating response for intent: {intent} using model={model}")
 
     # Initialize LLM client
     llm_client = LLMClient()
@@ -73,8 +75,9 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
             user_query=user_query,
             conversation_history=conversation_history
         )
-        response = await llm_client.ainvoke_claude(
+        response = await llm_client.ainvoke(
             prompt=prompt,
+            model=model,  # Use conversation-specific model
             user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=500,  # Shorter for chitchat
             temperature=0.8  # More creative for conversation
@@ -95,8 +98,9 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
             conversation_history=conversation_history,
             graded_chunks=graded_chunks
         )
-        response = await llm_client.ainvoke_claude(
+        response = await llm_client.ainvoke(
             prompt=prompt,
+            model=model,  # Use conversation-specific model
             user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=2000,
             temperature=0.7  # Balanced for factual Q&A
@@ -123,8 +127,9 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
             conversation_history=conversation_history,
             graded_chunks=graded_chunks
         )
-        response = await llm_client.ainvoke_claude(
+        response = await llm_client.ainvoke(
             prompt=prompt,
+            model=model,  # Use conversation-specific model
             user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=2000,
             temperature=0.75  # Slightly creative for engaging content
@@ -145,8 +150,9 @@ async def generate_response(state: GraphState) -> Dict[str, Any]:
             user_query=user_query,
             conversation_history=conversation_history
         )
-        response = await llm_client.ainvoke_claude(
+        response = await llm_client.ainvoke(
             prompt=prompt,
+            model=model,  # Use conversation-specific model
             user_id=user_id,  # Pass user_id for cost tracking
             max_tokens=500,
             temperature=0.8

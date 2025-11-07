@@ -21,6 +21,7 @@ from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.repositories.message_repo import MessageRepository
 from app.schemas.conversation import (
     ConversationCreateRequest,
+    ConversationUpdateRequest,
     ConversationResponse,
     ConversationDetailResponse,
     ConversationListResponse,
@@ -65,20 +66,22 @@ async def list_conversations(
     """
     repo = ConversationRepository(db)
 
+    # Get both conversations and total count
     conversations = await repo.list_by_user(
         user_id=current_user.id,
         limit=limit,
         offset=offset
     )
+    total = await repo.count_by_user(user_id=current_user.id)
 
     logger.info(
         f"Listed {len(conversations)} conversations for user {current_user.id} "
-        f"(limit={limit}, offset={offset})"
+        f"(limit={limit}, offset={offset}, total={total})"
     )
 
     return ConversationListResponse(
         conversations=[ConversationResponse.model_validate(c) for c in conversations],
-        total=len(conversations),
+        total=total,
         limit=limit,
         offset=offset
     )
@@ -198,6 +201,72 @@ async def create_conversation(
     logger.info(f"Created conversation {conversation.id} for user {current_user.id}")
 
     return ConversationResponse.model_validate(conversation)
+
+
+@router.patch("/{conversation_id}", response_model=ConversationResponse)
+async def update_conversation(
+    conversation_id: UUID,
+    body: ConversationUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> ConversationResponse:
+    """
+    Update conversation title.
+
+    Allows user to rename their conversation. Validates ownership before update.
+
+    Args:
+        conversation_id: UUID of the conversation to update
+        body: Update request with new title (1-100 chars)
+        current_user: Authenticated user (injected via Depends)
+        db: Database session (injected via Depends)
+
+    Returns:
+        ConversationResponse with updated conversation data
+
+    Raises:
+        ConversationNotFoundError: Conversation not found
+        ConversationAccessDeniedError: User doesn't own this conversation
+
+    Example:
+        >>> PATCH /api/conversations/550e8400-e29b-41d4-a716-446655440000
+        >>> Headers: {"Authorization": "Bearer <token>"}
+        >>> Body: {"title": "My Updated Title"}
+        >>> Response: {
+        >>>   "id": "550e8400-e29b-41d4-a716-446655440000",
+        >>>   "user_id": "...",
+        >>>   "title": "My Updated Title",
+        >>>   "created_at": "2025-01-15T10:30:00Z",
+        >>>   "updated_at": "2025-01-15T14:45:00Z"
+        >>> }
+    """
+    repo = ConversationRepository(db)
+
+    # Fetch conversation
+    conversation = await repo.get_by_id(conversation_id)
+
+    if not conversation:
+        raise ConversationNotFoundError()
+
+    # Verify ownership
+    if conversation.user_id != current_user.id:
+        logger.warning(
+            f"User {current_user.id} attempted to update conversation {conversation_id} "
+            f"owned by user {conversation.user_id}"
+        )
+        raise ConversationAccessDeniedError()
+
+    # Update title
+    updated_conversation = await repo.update_title(conversation_id, body.title)
+    await db.commit()
+    await db.refresh(updated_conversation)
+
+    logger.info(
+        f"Updated conversation {conversation_id} title to '{body.title}' "
+        f"for user {current_user.id}"
+    )
+
+    return ConversationResponse.model_validate(updated_conversation)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
