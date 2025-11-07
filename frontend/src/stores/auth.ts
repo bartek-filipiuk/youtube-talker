@@ -20,10 +20,15 @@ export function setAuth(token: string, user: User): void {
   $token.set(token);
   $user.set(user);
 
-  // Persist to localStorage
+  // Persist to localStorage AND cookies (for SSR admin pages)
   if (typeof window !== 'undefined') {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
+
+    // Set cookie for SSR pages (7 day expiry to match backend)
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 7);
+    document.cookie = `token=${token}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict`;
   }
 }
 
@@ -34,10 +39,13 @@ export function clearAuth(): void {
   $token.set(null);
   $user.set(null);
 
-  // Remove from localStorage
+  // Remove from localStorage AND cookies
   if (typeof window !== 'undefined') {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+
+    // Clear cookie by setting expiry to past date
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
   }
 }
 
