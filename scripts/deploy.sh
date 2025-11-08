@@ -65,7 +65,6 @@ source .venv/bin/activate
 echo "Installing Python dependencies..."
 pip install --upgrade pip
 pip install -e .
-pip install psycopg2-binary  # Ensure PostgreSQL driver is installed
 
 # Run database migrations
 echo "Running database migrations..."
