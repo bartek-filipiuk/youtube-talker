@@ -156,6 +156,25 @@ export async function getConversation(token: string, id: string): Promise<Conver
 }
 
 /**
+ * Get the latest conversation for the current user
+ */
+export async function getLatestConversation(token: string): Promise<Conversation> {
+  const response = await fetch(`${API_BASE}/conversations/latest`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to load latest conversation');
+  }
+
+  return response.json();
+}
+
+/**
  * Create a new conversation
  */
 export async function createConversation(token: string, title?: string): Promise<Conversation> {
