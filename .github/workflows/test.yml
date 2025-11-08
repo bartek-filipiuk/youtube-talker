@@ -77,6 +77,8 @@ jobs:
 
       - name: Run pytest with coverage
         working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/youtubetalker_test
         run: |
           pytest tests/e2e/test_user_journey.py -v --tb=short
 
