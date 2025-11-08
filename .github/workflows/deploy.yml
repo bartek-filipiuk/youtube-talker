@@ -71,6 +71,11 @@ jobs:
             echo "⚠️  Frontend health check returned HTTP $response"
           fi
 
+      - name: Cleanup SSH keys
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
       - name: Notify deployment status
         if: always()
         run: |
@@ -79,14 +84,3 @@ jobs:
           else
             echo "❌ Deployment to production failed!"
           fi
-
-  cleanup:
-    name: Cleanup old resources
-    needs: deploy
-    runs-on: ubuntu-latest
-    if: success()
-
-    steps:
-      - name: Cleanup SSH keys
-        run: |
-          rm -f ~/.ssh/deploy_key
