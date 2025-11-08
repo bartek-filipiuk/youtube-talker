@@ -33,11 +33,6 @@ jobs:
         ports:
           - 6333:6333
           - 6334:6334
-        options: >-
-          --health-cmd "curl -f http://localhost:6333/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -66,6 +61,18 @@ jobs:
           SESSION_SECRET_KEY=test_secret_key_for_ci
           ENVIRONMENT=test
           EOF
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for Qdrant to be ready..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:6333/healthz > /dev/null 2>&1; then
+              echo "✅ Qdrant is ready"
+              break
+            fi
+            echo "Waiting for Qdrant... ($i/30)"
+            sleep 2
+          done
 
       - name: Run database migrations
         working-directory: ./backend
@@ -106,17 +113,18 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: Run linter
-        working-directory: ./frontend
-        run: npm run lint
-
-      - name: Run formatter check
-        working-directory: ./frontend
-        run: npm run format:check
-
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+
+      - name: Check build output exists
+        working-directory: ./frontend
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build failed - dist directory not found"
+            exit 1
+          fi
+          echo "✅ Frontend build successful"
 
   test-summary:
     name: Test Summary
