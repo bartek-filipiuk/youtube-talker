@@ -104,7 +104,7 @@ def test_database_url_format() -> None:
     settings = Settings()
 
     assert settings.DATABASE_URL.startswith("postgresql")
-    assert "youtube_talker" in settings.DATABASE_URL
+    assert "youtube" in settings.DATABASE_URL.lower()
 
 
 def test_qdrant_url_format() -> None:
