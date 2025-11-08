@@ -124,7 +124,7 @@ const activeConversationId = urlParams.get('id');
     } catch (error: any) {
       // If no conversations exist (404), create a new one
       // This only happens for brand new users or when using "New Chat" button
-      if (error.message.includes('Failed to load latest conversation')) {
+      if (error.message.includes('Conversation not found') || error.message.includes('Failed to load latest conversation')) {
         try {
           const newConversation = await createConversation(token);
           conversationId = newConversation.id;
