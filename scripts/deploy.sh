@@ -64,7 +64,7 @@ source .venv/bin/activate
 # Install/update dependencies
 echo "Installing Python dependencies..."
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e .
 
 # Run database migrations
 echo "Running database migrations..."
