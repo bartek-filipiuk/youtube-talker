@@ -17,9 +17,44 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          chmod 700 ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Validate SSH key
+        run: |
+          echo "🔍 Validating SSH key format..."
+          if [ ! -s ~/.ssh/deploy_key ]; then
+            echo "❌ ERROR: SSH key file is empty or doesn't exist"
+            exit 1
+          fi
+
+          # Check if key starts with proper header
+          if ! head -n 1 ~/.ssh/deploy_key | grep -q "BEGIN.*PRIVATE KEY"; then
+            echo "❌ ERROR: SSH key doesn't have proper header"
+            echo "First line should be: -----BEGIN OPENSSH PRIVATE KEY----- or similar"
+            echo "Actual first line: $(head -n 1 ~/.ssh/deploy_key)"
+            exit 1
+          fi
+
+          echo "✅ SSH key format looks valid"
+
+          # Test SSH connection
+          echo "🔌 Testing SSH connection..."
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${SERVER_USER}@${SERVER_HOST} "echo '✅ SSH connection successful'" || {
+            echo "❌ SSH connection failed"
+            echo "Please check:"
+            echo "  1. SSH_PRIVATE_KEY secret contains the full private key"
+            echo "  2. Key includes -----BEGIN and -----END lines"
+            echo "  3. Public key is added to server's ~/.ssh/authorized_keys"
+            echo "  4. SERVER_USER has correct permissions on server"
+            exit 1
+          }
+        env:
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
 
       - name: Deploy to server
         env:
