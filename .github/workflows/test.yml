@@ -75,11 +75,6 @@ jobs:
             sleep 2
           done
 
-      - name: Run database migrations
-        working-directory: ./backend
-        run: |
-          alembic upgrade head
-
       - name: Run pytest with coverage
         working-directory: ./backend
         run: |
