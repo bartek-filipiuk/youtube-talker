@@ -4,9 +4,8 @@ on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - main
+  # Removed push trigger - tests already run on PR before merge
+  # This prevents duplicate test runs when PR is merged to main
 
 jobs:
   test-backend:
