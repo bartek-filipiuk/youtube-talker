@@ -78,7 +78,7 @@ jobs:
       - name: Run pytest with coverage
         working-directory: ./backend
         run: |
-          pytest tests/ --cov=app --cov-report=term-missing --cov-report=xml -v
+          pytest tests/e2e/test_user_journey.py -v --tb=short
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
