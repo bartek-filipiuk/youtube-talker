@@ -147,6 +147,62 @@ If this works, GitHub Actions should be able to connect too.
 
 ## Troubleshooting
 
+### "Load key: error in libcrypto" Error
+
+**Problem:** SSH key format is incorrect or corrupted
+
+**This is the most common error when setting up SSH_PRIVATE_KEY secret.**
+
+**Solutions:**
+
+1. **Verify you copied the ENTIRE private key:**
+   ```
+   -----BEGIN OPENSSH PRIVATE KEY-----
+   b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+   QyNTUxOQAAACDm8tPp+FJ0UXiG9kz8M9gEoYz...
+   ... (many more lines) ...
+   -----END OPENSSH PRIVATE KEY-----
+   ```
+
+   **Must include both BEGIN and END lines!**
+
+2. **Get the key correctly:**
+   ```bash
+   # On your Digital Ocean droplet
+   cat ~/.ssh/id_ed25519
+   ```
+
+   Copy the **entire output** - select from the very first character to the very last.
+
+3. **Check for common mistakes:**
+   - ❌ Copied public key (`.pub` file) instead of private key
+   - ❌ Missing the `-----BEGIN` or `-----END` lines
+   - ❌ Extra spaces or line breaks added when copying
+   - ❌ Used wrong key type (use ed25519 or RSA, not DSA)
+   - ❌ Key has Windows line endings (CRLF instead of LF)
+
+4. **Test the key format locally:**
+   ```bash
+   # Create a test file with your key
+   echo "YOUR_KEY_CONTENT" > test_key
+   chmod 600 test_key
+
+   # Try to use it (should not show libcrypto error)
+   ssh -i test_key -o StrictHostKeyChecking=no YOUR_USER@YOUR_SERVER "echo test"
+   ```
+
+5. **Generate a new key if needed:**
+   ```bash
+   # On your server
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/github_deploy
+
+   # Add public key to authorized_keys
+   cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
+
+   # Display private key to copy
+   cat ~/.ssh/github_deploy
+   ```
+
 ### "Permission denied (publickey)" Error
 
 **Problem:** GitHub Actions can't authenticate with your server
@@ -158,6 +214,16 @@ If this works, GitHub Actions should be able to connect too.
    ```bash
    chmod 600 ~/.ssh/authorized_keys
    chmod 700 ~/.ssh
+   ```
+4. Verify the public key matches the private key:
+   ```bash
+   # Get fingerprint of private key
+   ssh-keygen -l -f ~/.ssh/id_ed25519
+
+   # Get fingerprint of public key
+   ssh-keygen -l -f ~/.ssh/id_ed25519.pub
+
+   # They should match!
    ```
 
 ### "Host key verification failed" Error
