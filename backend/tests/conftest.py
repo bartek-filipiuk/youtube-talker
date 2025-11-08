@@ -4,6 +4,7 @@ Test Configuration and Fixtures
 Shared fixtures for all tests.
 """
 
+import os
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
@@ -18,7 +19,11 @@ from datetime import datetime, timezone, timedelta
 from typing import AsyncGenerator
 
 # Test database URL (uses different database than dev)
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5435/youtube_talker_test"
+# Read from environment variable if set (for CI), otherwise use default local test DB
+TEST_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5435/youtube_talker_test"
+)
 
 # Create test engine with connection pooling disabled for tests
 test_engine = create_async_engine(
