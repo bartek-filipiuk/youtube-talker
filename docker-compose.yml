@@ -4,10 +4,10 @@ services:
     container_name: youtube-talker-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: jkR2J9PgLpUmRzKQ6SjbDyQfbP6GPD7N
       POSTGRES_DB: youtube_talker
     ports:
-      - "5435:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,14 +22,14 @@ services:
     image: qdrant/qdrant:latest
     container_name: youtube-talker-qdrant
     ports:
-      - "6335:6333"  # HTTP API
-      - "6336:6334"  # gRPC API
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
     volumes:
       - qdrant_data:/qdrant/storage
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/"]
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
