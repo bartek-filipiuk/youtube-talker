@@ -1,0 +1,86 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Digital Ocean
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_DEPLOY_PATH: ${{ secrets.SERVER_DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key ${SERVER_USER}@${SERVER_HOST} << 'ENDSSH'
+            set -e
+
+            echo "🚀 Starting deployment..."
+
+            # Navigate to deployment directory
+            cd ${{ secrets.SERVER_DEPLOY_PATH }}
+
+            # Pull latest changes
+            echo "📥 Pulling latest code from main..."
+            git fetch origin
+            git reset --hard origin/main
+
+            # Run deployment script
+            echo "🔧 Running deployment script..."
+            bash scripts/deploy.sh
+
+            echo "✅ Deployment completed successfully!"
+          ENDSSH
+
+      - name: Health check
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          echo "🏥 Running health check..."
+          sleep 10
+
+          # Check backend health
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${SERVER_HOST}:8000/api/health || echo "000")
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Backend is healthy (HTTP $response)"
+          else
+            echo "❌ Backend health check failed (HTTP $response)"
+            exit 1
+          fi
+
+          # Check frontend
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${SERVER_HOST} || echo "000")
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Frontend is healthy (HTTP $response)"
+          else
+            echo "⚠️  Frontend health check returned HTTP $response"
+          fi
+
+      - name: Cleanup SSH keys
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to production was successful!"
+          else
+            echo "❌ Deployment to production failed!"
+          fi
