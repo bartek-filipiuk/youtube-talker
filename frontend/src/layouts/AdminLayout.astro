@@ -26,6 +26,8 @@ const currentPath = Astro.url.pathname;
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <meta name="description" content="YoutubeTalker Admin - Manage channels and videos" />
   <title>{title} | Admin | YoutubeTalker</title>
 
@@ -41,8 +43,9 @@ const currentPath = Astro.url.pathname;
       <div class="flex justify-between items-center h-16">
         <!-- Left: Logo and Navigation -->
         <div class="flex items-center space-x-8">
-          <a href="/admin" class="text-xl font-bold text-gray-900 hover:text-gray-600 transition">
-            🛠️ Admin Panel
+          <a href="/admin" class="flex items-center gap-2 hover:opacity-80 transition">
+            <img src="/logo.svg" alt="YoutubeTalker Admin" class="h-16 w-auto" />
+            <span class="text-xl font-bold text-gray-900">Admin Panel</span>
           </a>
           <nav class="hidden md:flex space-x-4">
             <a
