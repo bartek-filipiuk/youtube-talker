@@ -41,7 +41,7 @@ fi
 
 # Check PostgreSQL
 if docker compose ps | grep -q "postgres.*healthy"; then
-    print_pass "PostgreSQL is healthy (port 5435)"
+    print_pass "PostgreSQL is healthy (port 5432)"
 
     # Try to connect
     if docker exec youtube-talker-postgres pg_isready -U postgres &> /dev/null; then
@@ -54,10 +54,10 @@ fi
 
 # Check Qdrant
 if docker compose ps | grep -q "qdrant.*healthy"; then
-    print_pass "Qdrant is healthy (port 6335)"
+    print_pass "Qdrant is healthy (port 6333)"
 
     # Try HTTP request
-    if curl -s http://localhost:6335/collections &> /dev/null; then
+    if curl -s http://localhost:6333/collections &> /dev/null; then
         print_info "Qdrant API responding"
     fi
 else
@@ -132,7 +132,7 @@ if [ $FAILED -eq 0 ]; then
     echo -e "  Frontend:    ${GREEN}http://localhost:4321${NC}"
     echo -e "  Backend:     ${GREEN}http://localhost:8000${NC}"
     echo -e "  API Docs:    ${GREEN}http://localhost:8000/docs${NC}"
-    echo -e "  Qdrant:      ${GREEN}http://localhost:6335/dashboard${NC}\n"
+    echo -e "  Qdrant:      ${GREEN}http://localhost:6333/dashboard${NC}\n"
 
     exit 0
 else

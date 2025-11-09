@@ -29,10 +29,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Database Configuration
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5435/youtube_talker"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/youtube_talker"
 
     # Qdrant Configuration
-    QDRANT_URL: str = "http://localhost:6335"
+    QDRANT_URL: str = "http://localhost:6333"
     QDRANT_API_KEY: str = ""
 
     # OpenRouter API Configuration (LLM completions)
