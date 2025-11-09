@@ -2,9 +2,11 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: youtube-talker-postgres
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: jkR2J9PgLpUmRzKQ6SjbDyQfbP6GPD7N
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: youtube_talker
     ports:
       - "5432:5432"

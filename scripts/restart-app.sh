@@ -119,7 +119,7 @@ echo -e "${YELLOW}🏥 Running health checks...${NC}"
 sleep 5
 
 # Check backend health
-BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/health 2>/dev/null || echo "000")
+BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:8000/api/health 2>/dev/null || echo "000")
 if [ "$BACKEND_STATUS" -eq 200 ]; then
     echo -e "  ${GREEN}✓${NC} Backend API is healthy (HTTP $BACKEND_STATUS)"
 else
@@ -128,7 +128,7 @@ else
 fi
 
 # Check frontend health
-FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321 2>/dev/null || echo "000")
+FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:4321 2>/dev/null || echo "000")
 if [ "$FRONTEND_STATUS" -eq 200 ] || [ "$FRONTEND_STATUS" -eq 301 ] || [ "$FRONTEND_STATUS" -eq 302 ]; then
     echo -e "  ${GREEN}✓${NC} Frontend is healthy (HTTP $FRONTEND_STATUS)"
 else
