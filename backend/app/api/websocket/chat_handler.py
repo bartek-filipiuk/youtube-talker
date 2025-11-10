@@ -357,6 +357,8 @@ async def websocket_endpoint(
                     "top_k": await config_service.get_config("rag.top_k", default=settings.RAG_TOP_K),
                     "context_messages": await config_service.get_config("rag.context_messages", default=settings.RAG_CONTEXT_MESSAGES),
                     "model": conversation.model,  # Per-conversation model selection (may have just been updated above)
+                    "websocket": websocket,  # Pass WebSocket for granular status updates
+                    "connection_manager": connection_manager,  # Pass connection manager
                     **state_extras  # Add channel_id + collection_name if channel conversation
                 }
 
