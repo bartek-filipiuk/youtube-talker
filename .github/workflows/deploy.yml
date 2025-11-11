@@ -90,7 +90,7 @@ jobs:
           sleep 10
 
           # Check backend health
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${SERVER_HOST}:8000/api/health || echo "000")
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://api.qivio.pl/api/health || echo "000")
           if [ "$response" -eq 200 ]; then
             echo "✅ Backend is healthy (HTTP $response)"
           else
@@ -99,7 +99,7 @@ jobs:
           fi
 
           # Check frontend
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${SERVER_HOST} || echo "000")
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://quivio.pl || echo "000")
           if [ "$response" -eq 200 ]; then
             echo "✅ Frontend is healthy (HTTP $response)"
           else
