@@ -244,6 +244,15 @@ export async function listUsers(token: string, limit: number = 50, offset: numbe
 }
 
 /**
+ * Reset user password with auto-generated password (admin only)
+ */
+export async function resetUserPassword(token: string, userId: string): Promise<CreateUserResponse> {
+  return adminFetch<CreateUserResponse>(`/admin/users/${userId}/reset-password`, token, {
+    method: 'POST',
+  });
+}
+
+/**
  * Delete user and all related data (admin only)
  */
 export async function deleteUser(token: string, userId: string): Promise<void> {
