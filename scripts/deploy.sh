@@ -53,6 +53,12 @@ echo -e "${YELLOW}🔧 Deploying backend...${NC}"
 
 cd "$PROJECT_ROOT/backend"
 
+# Clear Python bytecode cache (CRITICAL for production updates)
+echo "Clearing Python bytecode cache..."
+find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find . -name "*.pyc" -delete 2>/dev/null || true
+echo "✅ Cache cleared"
+
 # Activate or create virtual environment
 if [ ! -d ".venv" ]; then
     echo "Creating Python virtual environment..."
@@ -117,6 +123,10 @@ fi
 # =======================
 echo ""
 echo -e "${YELLOW}▶️  Starting services...${NC}"
+
+# Reload systemd daemon to pick up any service file changes
+echo "Reloading systemd daemon..."
+sudo systemctl daemon-reload
 
 # Start backend service
 sudo systemctl start youtubetalker-backend

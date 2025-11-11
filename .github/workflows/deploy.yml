@@ -75,6 +75,12 @@ jobs:
             git fetch origin
             git reset --hard origin/main
 
+            # Verify correct commit
+            echo "🔍 Verifying deployment commit..."
+            CURRENT_COMMIT=$(git rev-parse --short HEAD)
+            echo "📌 Deployed commit: $CURRENT_COMMIT"
+            git log -1 --oneline
+
             # Run deployment script
             echo "🔧 Running deployment script..."
             bash scripts/deploy.sh
