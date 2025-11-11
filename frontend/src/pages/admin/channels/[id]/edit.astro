@@ -170,12 +170,12 @@ if (!channel) {
 
   <!-- Form Submission Script -->
   <script>
-    import { updateChannel } from '../../../../lib/admin-api';
-    import { getClientToken, showToast } from '../../../../lib/admin-auth';
+    import { updateChannel } from '/src/lib/admin-api';
+    import { getClientToken, showToast } from '/src/lib/admin-auth';
 
-    const form = document.getElementById('edit-channel-form') as HTMLFormElement;
-    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
-    const errorMessage = document.getElementById('error-message') as HTMLDivElement;
+    const form = document.getElementById('edit-channel-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMessage = document.getElementById('error-message');
 
     // Get auth token
     const token = getClientToken();

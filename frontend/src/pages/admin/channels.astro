@@ -161,8 +161,8 @@ try {
 
   <!-- Delete Confirmation Script -->
   <script type="module">
-    import { deleteChannel } from '../../lib/admin-api';
-    import { getClientToken, showToast, showConfirm } from '../../lib/admin-auth';
+    import { deleteChannel } from '/src/lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '/src/lib/admin-auth';
 
     // Get auth token from localStorage (fallback if cookie not accessible)
     const token = getClientToken();
