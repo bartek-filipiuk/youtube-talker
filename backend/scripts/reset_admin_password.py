@@ -5,24 +5,32 @@ Resets the password for admin@example.com to a known value.
 Creates the admin user if it doesn't exist.
 
 Usage:
-    python scripts/reset_admin_password.py
+    ADMIN_PASSWORD='your_password' python scripts/reset_admin_password.py
+
+Environment Variables:
+    ADMIN_PASSWORD: Password for the admin user (required)
 """
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import AsyncSessionLocal
-from app.db.repositories.user_repo import UserRepository
 from app.core.security import hash_password
-
+from app.db.repositories.user_repo import UserRepository
+from app.db.session import AsyncSessionLocal
 
 ADMIN_EMAIL = "admin@example.com"
-ADMIN_PASSWORD = "admin123"  # Change this to your desired password
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+if not ADMIN_PASSWORD:
+    print("❌ Error: ADMIN_PASSWORD environment variable not set")
+    print("\nUsage:")
+    print("  ADMIN_PASSWORD='your_password' python scripts/reset_admin_password.py")
+    sys.exit(1)
 
 
 async def reset_admin_password():
@@ -54,7 +62,7 @@ async def reset_admin_password():
             await db.commit()
             print(f"✅ Created admin user: {ADMIN_EMAIL}")
             print(f"   Password: {ADMIN_PASSWORD}")
-            print(f"   Role: admin")
+            print("   Role: admin")
 
 
 if __name__ == "__main__":

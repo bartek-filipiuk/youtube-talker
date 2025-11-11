@@ -1,8 +1,9 @@
 """Unit tests for Query Analyzer node (Phase 1 - Intelligent Search)."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.rag.nodes.query_analyzer_node import analyze_query
 from app.rag.utils.state import GraphState
@@ -291,3 +292,8 @@ class TestQueryAnalyzerNode:
         # Verify custom model was used
         call_args = mock_llm_client.ainvoke_structured.call_args
         assert call_args.kwargs["model"] == "gemini-2.5-flash"
+
+        # Verify analysis completed successfully
+        assert result_state["query_analysis"] is not None
+        assert result_state["query_analysis"].topic_keywords == ["test"]
+        assert result_state["query_analysis"].query_intent == "other"

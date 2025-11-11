@@ -68,13 +68,13 @@ async def reindex_user_videos(user_id: str):
             logger.info(f"  Generating embeddings for {len(chunk_texts)} chunks...")
             embeddings = await embedding_service.generate_embeddings(
                 chunk_texts,
-                user_id=user_id
+                user_id=user_uuid
             )
 
             logger.info(f"  Generated {len(embeddings)} embeddings")
 
             # Upsert to Qdrant
-            logger.info(f"  Upserting to Qdrant...")
+            logger.info("  Upserting to Qdrant...")
             await qdrant_service.upsert_chunks(
                 chunk_ids=chunk_ids,
                 vectors=embeddings,

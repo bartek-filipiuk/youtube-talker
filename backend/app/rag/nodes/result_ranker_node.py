@@ -5,13 +5,13 @@ Re-ranks search results using LLM understanding of relevance.
 Provides explainability for ranking decisions.
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 from loguru import logger
 
-from app.rag.utils.state import GraphState
 from app.rag.utils.llm_client import LLMClient
 from app.rag.utils.prompt_loader import render_prompt
+from app.rag.utils.state import GraphState
 from app.schemas.llm_responses import ResultRanking
 
 
@@ -106,16 +106,6 @@ async def rank_search_results(state: GraphState) -> Dict[str, Any]:
         )
         logger.debug(f"     Reasoning: {video.reasoning}")
 
-    # Create video_id -> ranking info mapping for fast lookup
-    ranking_map = {
-        video.youtube_video_id: {
-            "llm_relevance_score": video.relevance_score,
-            "llm_reasoning": video.reasoning,
-            "llm_key_matches": video.key_matches
-        }
-        for video in ranking.ranked_videos
-    }
-
     # Re-order search_results based on LLM ranking and enrich with LLM metadata
     ranked_search_results = []
     for video_ranking in ranking.ranked_videos:
@@ -136,10 +126,22 @@ async def rank_search_results(state: GraphState) -> Dict[str, Any]:
             }
             ranked_search_results.append(enriched_result)
 
-    logger.info(
-        f"Search results re-ranked: {len(ranked_search_results)} videos "
-        f"(top LLM score: {ranked_search_results[0]['llm_relevance_score']:.2f})"
-    )
+    # Log results if we have any
+    if ranked_search_results:
+        logger.info(
+            f"Search results re-ranked: {len(ranked_search_results)} videos "
+            f"(top LLM score: {ranked_search_results[0]['llm_relevance_score']:.2f})"
+        )
+    else:
+        logger.warning("LLM re-ranking produced empty results - returning original search results")
+        return {
+            **state,
+            "metadata": {
+                **(state.get("metadata", {})),
+                "llm_ranking_applied": False,
+                "llm_ranking_error": "Empty ranking from LLM"
+            }
+        }
 
     # Update state
     return {
