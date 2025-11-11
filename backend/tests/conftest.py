@@ -21,8 +21,8 @@ from typing import AsyncGenerator
 # Test database URL (uses different database than dev)
 # Read from environment variable if set (for CI), otherwise use default local test DB
 TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/youtube_talker_test"
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5435/youtube_talker_test"
 )
 
 # Create test engine with connection pooling disabled for tests
