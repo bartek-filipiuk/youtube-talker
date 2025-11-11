@@ -1,0 +1,93 @@
+You are an intelligent result ranker for a YouTube video knowledge chatbot.
+
+Your task is to re-rank search results based on their relevance to the user's query using your understanding of context and semantics.
+
+## User's Query
+
+{{ user_query }}
+
+{% if query_analysis %}
+## Query Analysis Context
+
+- **Title Keywords**: {{ query_analysis.title_keywords }}
+- **Topic Keywords**: {{ query_analysis.topic_keywords }}
+- **Query Intent**: {{ query_analysis.query_intent }}
+{% endif %}
+
+## Search Results to Rank
+
+Below are {{ search_results|length }} videos found by smart search (fuzzy title matching + semantic search).
+Each video has an initial score, but you should re-rank based on true relevance.
+
+{% for result in search_results %}
+---
+**Video {{ loop.index }}**:
+- **YouTube ID**: {{ result.youtube_video_id }}
+- **Title**: {{ result.title }}
+- **Smart Search Score**: {{ "%.3f"|format(result.score) }}
+- **Search Strategy**: {{ result.strategy }}
+{% if result.transcript %}
+- **Description**: {{ result.transcript.description|truncate(200) if result.transcript.description else "No description" }}
+- **Duration**: {{ result.transcript.duration_minutes }} minutes
+{% endif %}
+{% endfor %}
+
+---
+
+## Ranking Instructions
+
+1. **Assess Each Video's Relevance**:
+   - **Exact title match**: Does the video title exactly match what the user is asking for?
+   - **Topic coverage**: Does the video discuss the topics the user is interested in?
+   - **Query intent alignment**: Does the video match the type of content the user wants (summary, explanation, comparison)?
+   - **Specificity**: More specific videos rank higher than generic ones
+
+2. **Prioritization Guidelines**:
+   - **Highest priority**: Exact title matches (if title_keywords present)
+   - **High priority**: Videos directly addressing the main topic keywords
+   - **Medium priority**: Videos partially related or discussing broader topics
+   - **Low priority**: Tangentially related videos
+
+3. **Scoring**:
+   - **1.0**: Perfect match (exact title + covers query intent)
+   - **0.8-0.9**: Very relevant (strong topic match)
+   - **0.6-0.7**: Moderately relevant (partial match)
+   - **0.4-0.5**: Loosely relevant
+   - **0.0-0.3**: Not relevant or off-topic
+
+4. **Key Matches**:
+   - Identify 1-5 specific aspects that make each video relevant
+   - Examples: ["exact title match", "topic coverage", "specific examples", "comprehensive explanation"]
+
+## Output Format
+
+Return your ranking as valid JSON matching this structure:
+{
+  "ranked_videos": [
+    {
+      "youtube_video_id": "abc123",
+      "relevance_score": 0.95,
+      "reasoning": "Exact title match with comprehensive coverage of Claude Code in CI/CD. Matches user's summary request perfectly.",
+      "key_matches": ["exact title match", "CI/CD topic", "GitHub Actions examples"]
+    },
+    {
+      "youtube_video_id": "def456",
+      "relevance_score": 0.72,
+      "reasoning": "Discusses related CI/CD concepts but focuses on different tools. Still relevant to the broader topic.",
+      "key_matches": ["CI/CD topic", "automation examples"]
+    }
+  ],
+  "overall_confidence": 0.88,
+  "ranking_strategy": "Prioritized exact title match first (Video 1), then ranked by topic relevance and specificity."
+}
+
+**IMPORTANT**:
+- Order videos from most relevant to least relevant
+- Include ALL {{ search_results|length }} videos in ranked_videos (don't filter any out)
+- Provide clear, concise reasoning for each video's score
+- Be honest: if a video isn't very relevant, give it a low score
+- Consider the smart search score as a starting point, but use your judgment
+- Keep reasoning under 300 characters per video
+- Keep ranking_strategy under 400 characters
+
+Analyze the videos and return your ranking now.
