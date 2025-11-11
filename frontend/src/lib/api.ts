@@ -1,5 +1,5 @@
 /**
- * API Client for YoutubeTalker Backend
+ * API Client for Qivio Backend
  * Handles all HTTP requests to the backend API
  */
 
@@ -23,6 +23,9 @@ export interface User {
 export interface ApiError {
   detail: string;
 }
+
+// Allowed AI model types
+export type AllowedModel = 'claude-haiku-4.5' | 'gemini-2.5-flash' | 'kimi-k2-thinking' | 'grok-4-fast';
 
 /**
  * Register a new user
@@ -177,14 +180,17 @@ export async function getLatestConversation(token: string): Promise<Conversation
 /**
  * Create a new conversation
  */
-export async function createConversation(token: string, title?: string): Promise<Conversation> {
+export async function createConversation(token: string, title?: string, model?: AllowedModel): Promise<Conversation> {
   const response = await fetch(`${API_BASE}/conversations`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ title: title || 'New conversation' }),
+    body: JSON.stringify({
+      title: title || 'New conversation',
+      model: model
+    }),
   });
 
   if (!response.ok) {

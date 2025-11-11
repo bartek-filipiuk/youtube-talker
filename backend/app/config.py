@@ -39,14 +39,18 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_CLAUDE_MODEL: str = "anthropic/claude-haiku-4.5"
     OPENROUTER_GEMINI_MODEL: str = "google/gemini-2.5-flash"
+    OPENROUTER_KIMI_MODEL: str = "moonshotai/kimi-k2-thinking"
+    OPENROUTER_GROK_MODEL: str = "x-ai/grok-4-fast"
     OPENROUTER_SITE_URL: str = "http://localhost:8000"
-    OPENROUTER_SITE_NAME: str = "YoutubeTalker"
+    OPENROUTER_SITE_NAME: str = "Qivio"
 
     # Available Models for Conversation Selection
     # These are the friendly names used in the UI and database
     AVAILABLE_MODELS: List[str] = [
         "claude-haiku-4.5",
         "gemini-2.5-flash",
+        "kimi-k2-thinking",
+        "grok-4-fast",
     ]
     DEFAULT_CONVERSATION_MODEL: str = "claude-haiku-4.5"
 

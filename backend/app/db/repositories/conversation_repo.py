@@ -20,18 +20,19 @@ class ConversationRepository(BaseRepository[Conversation]):
     def __init__(self, session: AsyncSession):
         super().__init__(Conversation, session)
 
-    async def create(self, user_id: UUID, title: Optional[str] = None) -> Conversation:
+    async def create(self, user_id: UUID, title: Optional[str] = None, model: Optional[str] = None) -> Conversation:
         """
         Create a new conversation.
 
         Args:
             user_id: User's UUID
             title: Optional conversation title
+            model: Optional AI model selection (defaults to database default)
 
         Returns:
             Created Conversation instance
         """
-        return await super().create(user_id=user_id, title=title)
+        return await super().create(user_id=user_id, title=title, model=model)
 
     async def list_by_user(
         self, user_id: UUID, limit: int = 50, offset: int = 0

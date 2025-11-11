@@ -74,11 +74,15 @@ class LLMClient:
         # Store model IDs for mapping
         self.claude_model = settings.OPENROUTER_CLAUDE_MODEL
         self.gemini_model = settings.OPENROUTER_GEMINI_MODEL
+        self.kimi_model = settings.OPENROUTER_KIMI_MODEL
+        self.grok_model = settings.OPENROUTER_GROK_MODEL
 
         # Model name mapping
         self._model_map = {
             "claude-haiku-4.5": settings.OPENROUTER_CLAUDE_MODEL,
             "gemini-2.5-flash": settings.OPENROUTER_GEMINI_MODEL,
+            "kimi-k2-thinking": settings.OPENROUTER_KIMI_MODEL,
+            "grok-4-fast": settings.OPENROUTER_GROK_MODEL,
         }
 
     def _create_llm(
