@@ -233,8 +233,8 @@ const currentUserId = auth.user.id;
 
   <!-- Scripts -->
   <script>
-    import { deleteUser, createUser, getRegistrationStatus, setRegistrationStatus } from '/src/lib/admin-api';
-    import { getClientToken, showToast, showConfirm } from '/src/lib/admin-auth';
+    import { deleteUser, createUser, getRegistrationStatus, setRegistrationStatus } from '@/lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '@/lib/admin-auth';
 
     // Get authentication token
     const token = getClientToken();
