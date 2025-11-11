@@ -124,9 +124,12 @@ fi
 echo ""
 echo -e "${YELLOW}▶️  Starting services...${NC}"
 
-# Reload systemd daemon to pick up any service file changes
-echo "Reloading systemd daemon..."
-sudo systemctl daemon-reload
+# Reload systemd daemon to pick up any service file changes (optional - only if passwordless sudo configured)
+if sudo -n systemctl daemon-reload 2>/dev/null; then
+    echo "✅ Systemd daemon reloaded"
+else
+    echo "ℹ️  Skipping daemon-reload (no passwordless sudo configured)"
+fi
 
 # Start backend service
 sudo systemctl start youtubetalker-backend
