@@ -8,7 +8,9 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+from app.config import settings
 
 
 class ConversationCreateRequest(BaseModel):
@@ -33,6 +35,16 @@ class ConversationCreateRequest(BaseModel):
         description="AI model to use (defaults to claude-haiku-4.5)"
     )
 
+    @field_validator('model')
+    @classmethod
+    def validate_model(cls, v: Optional[str]) -> Optional[str]:
+        """Validate model against available models."""
+        if v is not None and v not in settings.AVAILABLE_MODELS:
+            raise ValueError(
+                f"Model must be one of {settings.AVAILABLE_MODELS}, got '{v}'"
+            )
+        return v
+
 
 class ConversationUpdateRequest(BaseModel):
     """
@@ -54,6 +66,16 @@ class ConversationUpdateRequest(BaseModel):
         max_length=50,
         description="AI model (can only change before first message)"
     )
+
+    @field_validator('model')
+    @classmethod
+    def validate_model(cls, v: Optional[str]) -> Optional[str]:
+        """Validate model against available models."""
+        if v is not None and v not in settings.AVAILABLE_MODELS:
+            raise ValueError(
+                f"Model must be one of {settings.AVAILABLE_MODELS}, got '{v}'"
+            )
+        return v
 
 
 class ConversationResponse(BaseModel):

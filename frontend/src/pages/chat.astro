@@ -100,7 +100,7 @@ const activeConversationId = urlParams.get('id');
       if (error.message.includes('Conversation not found') || error.message.includes('Failed to load latest conversation')) {
         try {
           // Get selected model from UI or use undefined (defaults to database default)
-          const selectedModel = chatInput?.getModel?.();
+          const selectedModel = (window as any).chatInput?.getModel?.();
           const newConversation = await createConversation(token, undefined, selectedModel);
           conversationId = newConversation.id;
           window.location.href = `/chat?id=${conversationId}`;
@@ -125,7 +125,7 @@ const activeConversationId = urlParams.get('id');
 
     // Set model selector to conversation's saved model
     if (conversation.model) {
-      chatInput.setModel(conversation.model);
+      (window as any).chatInput?.setModel?.(conversation.model);
     }
 
     if (initialMessages.length > 0) {
@@ -357,7 +357,7 @@ const activeConversationId = urlParams.get('id');
       }
 
       // Create new conversation with selected model
-      const selectedModel = chatInput.getModel();
+      const selectedModel = chatInput?.getModel?.();
       const newConversation = await createConversation(token, undefined, selectedModel);
 
       // Redirect to new conversation
