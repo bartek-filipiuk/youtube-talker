@@ -1,12 +1,14 @@
 ---
 import '../styles/global.css';
 import 'highlight.js/styles/github-dark.css';
+import Header from '../components/Header.astro';
 
 interface Props {
   title: string;
+  showHeader?: boolean;
 }
 
-const { title } = Astro.props;
+const { title, showHeader = true } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -17,12 +19,16 @@ const { title } = Astro.props;
   <meta name="description" content="YoutubeTalker - Chat with YouTube videos using AI" />
   <title>{title} | YoutubeTalker</title>
 
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
   <!-- Google Fonts - Roboto Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-50 min-h-screen font-mono">
+  {showHeader && <Header />}
   <slot />
 </body>
 </html>
