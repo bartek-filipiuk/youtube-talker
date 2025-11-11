@@ -27,7 +27,8 @@
   const nav = document.getElementById('mainNav');
 
   if (!nav) {
-    throw new Error('Main navigation element not found');
+    console.error('Main navigation element not found');
+    return;
   }
 
   // Get current path to determine which page we're on
@@ -77,16 +78,12 @@
 
     // Add event listener for "New Chat" button if it exists
     if (isOnChatPage) {
-      // Wait for next tick to ensure button is in DOM
-      setTimeout(() => {
-        const newChatBtn = document.getElementById('newChatBtn');
-        if (newChatBtn) {
-          newChatBtn.addEventListener('click', () => {
-            // Trigger the same logic as the existing new chat functionality
-            window.dispatchEvent(new CustomEvent('newChatRequest'));
-          });
-        }
-      }, 0);
+      const newChatBtn = document.getElementById('newChatBtn');
+      if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+          window.dispatchEvent(new CustomEvent('newChatRequest'));
+        });
+      }
     }
   } else {
     // Logged-out navigation

@@ -142,7 +142,8 @@ import Layout from '../layouts/Layout.astro';
   const ctaContainer = document.getElementById('ctaContainer');
 
   if (!ctaContainer) {
-    throw new Error('CTA container not found');
+    console.error('CTA container not found');
+    return;
   }
 
   // Render CTA based on auth state
