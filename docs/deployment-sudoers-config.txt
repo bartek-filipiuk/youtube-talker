@@ -1,0 +1,41 @@
+# YoutubeTalker Deployment - Sudoers Configuration
+#
+# IMPORTANT: This file should be placed on your PRODUCTION SERVER at:
+# /etc/sudoers.d/youtubetalker-deploy
+#
+# Installation instructions:
+# 1. SSH to your production server
+# 2. sudo nano /etc/sudoers.d/youtubetalker-deploy
+# 3. Paste the content below (replace YOUR_DEPLOY_USER with actual username)
+# 4. Save and exit
+# 5. Validate: sudo visudo -cf /etc/sudoers.d/youtubetalker-deploy
+# 6. Test: sudo -n systemctl status youtubetalker-backend
+
+# Command alias for YoutubeTalker systemctl operations
+Cmnd_Alias YOUTUBETALKER_SVC = \
+    /bin/systemctl daemon-reload, \
+    /bin/systemctl start youtubetalker-backend, \
+    /bin/systemctl stop youtubetalker-backend, \
+    /bin/systemctl restart youtubetalker-backend, \
+    /bin/systemctl enable youtubetalker-backend, \
+    /bin/systemctl disable youtubetalker-backend, \
+    /bin/systemctl status youtubetalker-backend, \
+    /bin/systemctl start youtubetalker-frontend, \
+    /bin/systemctl stop youtubetalker-frontend, \
+    /bin/systemctl restart youtubetalker-frontend, \
+    /bin/systemctl enable youtubetalker-frontend, \
+    /bin/systemctl disable youtubetalker-frontend, \
+    /bin/systemctl status youtubetalker-frontend
+
+# Grant passwordless sudo for deployment user (REPLACE WITH YOUR USERNAME!)
+YOUR_DEPLOY_USER ALL=(ALL) NOPASSWD: YOUTUBETALKER_SVC
+
+# Alternative: If using ubuntu or different username, change above line to:
+# ubuntu ALL=(ALL) NOPASSWD: YOUTUBETALKER_SVC
+# deploy ALL=(ALL) NOPASSWD: YOUTUBETALKER_SVC
+
+# Security notes:
+# - Only grants access to specific systemctl commands
+# - Does NOT grant blanket sudo access (secure)
+# - Follows principle of least privilege
+# - Safe for automated deployments
