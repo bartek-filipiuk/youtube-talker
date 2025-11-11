@@ -26,74 +26,73 @@
 
   const nav = document.getElementById('mainNav');
 
-  if (!nav) {
-    console.error('Main navigation element not found');
-    return;
-  }
+  if (nav) {
+    // Get current path to determine which page we're on
+    const currentPath = window.location.pathname;
+    const isOnChatPage = currentPath === '/chat' || currentPath.startsWith('/chat?');
 
-  // Get current path to determine which page we're on
-  const currentPath = window.location.pathname;
-  const isOnChatPage = currentPath === '/chat' || currentPath.startsWith('/chat?');
+    // Check authentication and render appropriate nav
+    if (isAuthenticated()) {
+      // Logged-in navigation
+      let navHTML = '';
 
-  // Check authentication and render appropriate nav
-  if (isAuthenticated()) {
-    // Logged-in navigation
-    let navHTML = '';
+      // Show "New Chat" button only on /chat page
+      if (isOnChatPage) {
+        navHTML += `
+          <button
+            id="newChatBtn"
+            class="px-4 py-2 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition font-medium border border-green-600 hover:border-green-700"
+          >
+            + New Chat
+          </button>
+        `;
+      }
 
-    // Show "New Chat" button only on /chat page
-    if (isOnChatPage) {
+      // Standard navigation links
       navHTML += `
-        <button
-          id="newChatBtn"
-          class="px-4 py-2 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition font-medium border border-green-600 hover:border-green-700"
+        <a
+          href="/chat"
+          class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
         >
-          + New Chat
-        </button>
+          Chat
+        </a>
+        <a
+          href="/channels"
+          class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
+        >
+          Channels
+        </a>
+        <a
+          href="/logout"
+          class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
+        >
+          Logout
+        </a>
+      `;
+
+      nav.innerHTML = navHTML;
+
+      // Add event listener for "New Chat" button if it exists
+      if (isOnChatPage) {
+        const newChatBtn = document.getElementById('newChatBtn');
+        if (newChatBtn) {
+          newChatBtn.addEventListener('click', () => {
+            window.dispatchEvent(new CustomEvent('newChatRequest'));
+          });
+        }
+      }
+    } else {
+      // Logged-out navigation
+      nav.innerHTML = `
+        <a
+          href="/login"
+          class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
+        >
+          Login
+        </a>
       `;
     }
-
-    // Standard navigation links
-    navHTML += `
-      <a
-        href="/chat"
-        class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
-      >
-        Chat
-      </a>
-      <a
-        href="/channels"
-        class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
-      >
-        Channels
-      </a>
-      <a
-        href="/logout"
-        class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
-      >
-        Logout
-      </a>
-    `;
-
-    nav.innerHTML = navHTML;
-
-    // Add event listener for "New Chat" button if it exists
-    if (isOnChatPage) {
-      const newChatBtn = document.getElementById('newChatBtn');
-      if (newChatBtn) {
-        newChatBtn.addEventListener('click', () => {
-          window.dispatchEvent(new CustomEvent('newChatRequest'));
-        });
-      }
-    }
   } else {
-    // Logged-out navigation
-    nav.innerHTML = `
-      <a
-        href="/login"
-        class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
-      >
-        Login
-      </a>
-    `;
+    console.error('Main navigation element not found');
   }
 </script>

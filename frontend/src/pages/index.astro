@@ -141,31 +141,30 @@ import Layout from '../layouts/Layout.astro';
 
   const ctaContainer = document.getElementById('ctaContainer');
 
-  if (!ctaContainer) {
-    console.error('CTA container not found');
-    return;
-  }
-
-  // Render CTA based on auth state
-  if (isAuthenticated()) {
-    // Logged-in: Show "Go to Chat" button
-    ctaContainer.innerHTML = `
-      <a
-        href="/chat"
-        class="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-lg"
-      >
-        Go to Chat →
-      </a>
-    `;
+  if (ctaContainer) {
+    // Render CTA based on auth state
+    if (isAuthenticated()) {
+      // Logged-in: Show "Go to Chat" button
+      ctaContainer.innerHTML = `
+        <a
+          href="/chat"
+          class="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-lg"
+        >
+          Go to Chat →
+        </a>
+      `;
+    } else {
+      // Logged-out: Show "Login" button
+      ctaContainer.innerHTML = `
+        <a
+          href="/login"
+          class="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-lg"
+        >
+          Login to Get Started
+        </a>
+      `;
+    }
   } else {
-    // Logged-out: Show "Login" button
-    ctaContainer.innerHTML = `
-      <a
-        href="/login"
-        class="inline-block px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-lg"
-      >
-        Login to Get Started
-      </a>
-    `;
+    console.error('CTA container not found');
   }
 </script>
