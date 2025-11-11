@@ -204,8 +204,8 @@ if (!channel) {
 
   <!-- Scripts -->
   <script type="module">
-    import { addVideoToChannel, removeVideoFromChannel } from '../../../../lib/admin-api';
-    import { getClientToken, showToast, showConfirm } from '../../../../lib/admin-auth';
+    import { addVideoToChannel, removeVideoFromChannel } from '/src/lib/admin-api';
+    import { getClientToken, showToast, showConfirm } from '/src/lib/admin-auth';
 
     // Get authentication token
     const token = getClientToken();
