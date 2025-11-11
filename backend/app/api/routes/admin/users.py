@@ -55,15 +55,41 @@ def generate_random_password(length: int = 16) -> str:
     """
     Generate a cryptographically secure random password.
 
+    Guarantees at least one character from each required class:
+    uppercase, lowercase, digit, and symbol.
+
     Args:
-        length: Password length (default: 16 characters)
+        length: Password length (default: 16 characters, minimum 4)
 
     Returns:
-        Random password with mixed case, digits, and symbols
+        Random password with guaranteed mixed case, digits, and symbols
+
+    Raises:
+        ValueError: If length is less than 4
     """
-    # Use all printable ASCII characters except space
-    chars = string.ascii_letters + string.digits + string.punctuation.replace(' ', '')
-    return ''.join(secrets.choice(chars) for _ in range(length))
+    if length < 4:
+        raise ValueError("Password length must be at least 4 characters")
+
+    # Define character pools
+    symbols = string.punctuation.replace(' ', '')
+    pool = string.ascii_letters + string.digits + symbols
+
+    # Ensure at least one character from each required class
+    required = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice(symbols),
+    ]
+
+    # Fill remaining positions with random characters from full pool
+    remaining = [secrets.choice(pool) for _ in range(length - len(required))]
+
+    # Combine and shuffle to avoid predictable pattern
+    password_chars = required + remaining
+    secrets.SystemRandom().shuffle(password_chars)
+
+    return ''.join(password_chars)
 
 
 # ============================================================================
