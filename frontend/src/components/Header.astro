@@ -1,0 +1,98 @@
+---
+// Header navigation component with dynamic auth-based display
+---
+
+<header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <!-- Logo + Brand -->
+      <div class="flex items-center gap-3">
+        <a href="/" class="flex items-center gap-3 hover:opacity-80 transition">
+          <img src="/logo.svg" alt="YoutubeTalker Logo" class="h-12 w-12" />
+          <span class="text-xl font-bold text-gray-900">YoutubeTalker</span>
+        </a>
+      </div>
+
+      <!-- Navigation (dynamically populated by script) -->
+      <nav id="mainNav" class="flex items-center gap-2">
+        <!-- Will be populated by script based on auth state -->
+      </nav>
+    </div>
+  </div>
+</header>
+
+<script>
+  import { isAuthenticated } from '@/lib/auth';
+
+  const nav = document.getElementById('mainNav');
+
+  if (nav) {
+    // Get current path to determine which page we're on
+    const currentPath = window.location.pathname;
+    const isOnChatPage = currentPath === '/chat' || currentPath.startsWith('/chat?');
+
+    // Check authentication and render appropriate nav
+    if (isAuthenticated()) {
+      // Logged-in navigation
+      let navHTML = '';
+
+      // Show "New Chat" button only on /chat page
+      if (isOnChatPage) {
+        navHTML += `
+          <button
+            id="newChatBtn"
+            class="px-4 py-2 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition font-medium border border-green-600 hover:border-green-700"
+          >
+            + New Chat
+          </button>
+        `;
+      }
+
+      // Standard navigation links
+      navHTML += `
+        <a
+          href="/chat"
+          class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
+        >
+          Chat
+        </a>
+        <a
+          href="/channels"
+          class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
+        >
+          Channels
+        </a>
+        <a
+          href="/logout"
+          class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
+        >
+          Logout
+        </a>
+      `;
+
+      nav.innerHTML = navHTML;
+
+      // Add event listener for "New Chat" button if it exists
+      if (isOnChatPage) {
+        const newChatBtn = document.getElementById('newChatBtn');
+        if (newChatBtn) {
+          newChatBtn.addEventListener('click', () => {
+            window.dispatchEvent(new CustomEvent('newChatRequest'));
+          });
+        }
+      }
+    } else {
+      // Logged-out navigation
+      nav.innerHTML = `
+        <a
+          href="/login"
+          class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
+        >
+          Login
+        </a>
+      `;
+    }
+  } else {
+    console.error('Main navigation element not found');
+  }
+</script>

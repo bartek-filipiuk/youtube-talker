@@ -75,6 +75,30 @@ export function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
+/**
+ * Redirect to chat if user is already authenticated
+ * Use this on login/register pages to prevent logged-in users from seeing them
+ *
+ * @returns true if redirected, false if not authenticated
+ */
+export function redirectIfAuthenticated(): boolean {
+  // Check if we're in the browser
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  // Get token from localStorage
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    // User is authenticated - redirect to chat
+    window.location.href = '/chat';
+    return true;
+  }
+
+  return false;
+}
+
 // Re-export UI utilities for backward compatibility
 // Actual implementations are in ui-utils.ts
 export { showToast, showConfirm };
