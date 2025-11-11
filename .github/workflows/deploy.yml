@@ -99,7 +99,7 @@ jobs:
           fi
 
           # Check frontend
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://quivio.pl || echo "000")
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://qivio.pl || echo "000")
           if [ "$response" -eq 200 ]; then
             echo "✅ Frontend is healthy (HTTP $response)"
           else
