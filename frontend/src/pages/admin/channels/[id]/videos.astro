@@ -214,10 +214,10 @@ if (!channel) {
     // Add Video Form Handler
     // =========================================================================
 
-    const addVideoForm = document.getElementById('add-video-form') as HTMLFormElement;
-    const addVideoBtn = document.getElementById('add-video-btn') as HTMLButtonElement;
-    const addVideoError = document.getElementById('add-video-error') as HTMLDivElement;
-    const addVideoSuccess = document.getElementById('add-video-success') as HTMLDivElement;
+    const addVideoForm = document.getElementById('add-video-form');
+    const addVideoBtn = document.getElementById('add-video-btn');
+    const addVideoError = document.getElementById('add-video-error');
+    const addVideoSuccess = document.getElementById('add-video-success');
 
     if (!token) {
       addVideoError.textContent = 'Authentication required. Please log in again.';
@@ -231,8 +231,8 @@ if (!channel) {
       if (!token) return;
 
       const formData = new FormData(addVideoForm);
-      const channelId = formData.get('channel_id') as string;
-      const youtube_url = (formData.get('youtube_url') as string).trim();
+      const channelId = formData.get('channel_id');
+      const youtube_url = formData.get('youtube_url').trim();
 
       // Hide messages
       addVideoError.classList.add('hidden');
@@ -275,7 +275,7 @@ if (!channel) {
 
     document.querySelectorAll('.remove-video-btn').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
-        const button = e.target as HTMLButtonElement;
+        const button = e.target;
         const videoId = button.dataset.videoId;
         const videoTitle = button.dataset.videoTitle;
         const channelId = button.dataset.channelId;
