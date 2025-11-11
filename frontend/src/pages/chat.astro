@@ -99,7 +99,9 @@ const activeConversationId = urlParams.get('id');
       // This only happens for brand new users or when using "New Chat" button
       if (error.message.includes('Conversation not found') || error.message.includes('Failed to load latest conversation')) {
         try {
-          const newConversation = await createConversation(token);
+          // Get selected model from UI or use undefined (defaults to database default)
+          const selectedModel = chatInput?.getModel?.();
+          const newConversation = await createConversation(token, undefined, selectedModel);
           conversationId = newConversation.id;
           window.location.href = `/chat?id=${conversationId}`;
           // Stop execution here - page will reload with conversation ID
@@ -354,8 +356,9 @@ const activeConversationId = urlParams.get('id');
         newChatBtn.textContent = 'Creating...';
       }
 
-      // Create new conversation
-      const newConversation = await createConversation(token);
+      // Create new conversation with selected model
+      const selectedModel = chatInput.getModel();
+      const newConversation = await createConversation(token, undefined, selectedModel);
 
       // Redirect to new conversation
       window.location.href = `/chat?id=${newConversation.id}`;

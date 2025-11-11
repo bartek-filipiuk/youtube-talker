@@ -235,9 +235,13 @@ async def create_conversation(
     # Auto-generate title if not provided
     title = body.title or f"Chat {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}"
 
+    # Use provided model or None (falls back to database default)
+    model = body.model
+
     conversation = await repo.create(
         user_id=current_user.id,
-        title=title
+        title=title,
+        model=model
     )
 
     await db.commit()

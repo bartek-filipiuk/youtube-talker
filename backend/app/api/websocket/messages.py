@@ -28,9 +28,9 @@ class IncomingMessage(BaseModel):
         max_length=2000,
         description="User message content (max 2000 chars)"
     )
-    model: Optional[Literal["claude-haiku-4.5", "gemini-2.5-flash"]] = Field(
+    model: Optional[Literal["claude-haiku-4.5", "gemini-2.5-flash", "kimi-k2-thinking", "grok-4-fast"]] = Field(
         None,
-        description="LLM model to use (claude-haiku-4.5 or gemini-2.5-flash). If not provided, uses conversation's saved model."
+        description="LLM model to use. If not provided, uses conversation's saved model."
     )
 
     model_config = ConfigDict(
