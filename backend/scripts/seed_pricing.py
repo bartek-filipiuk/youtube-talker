@@ -77,6 +77,25 @@ async def seed_pricing():
                 "cost_per_request": 0.01,  # $0.01 per API call
                 "notes": "SUPADATA transcript fetch - fixed cost per YouTube video",
             },
+            # OpenRouter - Grok 4 Fast
+            {
+                "provider": "openrouter",
+                "model_name": "x-ai/grok-4-fast",
+                "pricing_type": "per_token",
+                "input_price_per_1m": 0.20,  # $0.20 per 1M input tokens
+                "output_price_per_1m": 0.50,  # $0.50 per 1M output tokens
+                "cache_discount": 0.25,  # 75% discount on cached tokens ($0.05)
+                "notes": "Grok 4 Fast via OpenRouter - 2M context window, fast inference",
+            },
+            # OpenRouter - Kimi K2 Thinking
+            {
+                "provider": "openrouter",
+                "model_name": "moonshotai/kimi-k2-thinking",
+                "pricing_type": "per_token",
+                "input_price_per_1m": 0.55,  # $0.55 per 1M input tokens
+                "output_price_per_1m": 2.25,  # $2.25 per 1M output tokens
+                "notes": "Kimi K2 Thinking via OpenRouter - deep reasoning model",
+            },
         ]
 
         print("🌱 Seeding model_pricing table...")
