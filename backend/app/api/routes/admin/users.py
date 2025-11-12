@@ -55,15 +55,41 @@ def generate_random_password(length: int = 16) -> str:
     """
     Generate a cryptographically secure random password.
 
+    Guarantees at least one character from each required class:
+    uppercase, lowercase, digit, and symbol.
+
     Args:
-        length: Password length (default: 16 characters)
+        length: Password length (default: 16 characters, minimum 4)
 
     Returns:
-        Random password with mixed case, digits, and symbols
+        Random password with guaranteed mixed case, digits, and symbols
+
+    Raises:
+        ValueError: If length is less than 4
     """
-    # Use all printable ASCII characters except space
-    chars = string.ascii_letters + string.digits + string.punctuation.replace(' ', '')
-    return ''.join(secrets.choice(chars) for _ in range(length))
+    if length < 4:
+        raise ValueError("Password length must be at least 4 characters")
+
+    # Define character pools
+    symbols = string.punctuation.replace(' ', '')
+    pool = string.ascii_letters + string.digits + symbols
+
+    # Ensure at least one character from each required class
+    required = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice(symbols),
+    ]
+
+    # Fill remaining positions with random characters from full pool
+    remaining = [secrets.choice(pool) for _ in range(length - len(required))]
+
+    # Combine and shuffle to avoid predictable pattern
+    password_chars = required + remaining
+    secrets.SystemRandom().shuffle(password_chars)
+
+    return ''.join(password_chars)
 
 
 # ============================================================================
@@ -234,6 +260,102 @@ async def list_users(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list users: {str(e)}",
+        ) from e
+
+
+@router.post("/{user_id}/reset-password", response_model=CreateUserResponse)
+@limiter.limit("10/minute")
+async def reset_user_password(
+    request: Request,
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+) -> CreateUserResponse:
+    """
+    Reset user password with auto-generated password (admin only).
+
+    Generates a new secure random password and returns it ONCE in the response.
+    Admin must save and share this password with the user.
+    Cannot reset your own password for security.
+
+    Rate limit: 10/minute
+
+    Args:
+        request: FastAPI request (for rate limiting)
+        user_id: UUID of user whose password to reset
+        db: Database session
+        admin: Authenticated admin user
+
+    Returns:
+        CreateUserResponse with user info and generated password
+
+    Raises:
+        HTTPException 400: Trying to reset own password
+        HTTPException 403: Non-admin access
+        HTTPException 404: User not found
+
+    Example:
+        >>> POST /api/admin/users/550e8400-e29b-41d4-a716-446655440000/reset-password
+        >>> Headers: {"Authorization": "Bearer <admin_token>"}
+        >>> Response: {
+        >>>   "user": {"id": "...", "email": "user@example.com", ...},
+        >>>   "generated_password": "xY9#mK2$pL7..."
+        >>> }
+    """
+    repo = UserRepository(db)
+
+    # Prevent admin from resetting their own password
+    if user_id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot reset your own password. Use the change password feature instead."
+        )
+
+    try:
+        # Get user to verify existence
+        user = await repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User {user_id} not found"
+            )
+
+        # Generate secure random password
+        password = generate_random_password()
+        password_hash = hash_password(password)
+
+        # Update password
+        await repo.update_password(user_id, password_hash)
+        await db.commit()
+        await db.refresh(user)
+
+        logger.info(f"Admin {admin.id} ({admin.email}) reset password for user {user.id} ({user.email})")
+
+        return CreateUserResponse(
+            user=UserItem(
+                id=user.id,
+                email=user.email,
+                role=user.role,
+                transcript_count=user.transcript_count,
+                created_at=user.created_at,
+            ),
+            generated_password=password
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # User not found from update_password
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        logger.error(f"Failed to reset password for user {user_id}: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset password: {str(e)}",
         ) from e
 
 
