@@ -11,7 +11,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import TranscriptAlreadyExistsError, InvalidInputError
+from app.core.errors import InvalidInputError, TranscriptAlreadyExistsError  # noqa: F401 - used by global handlers
 from app.db.session import get_db
 from app.db.models import User
 from app.db.repositories.transcript_repo import TranscriptRepository
@@ -23,6 +23,7 @@ from app.schemas.transcript import (
     VideoListResponse,
 )
 from app.services.transcript_service import TranscriptService
+from app.services.usage_service import UsageService
 
 # Rate limiter configuration
 limiter = Limiter(key_func=get_remote_address)
@@ -114,13 +115,15 @@ async def ingest_transcript(
     Ingest YouTube transcript for authenticated user.
 
     Full pipeline execution:
-        1. Fetch transcript from SUPADATA API
-        2. Check for duplicate (by youtube_video_id + user_id)
-        3. Save transcript to PostgreSQL
-        4. Chunk the transcript text (700 tokens, 20% overlap)
-        5. Generate embeddings (OpenAI text-embedding-3-small)
-        6. Save chunks to PostgreSQL
-        7. Upsert vectors to Qdrant
+        1. Check video usage limit (enforce subscription limits)
+        2. Fetch transcript from SUPADATA API
+        3. Check for duplicate (by youtube_video_id + user_id)
+        4. Save transcript to PostgreSQL
+        5. Chunk the transcript text (700 tokens, 20% overlap)
+        6. Generate embeddings (OpenAI text-embedding-3-small)
+        7. Save chunks to PostgreSQL
+        8. Upsert vectors to Qdrant
+        9. Record video usage
 
     Rate limit: 10 requests per minute per IP.
 
@@ -135,6 +138,7 @@ async def ingest_transcript(
 
     Raises:
         AuthenticationError: User not authenticated (401)
+        UsageLimitExceededError: Video limit exceeded (402)
         TranscriptAlreadyExistsError: Transcript already exists for this video (409)
         InvalidInputError: Invalid YouTube URL format (400)
         RateLimitExceededError: Rate limit exceeded (429)
@@ -152,6 +156,10 @@ async def ingest_transcript(
         >>>   "metadata": {"title": "...", "duration": 213, "language": "en"}
         >>> }
     """
+    # Check video usage limit before ingestion
+    usage_service = UsageService(db)
+    await usage_service.enforce_video_limit(user.id)
+
     service = TranscriptService()
 
     result = await service.ingest_transcript(
@@ -159,6 +167,9 @@ async def ingest_transcript(
         user_id=user.id,
         db_session=db,
     )
+
+    # Record successful video usage
+    await usage_service.record_video_usage(user.id)
 
     return TranscriptResponse(
         id=result["transcript_id"],

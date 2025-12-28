@@ -11,10 +11,11 @@ from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthenticationError
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password, verify_password, hash_token
 from app.db.session import get_db
 from app.db.models import User
 from app.db.repositories.user_repo import UserRepository
+from app.db.repositories.session_repo import SessionRepository
 from app.dependencies import get_current_user
 from app.schemas.auth import (
     RegisterRequest,
@@ -186,6 +187,7 @@ async def change_password(
     Change authenticated user's password.
 
     Requires old password verification for security.
+    Invalidates all other sessions for security (current session remains valid).
     Rate limit: 5 requests per minute per IP.
 
     Args:
@@ -216,8 +218,19 @@ async def change_password(
     new_password_hash = hash_password(body.new_password)
 
     # Update password in database
-    repo = UserRepository(db)
-    await repo.update_password(user.id, new_password_hash)
+    user_repo = UserRepository(db)
+    await user_repo.update_password(user.id, new_password_hash)
+
+    # Invalidate all other sessions (keep current session active)
+    # Extract current token from Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    current_token = auth_header.replace("Bearer ", "") if auth_header else None
+
+    if current_token:
+        current_token_hash = hash_token(current_token)
+        session_repo = SessionRepository(db)
+        await session_repo.delete_all_for_user(user.id, except_token_hash=current_token_hash)
+
     await db.commit()
 
     return {"message": "Password changed successfully"}

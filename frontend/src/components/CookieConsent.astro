@@ -1,0 +1,65 @@
+---
+// GDPR-compliant cookie consent banner
+// Shows on first visit, remembers preference in localStorage
+---
+
+<div
+  id="cookieConsent"
+  class="hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg"
+>
+  <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex-1">
+        <p class="text-sm text-gray-700">
+          We use essential cookies to keep you logged in and provide our services.
+          By continuing to use Qivio, you agree to our use of cookies.
+          <a href="/privacy" class="text-blue-600 hover:text-blue-700 underline">Privacy Policy</a>
+        </p>
+      </div>
+      <div class="flex gap-3 shrink-0">
+        <button
+          id="acceptCookies"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+        >
+          Accept
+        </button>
+        <a
+          href="/privacy"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+        >
+          Learn More
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CONSENT_KEY = 'qivio_cookie_consent';
+  const consentBanner = document.getElementById('cookieConsent') as HTMLDivElement;
+  const acceptBtn = document.getElementById('acceptCookies') as HTMLButtonElement;
+
+  // Check if user has already consented
+  function hasConsented(): boolean {
+    return localStorage.getItem(CONSENT_KEY) === 'accepted';
+  }
+
+  // Save consent
+  function saveConsent(): void {
+    localStorage.setItem(CONSENT_KEY, 'accepted');
+  }
+
+  // Show banner if no consent
+  if (!hasConsented()) {
+    // Delay slightly to avoid layout shift
+    setTimeout(() => {
+      consentBanner.classList.remove('hidden');
+    }, 1000);
+  }
+
+  // Handle accept button
+  acceptBtn.addEventListener('click', () => {
+    saveConsent();
+    consentBanner.classList.add('hidden');
+  });
+</script>

@@ -42,7 +42,9 @@ from app.core.errors import (
     ChannelNotFoundError,
     ConversationNotFoundError,
     ConversationAccessDeniedError,
+    UsageLimitExceededError,
 )
+from app.services.usage_service import UsageService
 
 
 async def detect_conversation_type(
@@ -223,6 +225,24 @@ async def websocket_endpoint(
                             message="Rate limit exceeded. Please wait a moment before sending another message.",
                             code="RATE_LIMIT"
                         ).model_dump()
+                    )
+                    continue
+
+                # Step 1b: Check message usage limit (subscription enforcement)
+                usage_service = UsageService(db)
+                try:
+                    await usage_service.enforce_message_limit(current_user.id)
+                except UsageLimitExceededError as e:
+                    await connection_manager.send_json(
+                        websocket,
+                        ErrorMessage(
+                            message=e.message,
+                            code="USAGE_LIMIT_EXCEEDED"
+                        ).model_dump()
+                    )
+                    logger.warning(
+                        f"Message limit exceeded for user {current_user.id}: "
+                        f"{e.used}/{e.limit}"
                     )
                     continue
 
@@ -521,6 +541,10 @@ async def websocket_endpoint(
 
                 # Update conversation timestamp
                 conversation.updated_at = datetime.now(timezone.utc)
+
+                # Record successful message usage for billing
+                await usage_service.record_message_usage(current_user.id)
+
                 await db.commit()
 
                 logger.info(

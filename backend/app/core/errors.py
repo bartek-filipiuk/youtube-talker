@@ -64,3 +64,20 @@ class VideoAlreadyInChannelError(Exception):
 class VideoNotInChannelError(Exception):
     """Raised when attempting to remove a video that's not in the channel."""
     pass
+
+
+class UsageLimitExceededError(Exception):
+    """Raised when user exceeds their subscription usage limit (videos or messages)."""
+
+    def __init__(
+        self,
+        limit_type: str,
+        used: int,
+        limit: int,
+        message: str = None,
+    ):
+        self.limit_type = limit_type
+        self.used = used
+        self.limit = limit
+        self.message = message or f"{limit_type.title()} limit exceeded: {used}/{limit}"
+        super().__init__(self.message)

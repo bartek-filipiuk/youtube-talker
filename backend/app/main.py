@@ -18,7 +18,7 @@ import app.core.logging  # noqa: F401
 from loguru import logger
 
 from app.core.middleware import setup_middleware
-from app.api.routes import auth, transcripts, health, conversations, channels, channel_conversations
+from app.api.routes import auth, transcripts, health, conversations, channels, channel_conversations, billing, stripe_webhook
 from app.api.routes.admin import channels_router, settings_router, stats_router, users_router
 from app.api.websocket.chat_handler import websocket_endpoint
 
@@ -36,6 +36,7 @@ from app.core.errors import (
     ChannelNotFoundError,
     VideoAlreadyInChannelError,
     VideoNotInChannelError,
+    UsageLimitExceededError,
 )
 from app.core.exception_handlers import (
     authentication_error_handler,
@@ -46,6 +47,7 @@ from app.core.exception_handlers import (
     transcript_not_found_handler,
     transcript_already_exists_handler,
     external_api_error_handler,
+    usage_limit_exceeded_handler,
     http_exception_handler,
     global_exception_handler,
 )
@@ -77,6 +79,7 @@ app.add_exception_handler(InvalidInputError, invalid_input_handler)
 app.add_exception_handler(TranscriptNotFoundError, transcript_not_found_handler)
 app.add_exception_handler(TranscriptAlreadyExistsError, transcript_already_exists_handler)
 app.add_exception_handler(ExternalAPIError, external_api_error_handler)
+app.add_exception_handler(UsageLimitExceededError, usage_limit_exceeded_handler)
 
 # Register HTTPException handler (preserves FastAPI's built-in HTTP exceptions)
 # MUST be registered before global Exception handler to prevent override
@@ -96,6 +99,8 @@ app.include_router(stats_router)  # Admin stats routes
 app.include_router(users_router)  # Admin user management routes
 app.include_router(channels.router)  # Public channel discovery
 app.include_router(channel_conversations.router)  # Channel conversations
+app.include_router(billing.router)  # Billing and subscription management
+app.include_router(stripe_webhook.router)  # Stripe webhook handler (no auth)
 
 # WebSocket endpoint
 app.websocket("/api/ws/chat")(websocket_endpoint)

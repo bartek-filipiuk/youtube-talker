@@ -310,7 +310,20 @@ const activeConversationId = urlParams.get('id');
     } else if (data.type === 'error') {
       // Clear all status messages on error
       statusQueue.clear();
-      showToast('Error: ' + (data.message || 'Unknown error'), 'error', 5000);
+
+      // Check for usage limit exceeded error
+      if (data.code === 'USAGE_LIMIT_EXCEEDED') {
+        // Dispatch event to show limit reached modal
+        window.dispatchEvent(new CustomEvent('limitReached', {
+          detail: {
+            limitType: data.message?.toLowerCase().includes('video') ? 'video' : 'message',
+            message: data.message,
+          }
+        }));
+      } else {
+        showToast('Error: ' + (data.message || 'Unknown error'), 'error', 5000);
+      }
+
       finalizeStreaming();
       chatInput.enable();
     }

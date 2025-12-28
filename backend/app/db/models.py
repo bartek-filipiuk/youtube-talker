@@ -445,6 +445,168 @@ class ModelPricing(Base):
         return f"<ModelPricing(id={self.id}, provider={self.provider}, model_name={self.model_name}, pricing_type={self.pricing_type})>"
 
 
+class SubscriptionPlan(Base):
+    """
+    Define subscription plan tiers (Free, Pro, Enterprise).
+
+    Each plan has limits for videos and messages per billing period.
+    Stripe price IDs link to Stripe products for payment processing.
+    """
+
+    __tablename__ = "subscription_plans"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name: Mapped[str] = mapped_column(
+        String(50), nullable=False, unique=True, index=True, comment="Unique plan identifier: free, pro, enterprise"
+    )
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    stripe_price_id_monthly: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True, comment="Stripe Price ID for monthly billing"
+    )
+    stripe_price_id_annual: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True, comment="Stripe Price ID for annual billing"
+    )
+    monthly_price_cents: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", comment="Price in cents: 1200 = $12.00"
+    )
+    annual_price_cents: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Annual price in cents: 11500 = $115.00"
+    )
+    video_limit: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Max videos per month. NULL = unlimited"
+    )
+    message_limit: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True, comment="Max messages per month. NULL = unlimited"
+    )
+    features: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'"), comment="Feature flags for this plan"
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("TRUE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+
+    # Relationships
+    subscriptions: Mapped[List["UserSubscription"]] = relationship(
+        "UserSubscription", back_populates="plan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<SubscriptionPlan(id={self.id}, name={self.name}, monthly_price_cents={self.monthly_price_cents})>"
+
+
+class UserSubscription(Base):
+    """
+    Link users to their subscription plan with Stripe integration.
+
+    Tracks subscription status, billing period, and Stripe identifiers.
+    Each user has exactly one subscription (Free by default).
+    """
+
+    __tablename__ = "user_subscriptions"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    plan_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("subscription_plans.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True, unique=True, index=True, comment="Stripe Customer ID"
+    )
+    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True, unique=True, index=True, comment="Stripe Subscription ID"
+    )
+    status: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="active", index=True,
+        comment="active, trialing, past_due, canceled, enterprise"
+    )
+    current_period_start: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="Start of current billing period"
+    )
+    current_period_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="End of current billing period"
+    )
+    cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("FALSE"),
+        comment="If true, subscription cancels at period end"
+    )
+    trial_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment="End of trial period if applicable"
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", backref="subscription")
+    plan: Mapped["SubscriptionPlan"] = relationship("SubscriptionPlan", back_populates="subscriptions")
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'trialing', 'past_due', 'canceled', 'enterprise')",
+            name="check_subscription_status",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UserSubscription(id={self.id}, user_id={self.user_id}, status={self.status})>"
+
+
+class UsageTracking(Base):
+    """
+    Track usage per user per billing period.
+
+    Records videos loaded and messages sent within each billing cycle.
+    Reset at the start of each new billing period.
+    """
+
+    __tablename__ = "usage_tracking"
+
+    id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    period_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, comment="Start of billing period"
+    )
+    period_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, comment="End of billing period"
+    )
+    videos_used: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", comment="Videos loaded this period"
+    )
+    messages_used: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0", comment="Messages sent this period"
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", backref="usage_tracking")
+
+    __table_args__ = (
+        Index("uq_user_period", "user_id", "period_start", unique=True),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UsageTracking(id={self.id}, user_id={self.user_id}, videos={self.videos_used}, messages={self.messages_used})>"
+
+
 class Channel(Base):
     """
     Admin-managed content channels for curated YouTube video collections.

@@ -7,6 +7,7 @@ All configuration is loaded from environment variables.
 
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -84,10 +85,54 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_ENDPOINT: str = "https://eu.api.smith.langchain.com"
 
+    # Stripe Configuration
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PRO_MONTHLY_PRICE_ID: str = ""
+    STRIPE_PRO_ANNUAL_PRICE_ID: str = ""
+
     @property
     def allowed_origins_list(self) -> List[str]:
         """Parse comma-separated ALLOWED_ORIGINS into a list."""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
+        """
+        Validate critical settings in production environment.
+
+        Ensures that security-sensitive settings are properly configured
+        before the application starts in production mode.
+
+        Raises:
+            ValueError: If SECRET_KEY is using default value in production
+        """
+        if self.ENV == "production":
+            # Check SECRET_KEY is not default
+            if self.SECRET_KEY == "your_secret_key_here_change_in_production":
+                raise ValueError(
+                    "SECRET_KEY must be changed from default value in production. "
+                    "Set a secure random string in your .env file."
+                )
+
+            # Check required API keys are set
+            if not self.OPENROUTER_API_KEY:
+                raise ValueError(
+                    "OPENROUTER_API_KEY must be set in production environment."
+                )
+
+            if not self.OPENAI_API_KEY:
+                raise ValueError(
+                    "OPENAI_API_KEY must be set in production environment."
+                )
+
+            if not self.SUPADATA_API_KEY:
+                raise ValueError(
+                    "SUPADATA_API_KEY must be set in production environment."
+                )
+
+        return self
 
 
 # Global settings instance

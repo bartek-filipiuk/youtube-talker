@@ -1,0 +1,168 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Privacy Policy" showFooter={true} showLimitModal={false}>
+  <div class="min-h-screen bg-white py-12 px-4">
+    <article class="max-w-3xl mx-auto prose prose-blue">
+      <h1>Privacy Policy</h1>
+      <p class="text-gray-500 text-sm">Last updated: December 2024</p>
+
+      <p>
+        This Privacy Policy describes how Qivio ("we", "us", or "our") collects, uses, and shares
+        information about you when you use our website and services (the "Service").
+      </p>
+
+      <h2>1. Information We Collect</h2>
+
+      <h3>1.1 Information You Provide</h3>
+      <ul>
+        <li><strong>Account Information:</strong> When you register, we collect your email address and password (stored securely using bcrypt hashing).</li>
+        <li><strong>Payment Information:</strong> Payment details are processed directly by Stripe. We do not store your credit card information.</li>
+        <li><strong>Content:</strong> Messages you send through our chat interface and YouTube video URLs you provide.</li>
+      </ul>
+
+      <h3>1.2 Information Collected Automatically</h3>
+      <ul>
+        <li><strong>Usage Data:</strong> We track your usage of the Service (number of videos loaded, messages sent) for billing and service improvement.</li>
+        <li><strong>Log Data:</strong> Server logs may include IP address, browser type, and timestamps for security and debugging purposes.</li>
+      </ul>
+
+      <h2>2. How We Use Your Information</h2>
+      <p>We use the information we collect to:</p>
+      <ul>
+        <li>Provide, maintain, and improve the Service</li>
+        <li>Process transactions and manage your subscription</li>
+        <li>Send you service-related communications</li>
+        <li>Respond to your requests and support inquiries</li>
+        <li>Detect and prevent fraud or abuse</li>
+        <li>Comply with legal obligations</li>
+      </ul>
+
+      <h2>3. Data Processors and Third Parties</h2>
+      <p>We share your information with the following third-party service providers who help us operate the Service:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Purpose</th>
+            <th>Data Shared</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Stripe</strong></td>
+            <td>Payment processing</td>
+            <td>Email, payment information</td>
+          </tr>
+          <tr>
+            <td><strong>OpenRouter</strong></td>
+            <td>AI language model processing</td>
+            <td>Chat messages (anonymized)</td>
+          </tr>
+          <tr>
+            <td><strong>OpenAI</strong></td>
+            <td>Embeddings generation</td>
+            <td>Video transcript text (anonymized)</td>
+          </tr>
+          <tr>
+            <td><strong>SUPADATA</strong></td>
+            <td>YouTube transcript fetching</td>
+            <td>YouTube video URLs</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>All third-party providers are bound by data processing agreements that comply with GDPR requirements.</p>
+
+      <h2>4. Data Retention</h2>
+      <ul>
+        <li><strong>Account Data:</strong> Retained while your account is active and for 30 days after deletion.</li>
+        <li><strong>Conversations:</strong> Stored indefinitely unless you delete them or your account.</li>
+        <li><strong>Usage Logs:</strong> Retained for 90 days for security and debugging.</li>
+        <li><strong>Payment Records:</strong> Retained for 7 years as required by tax regulations.</li>
+      </ul>
+
+      <h2>5. Your Rights (GDPR)</h2>
+      <p>Under the General Data Protection Regulation (GDPR), you have the following rights:</p>
+      <ul>
+        <li><strong>Access:</strong> Request a copy of your personal data</li>
+        <li><strong>Rectification:</strong> Correct inaccurate personal data</li>
+        <li><strong>Erasure:</strong> Request deletion of your personal data</li>
+        <li><strong>Portability:</strong> Receive your data in a structured, machine-readable format</li>
+        <li><strong>Restriction:</strong> Restrict processing of your personal data</li>
+        <li><strong>Objection:</strong> Object to processing based on legitimate interests</li>
+        <li><strong>Withdraw Consent:</strong> Withdraw consent at any time where processing is based on consent</li>
+      </ul>
+      <p>To exercise these rights, contact us at <a href="mailto:privacy@qivio.app">privacy@qivio.app</a>.</p>
+
+      <h2>6. Data Security</h2>
+      <p>We implement appropriate technical and organizational measures to protect your personal data, including:</p>
+      <ul>
+        <li>Encryption of data in transit (TLS/HTTPS)</li>
+        <li>Secure password hashing (bcrypt)</li>
+        <li>Session token security</li>
+        <li>Regular security reviews</li>
+      </ul>
+
+      <h2>7. International Data Transfers</h2>
+      <p>
+        Your data may be processed outside the European Economic Area (EEA) by our third-party
+        providers. We ensure appropriate safeguards are in place, including Standard Contractual
+        Clauses approved by the European Commission.
+      </p>
+
+      <h2>8. Cookies</h2>
+      <p>We use essential cookies required for the Service to function:</p>
+      <ul>
+        <li><strong>Session Cookies:</strong> To maintain your login state</li>
+      </ul>
+      <p>We do not use tracking or analytics cookies without your consent.</p>
+
+      <h2>9. Children's Privacy</h2>
+      <p>
+        The Service is not intended for children under 16. We do not knowingly collect personal
+        information from children under 16. If you believe we have collected such information,
+        please contact us immediately.
+      </p>
+
+      <h2>10. Changes to This Policy</h2>
+      <p>
+        We may update this Privacy Policy from time to time. We will notify you of significant
+        changes by posting the new policy on this page and updating the "Last updated" date.
+      </p>
+
+      <h2>11. Contact Us</h2>
+      <p>
+        If you have questions about this Privacy Policy or our privacy practices, please contact us:
+      </p>
+      <ul>
+        <li>Email: <a href="mailto:privacy@qivio.app">privacy@qivio.app</a></li>
+      </ul>
+
+      <h2>12. Data Controller</h2>
+      <p>
+        The data controller responsible for your personal data is:
+      </p>
+      <p>
+        <strong>[Your Company Name]</strong><br>
+        [Your Address]<br>
+        Poland<br>
+        EU VAT: [Your VAT Number]
+      </p>
+
+      <div class="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p class="text-sm text-yellow-800">
+          <strong>Note:</strong> This is a template privacy policy. Before launching, please have this
+          document reviewed by a legal professional to ensure compliance with all applicable laws
+          and your specific business practices.
+        </p>
+      </div>
+    </article>
+
+    <div class="text-center mt-8">
+      <a href="/" class="text-blue-600 hover:text-blue-700 font-medium">Back to Qivio</a>
+    </div>
+  </div>
+</Layout>

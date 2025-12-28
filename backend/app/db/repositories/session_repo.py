@@ -64,3 +64,36 @@ class SessionRepository(BaseRepository[Session]):
         )
         await self.session.flush()
         return result.rowcount
+
+    async def delete_all_for_user(
+        self, user_id: UUID, except_token_hash: Optional[str] = None
+    ) -> int:
+        """
+        Delete all sessions for a user.
+
+        Useful for invalidating all sessions on password change.
+        Can optionally keep the current session by passing its token hash.
+
+        Args:
+            user_id: User's UUID
+            except_token_hash: Optional token hash to exclude from deletion
+                              (keeps the current session active)
+
+        Returns:
+            Number of sessions deleted
+        """
+        if except_token_hash:
+            # Delete all sessions except the current one
+            result = await self.session.execute(
+                delete(Session).where(
+                    Session.user_id == user_id,
+                    Session.token_hash != except_token_hash,
+                )
+            )
+        else:
+            # Delete all sessions for this user
+            result = await self.session.execute(
+                delete(Session).where(Session.user_id == user_id)
+            )
+        await self.session.flush()
+        return result.rowcount

@@ -28,13 +28,21 @@ def setup_middleware(app: FastAPI) -> None:
         app: FastAPI application instance
     """
     # CORS Middleware - must be added first
+    # Restricted to specific methods and headers for production security
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins_list,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Request-ID",
+            "X-Requested-With",
+        ],
+        expose_headers=["X-Request-ID"],
     )
 
     # Request ID Middleware - must be first to inject request_id into context
@@ -109,6 +117,51 @@ def setup_middleware(app: FastAPI) -> None:
 
         return response
 
+    # Security Headers Middleware
+    @app.middleware("http")
+    async def security_headers_middleware(request: Request, call_next: Callable) -> Response:
+        """
+        Add security headers to all responses.
+
+        Headers added:
+        - X-Content-Type-Options: Prevent MIME type sniffing
+        - X-Frame-Options: Prevent clickjacking
+        - X-XSS-Protection: Enable XSS filter in older browsers
+        - Referrer-Policy: Control referrer information
+        - Permissions-Policy: Disable unnecessary browser features
+
+        Note: Strict-Transport-Security (HSTS) should be added at the
+        reverse proxy level (nginx/cloudflare) for HTTPS environments.
+
+        Args:
+            request: Incoming HTTP request
+            call_next: Next middleware or route handler
+
+        Returns:
+            Response: HTTP response with security headers
+        """
+        response = await call_next(request)
+
+        # Prevent MIME type sniffing attacks
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Prevent clickjacking - page cannot be embedded in frames
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # Enable XSS filter in older browsers
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Control referrer information sent with requests
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Disable unnecessary browser features
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
+
+        return response
+
     # Exception Handling Middleware
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -150,7 +203,14 @@ def get_cors_config() -> dict:
     return {
         "allow_origins": settings.allowed_origins_list,
         "allow_credentials": True,
-        "allow_methods": ["*"],
-        "allow_headers": ["*"],
-        "expose_headers": ["*"],
+        "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        "allow_headers": [
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Request-ID",
+            "X-Requested-With",
+        ],
+        "expose_headers": ["X-Request-ID"],
     }
