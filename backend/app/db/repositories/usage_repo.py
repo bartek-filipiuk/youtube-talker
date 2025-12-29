@@ -10,6 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import UsageTracking
@@ -54,6 +55,8 @@ class UsageRepository:
         Get or create usage record for current billing period.
 
         If no record exists for the current period, creates one.
+        Uses INSERT ON CONFLICT DO NOTHING to handle race conditions
+        when concurrent requests try to create the same record.
 
         Args:
             user_id: User's UUID
@@ -63,29 +66,28 @@ class UsageRepository:
         Returns:
             UsageTracking for current period
         """
-        # Try to get existing record for this period
+        # Use INSERT ON CONFLICT to safely handle concurrent requests
+        # The uq_user_period index ensures uniqueness on (user_id, period_start)
+        stmt = pg_insert(UsageTracking).values(
+            user_id=user_id,
+            period_start=period_start,
+            period_end=period_end,
+            videos_used=0,
+            messages_used=0,
+        ).on_conflict_do_nothing(
+            index_elements=["user_id", "period_start"]
+        )
+        await self.session.execute(stmt)
+        await self.session.flush()
+
+        # Fetch the record (either just inserted or already existing)
         result = await self.session.execute(
             select(UsageTracking).where(
                 UsageTracking.user_id == user_id,
                 UsageTracking.period_start == period_start,
             )
         )
-        usage = result.scalar_one_or_none()
-
-        if usage:
-            return usage
-
-        # Create new usage record
-        usage = UsageTracking(
-            user_id=user_id,
-            period_start=period_start,
-            period_end=period_end,
-            videos_used=0,
-            messages_used=0,
-        )
-        self.session.add(usage)
-        await self.session.flush()
-        return usage
+        return result.scalar_one()
 
     async def increment_videos(self, user_id: UUID) -> Optional[UsageTracking]:
         """

@@ -5,10 +5,14 @@ Pydantic models for billing API requests and responses.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+
+# Type alias for billing cycle
+BillingCycle = Literal["monthly", "annual"]
 
 
 # ============ Request Schemas ============
@@ -18,7 +22,7 @@ class CheckoutRequest(BaseModel):
     """Request to create a Stripe Checkout session."""
 
     plan_id: UUID = Field(..., description="Subscription plan UUID")
-    billing_cycle: str = Field(..., description="Billing cycle: 'monthly' or 'annual'")
+    billing_cycle: BillingCycle = Field(..., description="Billing cycle: 'monthly' or 'annual'")
 
 
 class PortalRequest(BaseModel):

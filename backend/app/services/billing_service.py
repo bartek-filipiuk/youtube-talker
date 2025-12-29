@@ -160,11 +160,56 @@ class BillingService:
 
     # ============ Usage Tracking ============
 
+    async def _maybe_advance_free_tier_period(
+        self, subscription: UserSubscription
+    ) -> UserSubscription:
+        """
+        Check if free-tier billing period has expired and advance it if needed.
+
+        Free-tier subscriptions don't have Stripe webhooks to reset their period,
+        so we need to check and advance manually.
+
+        Args:
+            subscription: User's subscription
+
+        Returns:
+            Updated subscription (possibly with new period)
+        """
+        # Only advance for free tier (no Stripe subscription)
+        if subscription.stripe_subscription_id:
+            return subscription
+
+        now = datetime.now(timezone.utc)
+
+        # Check if period has expired
+        if subscription.current_period_end and now >= subscription.current_period_end:
+            # Calculate new period (next calendar month)
+            period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            next_month = (period_start + timedelta(days=32)).replace(day=1)
+            period_end = next_month
+
+            # Update subscription period
+            updated = await self.subscription_repo.update_subscription(
+                user_id=subscription.user_id,
+                current_period_start=period_start,
+                current_period_end=period_end,
+            )
+
+            if updated:
+                logger.info(
+                    f"Advanced free-tier period for user {subscription.user_id}: "
+                    f"{period_start} - {period_end}"
+                )
+                return updated
+
+        return subscription
+
     async def get_current_usage(self, user_id: UUID) -> Optional[UsageTracking]:
         """
         Get user's current period usage.
 
-        Creates usage record if not exists.
+        Creates usage record if not exists. For free-tier users,
+        automatically advances the billing period if it has expired.
 
         Args:
             user_id: User's UUID
@@ -175,6 +220,9 @@ class BillingService:
         subscription = await self.get_user_subscription(user_id)
         if not subscription:
             return None
+
+        # Check and advance period for free-tier users if expired
+        subscription = await self._maybe_advance_free_tier_period(subscription)
 
         # Ensure usage record exists for current period
         return await self.usage_repo.get_or_create_current_usage(

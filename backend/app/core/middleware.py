@@ -155,9 +155,10 @@ def setup_middleware(app: FastAPI) -> None:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Disable unnecessary browser features
+        # Note: payment=(self) allows Stripe Checkout to use Payment Request API
         response.headers["Permissions-Policy"] = (
             "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
-            "magnetometer=(), microphone=(), payment=(), usb=()"
+            "magnetometer=(), microphone=(), usb=()"
         )
 
         return response

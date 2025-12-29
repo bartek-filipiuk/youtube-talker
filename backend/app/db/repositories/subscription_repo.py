@@ -36,15 +36,18 @@ class SubscriptionRepository:
         result = await self.session.execute(
             select(SubscriptionPlan).where(
                 SubscriptionPlan.name == name,
-                SubscriptionPlan.is_active == True,
+                SubscriptionPlan.is_active.is_(True),
             )
         )
         return result.scalar_one_or_none()
 
     async def get_plan_by_id(self, plan_id: UUID) -> Optional[SubscriptionPlan]:
-        """Get subscription plan by ID."""
+        """Get active subscription plan by ID."""
         result = await self.session.execute(
-            select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+            select(SubscriptionPlan).where(
+                SubscriptionPlan.id == plan_id,
+                SubscriptionPlan.is_active.is_(True),
+            )
         )
         return result.scalar_one_or_none()
 
@@ -62,7 +65,7 @@ class SubscriptionRepository:
             select(SubscriptionPlan).where(
                 (SubscriptionPlan.stripe_price_id_monthly == price_id)
                 | (SubscriptionPlan.stripe_price_id_annual == price_id),
-                SubscriptionPlan.is_active == True,
+                SubscriptionPlan.is_active.is_(True),
             )
         )
         return result.scalar_one_or_none()
@@ -70,19 +73,9 @@ class SubscriptionRepository:
     async def get_all_active_plans(self) -> list[SubscriptionPlan]:
         """Get all active subscription plans."""
         result = await self.session.execute(
-            select(SubscriptionPlan).where(SubscriptionPlan.is_active == True)
+            select(SubscriptionPlan).where(SubscriptionPlan.is_active.is_(True))
         )
         return list(result.scalars().all())
-
-    async def get_plan_by_id(self, plan_id: UUID) -> Optional[SubscriptionPlan]:
-        """Get a subscription plan by ID."""
-        result = await self.session.execute(
-            select(SubscriptionPlan).where(
-                SubscriptionPlan.id == plan_id,
-                SubscriptionPlan.is_active == True,
-            )
-        )
-        return result.scalar_one_or_none()
 
     # ============ UserSubscription Operations ============
 

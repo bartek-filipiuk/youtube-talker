@@ -10,8 +10,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models import StripeWebhookEvent
 from app.db.session import AsyncSessionLocal
 from app.services.billing_service import BillingService
 from app.services.stripe_service import StripeService
@@ -19,6 +22,41 @@ from app.services.stripe_service import StripeService
 
 # Create router - no auth prefix
 router = APIRouter(prefix="/api/stripe", tags=["stripe-webhook"])
+
+
+async def is_event_processed(db: AsyncSession, event_id: str) -> bool:
+    """
+    Check if a Stripe webhook event has already been processed.
+
+    Args:
+        db: Database session
+        event_id: Stripe event ID (evt_xxx)
+
+    Returns:
+        True if event was already processed, False otherwise
+    """
+    result = await db.execute(
+        select(StripeWebhookEvent.id).where(StripeWebhookEvent.id == event_id)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def mark_event_processed(db: AsyncSession, event_id: str, event_type: str) -> None:
+    """
+    Mark a Stripe webhook event as processed.
+
+    Uses INSERT ON CONFLICT DO NOTHING for thread safety.
+
+    Args:
+        db: Database session
+        event_id: Stripe event ID (evt_xxx)
+        event_type: Stripe event type
+    """
+    stmt = pg_insert(StripeWebhookEvent).values(
+        id=event_id,
+        event_type=event_type,
+    ).on_conflict_do_nothing(index_elements=["id"])
+    await db.execute(stmt)
 
 
 @router.post("/webhook")
@@ -58,15 +96,21 @@ async def stripe_webhook(request: Request):
         event = StripeService.verify_webhook_signature(payload, signature)
     except ValueError as e:
         logger.error(f"Webhook signature verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        raise HTTPException(status_code=400, detail="Invalid signature") from e
 
+    event_id = event.get("id", "unknown")
     event_type = event["type"]
     event_data = event["data"]["object"]
 
-    logger.info(f"Received Stripe webhook: {event_type}")
+    logger.info(f"Received Stripe webhook: {event_type} (event_id={event_id})")
 
     # Process event with database session
     async with AsyncSessionLocal() as db:
+        # Check for duplicate event (idempotency)
+        if await is_event_processed(db, event_id):
+            logger.info(f"Skipping duplicate webhook event: {event_id}")
+            return {"status": "already_processed"}
+
         billing_service = BillingService(db)
 
         try:
@@ -91,10 +135,12 @@ async def stripe_webhook(request: Request):
             else:
                 logger.debug(f"Unhandled webhook event type: {event_type}")
 
+            # Mark event as processed (prevents duplicate handling on retry)
+            await mark_event_processed(db, event_id, event_type)
             await db.commit()
 
         except Exception as e:
-            logger.exception(f"Error processing webhook {event_type}: {e}")
+            logger.exception(f"Error processing webhook {event_type} (event_id={event_id}): {e}")
             await db.rollback()
             # Return 200 to prevent Stripe retries for processing errors
             # Log error for manual investigation
@@ -176,18 +222,21 @@ async def handle_subscription_updated(
     status = subscription_data.get("status")
     cancel_at_period_end = subscription_data.get("cancel_at_period_end", False)
 
-    current_period_start = datetime.fromtimestamp(
-        subscription_data.get("current_period_start", 0), tz=timezone.utc
-    )
-    current_period_end = datetime.fromtimestamp(
-        subscription_data.get("current_period_end", 0), tz=timezone.utc
-    )
+    # Validate period timestamps are present
+    period_start_ts = subscription_data.get("current_period_start")
+    period_end_ts = subscription_data.get("current_period_end")
+
+    if not period_start_ts or not period_end_ts:
+        logger.error(f"Missing period timestamps in subscription {subscription_id}")
+        return
+
+    current_period_start = datetime.fromtimestamp(period_start_ts, tz=timezone.utc)
+    current_period_end = datetime.fromtimestamp(period_end_ts, tz=timezone.utc)
 
     trial_end = None
-    if subscription_data.get("trial_end"):
-        trial_end = datetime.fromtimestamp(
-            subscription_data.get("trial_end"), tz=timezone.utc
-        )
+    trial_end_ts = subscription_data.get("trial_end")
+    if trial_end_ts:
+        trial_end = datetime.fromtimestamp(trial_end_ts, tz=timezone.utc)
 
     await billing_service.handle_subscription_updated(
         stripe_subscription_id=subscription_id,

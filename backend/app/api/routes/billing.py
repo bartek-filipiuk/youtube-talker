@@ -5,17 +5,18 @@ REST endpoints for subscription management, checkout, and usage tracking.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from loguru import logger
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.session import get_db
 from app.db.models import User
 from app.dependencies import get_current_user
 from app.schemas.billing import (
     CheckoutRequest,
     CheckoutResponse,
-    PortalRequest,
     PortalResponse,
     SubscriptionResponse,
     UsageResponse,
@@ -24,6 +25,29 @@ from app.schemas.billing import (
     PlanResponse,
 )
 from app.services.billing_service import BillingService
+
+
+def get_validated_origin(request: Request) -> str:
+    """
+    Get origin from request, validated against allowlist.
+
+    Prevents open redirect vulnerabilities by only allowing
+    configured origins for redirect URLs.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        Validated origin URL or default fallback
+    """
+    origin = request.headers.get("origin", "")
+    allowed = settings.allowed_origins_list
+
+    if origin in allowed:
+        return origin
+
+    # Default to first allowed origin (usually localhost for dev)
+    return allowed[0] if allowed else "http://localhost:4321"
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -153,8 +177,8 @@ async def create_checkout(
             detail=f"No Stripe price configured for {body.billing_cycle} billing"
         )
 
-    # Generate URLs based on frontend origin
-    origin = request.headers.get("origin", "http://localhost:4321")
+    # Generate URLs based on validated frontend origin
+    origin = get_validated_origin(request)
     success_url = f"{origin}/billing?success=true"
     cancel_url = f"{origin}/pricing?canceled=true"
 
@@ -168,7 +192,10 @@ async def create_checkout(
         return CheckoutResponse(**result)
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Checkout session creation failed: {e}")
+        raise HTTPException(
+            status_code=400, detail="Failed to create checkout session"
+        ) from e
 
 
 @router.post("/portal", response_model=PortalResponse)
@@ -199,8 +226,8 @@ async def create_portal(
     """
     billing_service = BillingService(db)
 
-    # Generate return URL from origin
-    origin = request.headers.get("origin", "http://localhost:4321")
+    # Generate return URL from validated origin
+    origin = get_validated_origin(request)
     return_url = f"{origin}/billing"
 
     try:
@@ -211,9 +238,12 @@ async def create_portal(
         return PortalResponse(**result)
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to create portal session")
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception:
+        logger.exception("Portal session creation failed")
+        raise HTTPException(
+            status_code=500, detail="Failed to create portal session"
+        ) from None
 
 
 @router.get("/usage", response_model=UsageResponse)

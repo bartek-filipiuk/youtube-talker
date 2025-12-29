@@ -607,6 +607,31 @@ class UsageTracking(Base):
         return f"<UsageTracking(id={self.id}, user_id={self.user_id}, videos={self.videos_used}, messages={self.messages_used})>"
 
 
+class StripeWebhookEvent(Base):
+    """
+    Track processed Stripe webhook events for idempotency.
+
+    Prevents duplicate event processing when Stripe retries webhooks.
+    Events older than 30 days can be safely cleaned up.
+    """
+
+    __tablename__ = "stripe_webhook_events"
+
+    id: Mapped[str] = mapped_column(
+        String(255), primary_key=True, comment="Stripe event ID (evt_xxx)"
+    )
+    event_type: Mapped[str] = mapped_column(
+        String(100), nullable=False, comment="Stripe event type"
+    )
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("NOW()"),
+        comment="When the event was processed"
+    )
+
+    def __repr__(self) -> str:
+        return f"<StripeWebhookEvent(id={self.id}, type={self.event_type})>"
+
+
 class Channel(Base):
     """
     Admin-managed content channels for curated YouTube video collections.
