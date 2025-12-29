@@ -12,7 +12,6 @@ from uuid import UUID
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.db.models import User, SubscriptionPlan, UserSubscription, UsageTracking
 from app.db.repositories.subscription_repo import SubscriptionRepository
 from app.db.repositories.usage_repo import UsageRepository
@@ -244,11 +243,11 @@ class BillingService:
         """
         subscription = await self.get_user_subscription(user_id)
         if not subscription:
-            return False, 0, 0
+            return False, 0, None
 
         usage = await self.get_current_usage(user_id)
         if not usage:
-            return False, 0, 0
+            return False, 0, None
 
         video_limit = subscription.plan.video_limit
         videos_used = usage.videos_used
@@ -273,11 +272,11 @@ class BillingService:
         """
         subscription = await self.get_user_subscription(user_id)
         if not subscription:
-            return False, 0, 0
+            return False, 0, None
 
         usage = await self.get_current_usage(user_id)
         if not usage:
-            return False, 0, 0
+            return False, 0, None
 
         message_limit = subscription.plan.message_limit
         messages_used = usage.messages_used
@@ -446,10 +445,12 @@ class BillingService:
         period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         next_month = (period_start + timedelta(days=32)).replace(day=1)
 
-        # Downgrade to free
+        # Downgrade to free and clear Stripe IDs
         updated = await self.subscription_repo.update_subscription(
             user_id=subscription.user_id,
             plan_id=free_plan.id,
+            stripe_customer_id=None,
+            stripe_subscription_id=None,
             status="active",
             current_period_start=period_start,
             current_period_end=next_month,
