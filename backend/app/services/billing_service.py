@@ -150,7 +150,7 @@ class BillingService:
         subscription = await self.get_user_subscription(user_id)
 
         if not subscription or not subscription.stripe_customer_id:
-            raise ValueError("User has no active Stripe subscription")
+            raise ValueError("User has no Stripe customer ID for portal access")
 
         return await self.stripe_service.create_portal_session(
             stripe_customer_id=subscription.stripe_customer_id,
@@ -356,6 +356,9 @@ class BillingService:
             cancel_at_period_end=False,
         )
 
+        if not subscription:
+            raise ValueError(f"Failed to update subscription for user {user_id}")
+
         # Create/update usage tracking for new period
         await self.usage_repo.get_or_create_current_usage(
             user_id=user_id,
@@ -486,6 +489,7 @@ class BillingService:
         # Get fresh subscription data from Stripe
         stripe_sub = await self.stripe_service.get_subscription(stripe_subscription_id)
         if not stripe_sub:
+            logger.warning(f"Failed to fetch Stripe subscription: {stripe_subscription_id}")
             return None
 
         # Update subscription with new period

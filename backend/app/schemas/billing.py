@@ -25,12 +25,6 @@ class CheckoutRequest(BaseModel):
     billing_cycle: BillingCycle = Field(..., description="Billing cycle: 'monthly' or 'annual'")
 
 
-class PortalRequest(BaseModel):
-    """Request to create a Stripe Customer Portal session."""
-
-    return_url: Optional[str] = Field(None, description="URL to redirect after leaving portal")
-
-
 # ============ Response Schemas ============
 
 
