@@ -1,0 +1,348 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Billing - Qivio" showFooter={true}>
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div class="max-w-3xl mx-auto">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Billing & Subscription</h1>
+        <p class="text-gray-600">Manage your subscription and view usage</p>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loadingState" class="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div class="animate-pulse">
+          <div class="h-6 bg-gray-200 rounded w-1/3 mx-auto mb-4"></div>
+          <div class="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+        </div>
+      </div>
+
+      <!-- Content (hidden initially) -->
+      <div id="billingContent" class="hidden space-y-6">
+        <!-- Current Plan -->
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900">Current Plan</h2>
+              <p id="planName" class="text-2xl font-bold text-blue-600 mt-1">Free</p>
+            </div>
+            <div id="planBadge" class="hidden">
+              <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                Active
+              </span>
+            </div>
+          </div>
+
+          <!-- Subscription Details (for Pro users) -->
+          <div id="subscriptionDetails" class="hidden border-t border-gray-100 pt-6 mt-6">
+            <dl class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <dt class="text-gray-500">Status</dt>
+                <dd id="subStatus" class="font-medium text-gray-900 mt-1">Active</dd>
+              </div>
+              <div>
+                <dt class="text-gray-500">Billing Period</dt>
+                <dd id="billingPeriod" class="font-medium text-gray-900 mt-1">-</dd>
+              </div>
+              <div>
+                <dt class="text-gray-500">Next Invoice</dt>
+                <dd id="nextInvoice" class="font-medium text-gray-900 mt-1">-</dd>
+              </div>
+              <div id="trialInfo" class="hidden">
+                <dt class="text-gray-500">Trial Ends</dt>
+                <dd id="trialEnd" class="font-medium text-orange-600 mt-1">-</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Plan Actions -->
+          <div class="mt-6 flex flex-wrap gap-4">
+            <button
+              id="manageBtn"
+              class="hidden px-6 py-2 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition"
+            >
+              Manage Subscription
+            </button>
+            <a
+              id="upgradeLink"
+              href="/pricing"
+              class="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition"
+            >
+              Upgrade to Pro
+            </a>
+          </div>
+        </div>
+
+        <!-- Usage Stats -->
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+          <h2 class="text-xl font-semibold text-gray-900 mb-6">Usage This Month</h2>
+
+          <div class="space-y-6">
+            <!-- Videos -->
+            <div>
+              <div class="flex justify-between mb-2">
+                <span class="text-gray-700 font-medium">Videos</span>
+                <span id="videoUsage" class="text-gray-900 font-semibold">0 / 3</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  id="videoBar"
+                  class="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Messages -->
+            <div>
+              <div class="flex justify-between mb-2">
+                <span class="text-gray-700 font-medium">Messages</span>
+                <span id="messageUsage" class="text-gray-900 font-semibold">0 / 50</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  id="messageBar"
+                  class="bg-green-600 h-3 rounded-full transition-all duration-300"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Period Info -->
+          <p id="periodInfo" class="text-sm text-gray-500 mt-6">
+            Usage resets on the first of each month.
+          </p>
+        </div>
+
+        <!-- Cancel Warning (hidden by default) -->
+        <div id="cancelWarning" class="hidden bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+          <div class="flex items-start gap-4">
+            <svg class="w-6 h-6 text-yellow-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.999L13.732 4.001c-.77-1.333-2.694-1.333-3.464 0L3.34 16.001C2.57 17.334 3.532 19 5.072 19z" />
+            </svg>
+            <div>
+              <h3 class="font-semibold text-yellow-800">Subscription Ending</h3>
+              <p class="text-yellow-700 mt-1">
+                Your Pro subscription will end on <span id="cancelDate" class="font-medium">-</span>.
+                You can reactivate in the subscription management portal.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="errorState" class="hidden bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+        <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 class="font-semibold text-red-800 mb-2">Failed to load billing information</h3>
+        <p id="errorMessage" class="text-red-600 mb-4">Please try again later.</p>
+        <button
+          id="retryBtn"
+          class="px-6 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
+        >
+          Try Again
+        </button>
+      </div>
+
+      <!-- Back Link -->
+      <div class="text-center mt-8">
+        <a href="/chat" class="text-blue-600 hover:text-blue-700 font-medium">
+          Back to Chat
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { getAuth } from '@/lib/auth';
+  import { getSubscriptionStatus, getUsageStats, createPortalSession } from '@/lib/api';
+
+  // Check authentication
+  const auth = getAuth();
+  if (!auth.token) {
+    window.location.href = '/login?redirect=/billing';
+  }
+
+  // DOM Elements
+  const loadingState = document.getElementById('loadingState') as HTMLDivElement;
+  const billingContent = document.getElementById('billingContent') as HTMLDivElement;
+  const errorState = document.getElementById('errorState') as HTMLDivElement;
+  const errorMessage = document.getElementById('errorMessage') as HTMLParagraphElement;
+  const retryBtn = document.getElementById('retryBtn') as HTMLButtonElement;
+
+  // Plan elements
+  const planName = document.getElementById('planName') as HTMLParagraphElement;
+  const planBadge = document.getElementById('planBadge') as HTMLDivElement;
+  const subscriptionDetails = document.getElementById('subscriptionDetails') as HTMLDivElement;
+  const subStatus = document.getElementById('subStatus') as HTMLElement;
+  const billingPeriod = document.getElementById('billingPeriod') as HTMLElement;
+  const nextInvoice = document.getElementById('nextInvoice') as HTMLElement;
+  const trialInfo = document.getElementById('trialInfo') as HTMLDivElement;
+  const trialEnd = document.getElementById('trialEnd') as HTMLElement;
+  const manageBtn = document.getElementById('manageBtn') as HTMLButtonElement;
+  const upgradeLink = document.getElementById('upgradeLink') as HTMLAnchorElement;
+  const cancelWarning = document.getElementById('cancelWarning') as HTMLDivElement;
+  const cancelDate = document.getElementById('cancelDate') as HTMLSpanElement;
+
+  // Usage elements
+  const videoUsage = document.getElementById('videoUsage') as HTMLSpanElement;
+  const videoBar = document.getElementById('videoBar') as HTMLDivElement;
+  const messageUsage = document.getElementById('messageUsage') as HTMLSpanElement;
+  const messageBar = document.getElementById('messageBar') as HTMLDivElement;
+  const periodInfo = document.getElementById('periodInfo') as HTMLParagraphElement;
+
+  // Format date
+  function formatDate(dateStr: string | null): string {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  // Calculate percentage
+  function percentage(used: number, limit: number | null): number {
+    if (!limit) return 0;
+    return Math.min(100, Math.round((used / limit) * 100));
+  }
+
+  // Load billing data
+  async function loadBillingData() {
+    if (!auth.token) return;
+
+    loadingState.classList.remove('hidden');
+    billingContent.classList.add('hidden');
+    errorState.classList.add('hidden');
+
+    try {
+      const [status, usage] = await Promise.all([
+        getSubscriptionStatus(auth.token),
+        getUsageStats(auth.token),
+      ]);
+
+      // Update plan info
+      planName.textContent = status.plan_display_name;
+
+      // Show badge for paid plans
+      if (status.plan_name !== 'free') {
+        planBadge.classList.remove('hidden');
+        const badgeSpan = planBadge.querySelector('span')!;
+
+        if (status.status === 'trialing') {
+          badgeSpan.textContent = 'Trial';
+          badgeSpan.className = 'px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800';
+        } else if (status.status === 'active') {
+          badgeSpan.textContent = 'Active';
+          badgeSpan.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800';
+        } else if (status.status === 'past_due') {
+          badgeSpan.textContent = 'Past Due';
+          badgeSpan.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800';
+        } else if (status.status === 'canceled') {
+          badgeSpan.textContent = 'Canceled';
+          badgeSpan.className = 'px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800';
+        }
+
+        // Show subscription details
+        subscriptionDetails.classList.remove('hidden');
+        subStatus.textContent = status.status.charAt(0).toUpperCase() + status.status.slice(1);
+        billingPeriod.textContent = `${formatDate(status.current_period_start)} - ${formatDate(status.current_period_end)}`;
+        nextInvoice.textContent = status.cancel_at_period_end ? 'Not renewing' : formatDate(status.current_period_end);
+
+        // Show trial info if applicable
+        if (status.status === 'trialing' && status.trial_end) {
+          trialInfo.classList.remove('hidden');
+          trialEnd.textContent = formatDate(status.trial_end);
+        }
+
+        // Show manage button, hide upgrade link
+        manageBtn.classList.remove('hidden');
+        upgradeLink.classList.add('hidden');
+
+        // Show cancel warning if subscription is ending
+        if (status.cancel_at_period_end && status.current_period_end) {
+          cancelWarning.classList.remove('hidden');
+          cancelDate.textContent = formatDate(status.current_period_end);
+        }
+      }
+
+      // Update usage stats
+      const videoLimit = usage.videos_limit !== null ? usage.videos_limit : 'Unlimited';
+      const messageLimit = usage.messages_limit !== null ? usage.messages_limit : 'Unlimited';
+
+      videoUsage.textContent = `${usage.videos_used} / ${videoLimit}`;
+      messageUsage.textContent = `${usage.messages_used} / ${messageLimit}`;
+
+      if (usage.videos_limit !== null) {
+        const videoPct = percentage(usage.videos_used, usage.videos_limit);
+        videoBar.style.width = `${videoPct}%`;
+        if (videoPct >= 90) {
+          videoBar.classList.remove('bg-blue-600');
+          videoBar.classList.add('bg-red-500');
+        } else if (videoPct >= 70) {
+          videoBar.classList.remove('bg-blue-600');
+          videoBar.classList.add('bg-yellow-500');
+        }
+      } else {
+        videoBar.style.width = '0%';
+      }
+
+      if (usage.messages_limit !== null) {
+        const msgPct = percentage(usage.messages_used, usage.messages_limit);
+        messageBar.style.width = `${msgPct}%`;
+        if (msgPct >= 90) {
+          messageBar.classList.remove('bg-green-600');
+          messageBar.classList.add('bg-red-500');
+        } else if (msgPct >= 70) {
+          messageBar.classList.remove('bg-green-600');
+          messageBar.classList.add('bg-yellow-500');
+        }
+      } else {
+        messageBar.style.width = '0%';
+      }
+
+      // Update period info
+      periodInfo.textContent = `Usage resets on ${formatDate(usage.period_end)}`;
+
+      // Show content
+      loadingState.classList.add('hidden');
+      billingContent.classList.remove('hidden');
+
+    } catch (error) {
+      console.error('Failed to load billing data:', error);
+      loadingState.classList.add('hidden');
+      errorState.classList.remove('hidden');
+      errorMessage.textContent = error instanceof Error ? error.message : 'Unknown error';
+    }
+  }
+
+  // Handle manage subscription
+  manageBtn.addEventListener('click', async () => {
+    if (!auth.token) return;
+
+    manageBtn.disabled = true;
+    manageBtn.textContent = 'Loading...';
+
+    try {
+      const portal = await createPortalSession(auth.token);
+      window.location.href = portal.portal_url;
+    } catch (error) {
+      console.error('Portal error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to open portal');
+      manageBtn.disabled = false;
+      manageBtn.textContent = 'Manage Subscription';
+    }
+  });
+
+  // Handle retry
+  retryBtn.addEventListener('click', loadBillingData);
+
+  // Load data on page load
+  loadBillingData();
+</script>

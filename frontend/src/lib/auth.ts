@@ -76,6 +76,31 @@ export function getToken(): string | null {
 }
 
 /**
+ * Get full auth state from storage
+ *
+ * @returns Object with token and user, or empty values if not authenticated
+ */
+export function getAuth(): { token: string | null; user: User | null } {
+  if (typeof window === 'undefined') {
+    return { token: null, user: null };
+  }
+
+  const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('user');
+
+  if (!token || !userStr) {
+    return { token: null, user: null };
+  }
+
+  try {
+    const user = JSON.parse(userStr) as User;
+    return { token, user };
+  } catch {
+    return { token: null, user: null };
+  }
+}
+
+/**
  * Redirect to chat if user is already authenticated
  * Use this on login/register pages to prevent logged-in users from seeing them
  *

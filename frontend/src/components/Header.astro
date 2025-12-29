@@ -22,7 +22,9 @@
 </header>
 
 <script>
-  import { isAuthenticated } from '@/lib/auth';
+  import { isAuthenticated, getAuth } from '@/lib/auth';
+  import type { UsageStats, SubscriptionStatus } from '@/lib/api';
+  import { getUsageStats, getSubscriptionStatus } from '@/lib/api';
 
   const nav = document.getElementById('mainNav');
 
@@ -62,6 +64,47 @@
         >
           Channels
         </a>
+        <div class="relative" id="usageDropdown">
+          <button
+            id="usageBtn"
+            class="px-3 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium flex items-center gap-2"
+          >
+            <span id="usageSummary" class="hidden sm:inline">--/-- videos</span>
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div id="usageMenu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+            <div class="px-4 py-2 border-b border-gray-100">
+              <span id="planBadgeHeader" class="text-xs font-medium text-gray-500 uppercase">Free Plan</span>
+            </div>
+            <div class="px-4 py-3 space-y-3">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Videos</span>
+                  <span id="videoUsageHeader" class="font-medium">0/3</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div id="videoBarHeader" class="bg-blue-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Messages</span>
+                  <span id="messageUsageHeader" class="font-medium">0/50</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div id="messageBarHeader" class="bg-green-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="px-4 py-2 border-t border-gray-100">
+              <a href="/billing" class="block text-sm text-blue-600 hover:text-blue-700 font-medium">
+                Manage Billing
+              </a>
+            </div>
+          </div>
+        </div>
         <a
           href="/logout"
           class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
@@ -81,9 +124,36 @@
           });
         }
       }
+
+      // Setup usage dropdown
+      const usageBtn = document.getElementById('usageBtn');
+      const usageMenu = document.getElementById('usageMenu');
+
+      if (usageBtn && usageMenu) {
+        usageBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          usageMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+          usageMenu.classList.add('hidden');
+        });
+      }
+
+      // Load usage stats
+      const auth = getAuth();
+      if (auth.token) {
+        loadUsageStats(auth.token);
+      }
     } else {
       // Logged-out navigation
       nav.innerHTML = `
+        <a
+          href="/pricing"
+          class="px-4 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition font-medium"
+        >
+          Pricing
+        </a>
         <a
           href="/login"
           class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
@@ -94,5 +164,68 @@
     }
   } else {
     console.error('Main navigation element not found');
+  }
+
+  async function loadUsageStats(token: string) {
+    try {
+      const [usage, status] = await Promise.all([
+        getUsageStats(token),
+        getSubscriptionStatus(token),
+      ]);
+
+      // Update summary
+      const usageSummary = document.getElementById('usageSummary');
+      const planBadge = document.getElementById('planBadgeHeader');
+      const videoUsage = document.getElementById('videoUsageHeader');
+      const messageUsage = document.getElementById('messageUsageHeader');
+      const videoBar = document.getElementById('videoBarHeader');
+      const messageBar = document.getElementById('messageBarHeader');
+
+      if (usageSummary && usage.videos_limit !== null) {
+        usageSummary.textContent = `${usage.videos_used}/${usage.videos_limit} videos`;
+      } else if (usageSummary) {
+        usageSummary.textContent = `${usage.videos_used} videos`;
+      }
+
+      if (planBadge) {
+        planBadge.textContent = status.plan_display_name + ' Plan';
+      }
+
+      if (videoUsage) {
+        const limit = usage.videos_limit !== null ? usage.videos_limit : '\u221E';
+        videoUsage.textContent = `${usage.videos_used}/${limit}`;
+      }
+
+      if (messageUsage) {
+        const limit = usage.messages_limit !== null ? usage.messages_limit : '\u221E';
+        messageUsage.textContent = `${usage.messages_used}/${limit}`;
+      }
+
+      if (videoBar && usage.videos_limit !== null) {
+        const pct = Math.min(100, Math.round((usage.videos_used / usage.videos_limit) * 100));
+        videoBar.style.width = `${pct}%`;
+        if (pct >= 90) {
+          videoBar.classList.remove('bg-blue-600');
+          videoBar.classList.add('bg-red-500');
+        } else if (pct >= 70) {
+          videoBar.classList.remove('bg-blue-600');
+          videoBar.classList.add('bg-yellow-500');
+        }
+      }
+
+      if (messageBar && usage.messages_limit !== null) {
+        const pct = Math.min(100, Math.round((usage.messages_used / usage.messages_limit) * 100));
+        messageBar.style.width = `${pct}%`;
+        if (pct >= 90) {
+          messageBar.classList.remove('bg-green-600');
+          messageBar.classList.add('bg-red-500');
+        } else if (pct >= 70) {
+          messageBar.classList.remove('bg-green-600');
+          messageBar.classList.add('bg-yellow-500');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load usage stats:', error);
+    }
   }
 </script>

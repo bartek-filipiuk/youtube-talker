@@ -1,0 +1,45 @@
+---
+// Footer component with legal links and copyright
+---
+
+<footer class="bg-gray-50 border-t border-gray-200 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <!-- Logo and Copyright -->
+      <div class="flex items-center gap-3">
+        <img src="/logo.svg" alt="Qivio" class="h-6 w-6" />
+        <span class="text-sm text-gray-600">
+          &copy; {new Date().getFullYear()} Qivio. All rights reserved.
+        </span>
+      </div>
+
+      <!-- Legal Links -->
+      <nav class="flex items-center gap-6">
+        <a
+          href="/pricing"
+          class="text-sm text-gray-600 hover:text-blue-600 transition"
+        >
+          Pricing
+        </a>
+        <a
+          href="/privacy"
+          class="text-sm text-gray-600 hover:text-blue-600 transition"
+        >
+          Privacy Policy
+        </a>
+        <a
+          href="/terms"
+          class="text-sm text-gray-600 hover:text-blue-600 transition"
+        >
+          Terms of Service
+        </a>
+        <a
+          href="mailto:support@qivio.app"
+          class="text-sm text-gray-600 hover:text-blue-600 transition"
+        >
+          Contact
+        </a>
+      </nav>
+    </div>
+  </div>
+</footer>

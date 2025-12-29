@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: youtube_talker
     ports:
-      - "5432:5432"
+      - "5437:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

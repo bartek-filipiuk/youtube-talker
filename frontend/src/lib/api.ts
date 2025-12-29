@@ -351,3 +351,173 @@ export async function deleteTranscript(token: string, transcriptId: string): Pro
     throw new Error(error.detail || 'Failed to delete transcript');
   }
 }
+
+// ============================================================================
+// Billing & Subscription Management
+// ============================================================================
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  display_name: string;
+  monthly_price_cents: number;
+  annual_price_cents: number | null;
+  video_limit: number | null;
+  message_limit: number | null;
+  features: Record<string, boolean>;
+}
+
+export interface SubscriptionStatus {
+  plan_name: string;
+  plan_display_name: string;
+  status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'none';
+  current_period_start: string | null;
+  current_period_end: string | null;
+  trial_end: string | null;
+  cancel_at_period_end: boolean;
+  video_limit: number | null;
+  message_limit: number | null;
+}
+
+export interface UsageStats {
+  videos_used: number;
+  videos_limit: number | null;
+  messages_used: number;
+  messages_limit: number | null;
+  period_start: string;
+  period_end: string;
+}
+
+export interface CheckoutSession {
+  checkout_url: string;
+  session_id: string;
+}
+
+export interface PortalSession {
+  portal_url: string;
+}
+
+/**
+ * Get available subscription plans (public endpoint)
+ */
+export async function getPlans(): Promise<SubscriptionPlan[]> {
+  const response = await fetch(`${API_BASE}/billing/plans`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to fetch plans');
+  }
+
+  const data = await response.json();
+  return data.plans;
+}
+
+/**
+ * Get current user's subscription status
+ */
+export async function getSubscriptionStatus(token: string): Promise<SubscriptionStatus> {
+  const response = await fetch(`${API_BASE}/billing/status`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to fetch subscription status');
+  }
+
+  // Backend returns nested structure, transform to flat interface
+  const data = await response.json();
+  const sub = data.subscription;
+
+  return {
+    plan_name: sub?.plan?.name || 'free',
+    plan_display_name: sub?.plan?.display_name || 'Free',
+    status: sub?.status || 'none',
+    current_period_start: sub?.current_period_start || null,
+    current_period_end: sub?.current_period_end || null,
+    trial_end: sub?.trial_end || null,
+    cancel_at_period_end: sub?.cancel_at_period_end || false,
+    video_limit: sub?.plan?.video_limit || null,
+    message_limit: sub?.plan?.message_limit || null,
+  };
+}
+
+/**
+ * Get current user's usage stats
+ */
+export async function getUsageStats(token: string): Promise<UsageStats> {
+  const response = await fetch(`${API_BASE}/billing/usage`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to fetch usage stats');
+  }
+
+  // Backend returns UsageResponse directly
+  const data = await response.json();
+  return {
+    videos_used: data.videos_used || 0,
+    videos_limit: data.videos_limit,
+    messages_used: data.messages_used || 0,
+    messages_limit: data.messages_limit,
+    period_start: data.period_start,
+    period_end: data.period_end,
+  };
+}
+
+/**
+ * Create a Stripe checkout session for subscription
+ */
+export async function createCheckoutSession(
+  token: string,
+  planId: string,
+  billingCycle: 'monthly' | 'annual'
+): Promise<CheckoutSession> {
+  const response = await fetch(`${API_BASE}/billing/checkout`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      plan_id: planId,
+      billing_cycle: billingCycle,
+    }),
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to create checkout session');
+  }
+
+  return response.json();
+}
+
+/**
+ * Create a Stripe customer portal session
+ */
+export async function createPortalSession(token: string): Promise<PortalSession> {
+  const response = await fetch(`${API_BASE}/billing/portal`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    throw new Error(error.detail || 'Failed to create portal session');
+  }
+
+  return response.json();
+}

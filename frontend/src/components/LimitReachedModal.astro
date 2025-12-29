@@ -1,0 +1,158 @@
+---
+// Modal component shown when user exceeds their subscription limits
+---
+
+<div
+  id="limitReachedModal"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+>
+  <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+      <div class="flex items-center gap-3">
+        <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h2 class="text-xl font-bold text-white">Usage Limit Reached</h2>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="px-6 py-6">
+      <p id="limitMessage" class="text-gray-700 mb-6">
+        You've reached your monthly usage limit. Upgrade to Pro to continue chatting with YouTube videos.
+      </p>
+
+      <!-- Usage Stats -->
+      <div id="limitStats" class="bg-gray-50 rounded-lg p-4 mb-6 space-y-3">
+        <div id="videoLimitRow">
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-600">Videos</span>
+            <span id="limitVideoUsage" class="font-medium text-red-600">3/3 used</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-red-500 h-2 rounded-full w-full"></div>
+          </div>
+        </div>
+        <div id="messageLimitRow">
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-600">Messages</span>
+            <span id="limitMessageUsage" class="font-medium text-red-600">50/50 used</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-red-500 h-2 rounded-full w-full"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pro Benefits -->
+      <div class="mb-6">
+        <h3 class="font-semibold text-gray-900 mb-3">Upgrade to Pro and get:</h3>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <strong>50 videos</strong> per month (instead of 3)
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <strong>1,000 messages</strong> per month (instead of 50)
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            7-day free trial - cancel anytime
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+      <button
+        id="closeLimitModal"
+        class="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition"
+      >
+        Maybe Later
+      </button>
+      <a
+        href="/pricing"
+        class="flex-1 px-4 py-2 text-center text-white bg-blue-600 rounded-lg font-medium hover:bg-blue-700 transition"
+      >
+        View Pricing
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('limitReachedModal') as HTMLDivElement;
+  const closeBtn = document.getElementById('closeLimitModal') as HTMLButtonElement;
+  const limitMessage = document.getElementById('limitMessage') as HTMLParagraphElement;
+  const videoLimitRow = document.getElementById('videoLimitRow') as HTMLDivElement;
+  const messageLimitRow = document.getElementById('messageLimitRow') as HTMLDivElement;
+  const limitVideoUsage = document.getElementById('limitVideoUsage') as HTMLSpanElement;
+  const limitMessageUsage = document.getElementById('limitMessageUsage') as HTMLSpanElement;
+
+  // Close modal on button click
+  closeBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  // Close modal on backdrop click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.classList.add('hidden');
+    }
+  });
+
+  // Close modal on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      modal.classList.add('hidden');
+    }
+  });
+
+  // Listen for custom event to show modal
+  interface LimitReachedDetail {
+    limitType: 'video' | 'message';
+    used?: number;
+    limit?: number;
+    message?: string;
+  }
+
+  window.addEventListener('limitReached', ((e: CustomEvent<LimitReachedDetail>) => {
+    const { limitType, used, limit, message } = e.detail;
+
+    // Update message
+    if (message) {
+      limitMessage.textContent = message;
+    } else if (limitType === 'video') {
+      limitMessage.textContent = "You've reached your monthly video limit. Upgrade to Pro to load more YouTube videos.";
+    } else {
+      limitMessage.textContent = "You've reached your monthly message limit. Upgrade to Pro to continue chatting.";
+    }
+
+    // Highlight the relevant limit
+    if (limitType === 'video') {
+      videoLimitRow.classList.add('bg-red-50', 'p-2', 'rounded', '-mx-2');
+      messageLimitRow.classList.remove('bg-red-50', 'p-2', 'rounded', '-mx-2');
+      if (used !== undefined && limit !== undefined) {
+        limitVideoUsage.textContent = `${used}/${limit} used`;
+      }
+    } else {
+      messageLimitRow.classList.add('bg-red-50', 'p-2', 'rounded', '-mx-2');
+      videoLimitRow.classList.remove('bg-red-50', 'p-2', 'rounded', '-mx-2');
+      if (used !== undefined && limit !== undefined) {
+        limitMessageUsage.textContent = `${used}/${limit} used`;
+      }
+    }
+
+    // Show modal
+    modal.classList.remove('hidden');
+  }) as EventListener);
+</script>

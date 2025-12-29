@@ -18,6 +18,7 @@ from app.core.errors import (
     TranscriptNotFoundError,
     TranscriptAlreadyExistsError,
     ExternalAPIError,
+    UsageLimitExceededError,
 )
 
 
@@ -151,6 +152,27 @@ async def external_api_error_handler(
         detail="External service temporarily unavailable. Please try again later.",
         error_code="EXTERNAL_API_ERROR",
         request_id=getattr(request.state, "request_id", "unknown")
+    )
+
+
+async def usage_limit_exceeded_handler(
+    request: Request, exc: UsageLimitExceededError
+) -> JSONResponse:
+    """Handle UsageLimitExceededError → 402 Payment Required response."""
+    logger.warning(
+        f"Usage limit exceeded: {request.url.path} - "
+        f"type={exc.limit_type}, used={exc.used}, limit={exc.limit}"
+    )
+    return JSONResponse(
+        status_code=402,  # Payment Required
+        content={
+            "detail": exc.message,
+            "error_code": "USAGE_LIMIT_EXCEEDED",
+            "limit_type": exc.limit_type,
+            "used": exc.used,
+            "limit": exc.limit,
+            "request_id": getattr(request.state, "request_id", "unknown"),
+        },
     )
 
 
